@@ -86,7 +86,7 @@ public class ShopRenderer {
     
     private void loadBackgroundImage() {
         try {
-            InputStream inputStream = getClass().getClassLoader().getResourceAsStream("sprites/Background-0.jpg");
+            InputStream inputStream = getClass().getClassLoader().getResourceAsStream("sprites/backgrounds/Background-0.jpg");
             if (inputStream != null) {
                 backgroundImage = ImageIO.read(inputStream);
             }

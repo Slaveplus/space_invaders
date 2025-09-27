@@ -1,5 +1,9 @@
 package org.newdawn.spaceinvaders.entity;
 
+import java.awt.AlphaComposite;
+import java.awt.Graphics;
+import java.awt.Graphics2D;
+
 import org.newdawn.spaceinvaders.Game;
 
 /**
@@ -44,6 +48,30 @@ public class ShipEntity extends Entity {
 		}
 		
 		super.move(delta);
+	}
+	
+	/**
+	 * Draw this entity to the graphics context provided with invincibility effect
+	 * 
+	 * @param g The graphics context on which to draw
+	 */
+	@Override
+	public void draw(Graphics g) {
+		Graphics2D g2d = (Graphics2D) g;
+		
+		// Check if player is invincible
+		if (game.isPlayerInvincible()) {
+			// Apply transparency effect for invincibility
+			g2d.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, 0.5f));
+		}
+		
+		// Draw the ship
+		sprite.draw(g2d, (int) x, (int) y);
+		
+		// Reset composite if it was changed
+		if (game.isPlayerInvincible()) {
+			g2d.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, 1.0f));
+		}
 	}
 	
 	/**

@@ -1,4 +1,4 @@
-package org.newdawn.spaceinvaders;
+package org.newdawn.spaceinvaders.menu;
 
 import java.awt.*;
 import java.awt.event.KeyEvent;
@@ -99,7 +99,7 @@ public class MainMenu {
      */
     private void loadBackgroundImage() {
         try {
-            InputStream inputStream = getClass().getClassLoader().getResourceAsStream("sprites/Background-0.jpg");
+            InputStream inputStream = getClass().getClassLoader().getResourceAsStream("sprites/backgrounds/Background-0.jpg");
             if (inputStream != null) {
                 backgroundImage = ImageIO.read(inputStream);
             }
@@ -141,6 +141,13 @@ public class MainMenu {
             menuFont = new Font("Arial", Font.BOLD, 24);
             submenuFont = new Font("Arial", Font.BOLD, 20);
         }
+    }
+    
+    /**
+     * 메뉴 업데이트 (현재는 별도 업데이트 불필요)
+     */
+    public void update() {
+        // 메뉴는 별도 업데이트 불필요
     }
     
     /**

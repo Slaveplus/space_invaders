@@ -20,7 +20,10 @@ import org.newdawn.spaceinvaders.entity.AlienEntity;
 import org.newdawn.spaceinvaders.entity.Entity;
 import org.newdawn.spaceinvaders.entity.ShipEntity;
 import org.newdawn.spaceinvaders.entity.ShotEntity;
-import org.newdawn.spaceinvaders.login.LoginScreen;
+import org.newdawn.spaceinvaders.gameplay.GameStateManager;
+import org.newdawn.spaceinvaders.gameplay.InputManager;
+import org.newdawn.spaceinvaders.gameplay.SkillManager;
+import org.newdawn.spaceinvaders.gameplay.UIRenderer;
 
 /**
  * The main hook of our game. This class with both act as a manager
@@ -43,33 +46,16 @@ public class Game extends Canvas
 	private BufferStrategy strategy;
 	/** True if the game is currently "running", i.e. the game loop is looping */
 	private boolean gameRunning = true;
-	/** The list of all the entities that exist in our game */
-	private ArrayList entities = new ArrayList();
-	/** The list of entities that need to be removed from the game this loop */
-	private ArrayList removeList = new ArrayList();
+	// entities and removeList are now managed by GameStateManager
 	/** The entity representing the player */
 	private Entity ship;
 	/** The speed at which the player's ship should move (pixels/sec) */
 	private double moveSpeed = 300;
-	/** The time at which last fired a shot */
-	private long lastFire = 0;
-	/** The interval between our players shot (ms) */
-	private long firingInterval = 500;
+	// lastFire and firingInterval are now managed by GameStateManager
 	/** The number of aliens left on the screen */
 	private int alienCount;
 	
-	/** The message to display which waiting for a key press */
-	private String message = "";
-	/** True if we're holding up game play until a key has been pressed */
-	private boolean waitingForKeyPress = true;
-	/** True if the left cursor key is currently pressed */
-	private boolean leftPressed = false;
-	/** True if the right cursor key is currently pressed */
-	private boolean rightPressed = false;
-	/** True if we are firing */
-	private boolean firePressed = false;
-	/** True if game logic needs to be applied this loop, normally as a result of a game event */
-	private boolean logicRequiredThisLoop = false;
+	// message, waitingForKeyPress, and logicRequiredThisLoop are now managed by GameStateManager
 	/** The last time at which we recorded the frame rate */
 	private long lastFpsTime;
 	/** The current number of frames recorded */
@@ -79,14 +65,14 @@ public class Game extends Canvas
 	/** The game window that we'll update with the frame count */
 	private JFrame container;
 	
-	/** The login screen system */
-	private LoginScreen loginScreen;
-	/** True if we're currently showing the login screen */
-	private boolean showingLogin = true;
-	/** The main menu system */
-	private MainMenu mainMenu;
-	/** True if we're currently showing the main menu */
-	private boolean showingMenu = false;
+	/** The game state manager */
+	private GameStateManager gameStateManager;
+	/** The input manager */
+	private InputManager inputManager;
+	/** The skill manager */
+	private SkillManager skillManager;
+	/** The UI renderer */
+	private UIRenderer uiRenderer;
 	
 	/**
 	 * Construct our game and set it running.
@@ -121,29 +107,29 @@ public class Game extends Canvas
 			}
 		});
 		
-		// add a key input system (defined below) to our canvas
-		// so we can respond to key pressed
-		addKeyListener(new KeyInputHandler());
-		
-		// add a mouse input system to our canvas
-		addMouseListener(new MouseInputHandler());
-		
-		// request the focus so key events come to us
-		requestFocus();
-
 		// create the buffering strategy which will allow AWT
 		// to manage our accelerated graphics
 		createBufferStrategy(2);
 		strategy = getBufferStrategy();
 		
-		// initialize the login screen
-		loginScreen = new LoginScreen();
+		// initialize the game state manager
+		gameStateManager = new GameStateManager();
 		
-		// initialize the main menu
-		mainMenu = new MainMenu();
+		// initialize the skill manager
+		skillManager = new SkillManager(this);
 		
-		// MainMenu의 UserManager를 LoginScreen의 UserManager와 동기화
-		mainMenu.getUserManager().setCurrentUser(loginScreen.getUserManager().getCurrentUser());
+		// initialize the UI renderer
+		uiRenderer = new UIRenderer(this);
+		
+		// initialize the input manager
+		inputManager = new InputManager(gameStateManager, this);
+		
+		// add input handlers (after inputManager is initialized)
+		addKeyListener(inputManager.new KeyInputHandler());
+		addMouseListener(inputManager.new MouseInputHandler());
+		
+		// request the focus so key events come to us
+		requestFocus();
 		
 		// initialise the entities in our game so there's something
 		// to see at startup
@@ -154,15 +140,18 @@ public class Game extends Canvas
 	 * Start a fresh game, this should clear out any old data and
 	 * create a new set.
 	 */
-	private void startGame() {
-		// clear out any existing entities and intialise a new set
-		entities.clear();
+	public void startGame() {
+		// 게임플레이 상태 초기화 (entities.clear() 포함)
+		gameStateManager.startNewGame();
+		
+		// 엔티티 초기화 (startNewGame() 후에 호출)
 		initEntities();
 		
-		// blank out any keyboard settings we might currently have
-		leftPressed = false;
-		rightPressed = false;
-		firePressed = false;
+		// 입력 상태 초기화
+		inputManager.reset();
+		
+		// 스킬 매니저 초기화
+		skillManager.reset();
 	}
 	
 	/**
@@ -172,17 +161,30 @@ public class Game extends Canvas
 	private void initEntities() {
 		// create the player ship and place it roughly in the center of the screen
 		ship = new ShipEntity(this,"sprites/ship.gif",370,550);
-		entities.add(ship);
+		gameStateManager.getEntities().add(ship);
 		
-		// create a block of aliens (5 rows, by 12 aliens, spaced evenly)
+		// Create aliens based on current round with balanced progression
 		alienCount = 0;
-		for (int row=0;row<5;row++) {
-			for (int x=0;x<12;x++) {
-				Entity alien = new AlienEntity(this,100+(x*50),(50)+row*30);
-				entities.add(alien);
+		int rows, cols;
+		
+		switch (gameStateManager.getCurrentRound()) {
+			case 1: rows = 3; cols = 6; break;  // 18 aliens
+			case 2: rows = 3; cols = 7; break;  // 21 aliens
+			case 3: rows = 4; cols = 7; break;  // 28 aliens
+			case 4: rows = 4; cols = 8; break;  // 32 aliens
+			case 5: rows = 5; cols = 8; break;  // 40 aliens
+			default: rows = 3; cols = 6; break;
+		}
+		
+		for (int row=0; row<rows; row++) {
+			for (int x=0; x<cols; x++) {
+				Entity alien = new AlienEntity(this, 120+(x*70), (60)+row*35);
+				gameStateManager.getEntities().add(alien);
 				alienCount++;
 			}
 		}
+		
+		gameStateManager.setAlienCount(alienCount);
 	}
 	
 	/**
@@ -191,7 +193,7 @@ public class Game extends Canvas
 	 * game event)
 	 */
 	public void updateLogic() {
-		logicRequiredThisLoop = true;
+		gameStateManager.setLogicRequiredThisLoop(true);
 	}
 	
 	/**
@@ -201,18 +203,25 @@ public class Game extends Canvas
 	 * @param entity The entity that should be removed
 	 */
 	public void removeEntity(Entity entity) {
-		removeList.add(entity);
+		gameStateManager.getRemoveList().add(entity);
 	}
 	
 	/**
 	 * Notification that the player has died. 
 	 */
 	public void notifyDeath() {
-		message = "Oh no! They got you, try again?";
-		waitingForKeyPress = true;
-		// 게임 오버 후 메뉴로 돌아가기
-		showingMenu = true;
-		mainMenu.reset();
+		// Check if player is invincible
+		if (skillManager.isInvincible()) {
+			return; // No damage taken when invincible
+		}
+		
+		gameStateManager.takeDamage();
+		if (gameStateManager.getCurrentHP() <= 0) {
+			gameStateManager.setMessage("Oh no! They got you, try again?");
+			gameStateManager.setWaitingForKeyPress(true);
+			// 게임 오버 후 메뉴로 돌아가기
+			gameStateManager.handleGameEnd();
+		}
 	}
 	
 	/**
@@ -220,32 +229,57 @@ public class Game extends Canvas
 	 * are dead.
 	 */
 	public void notifyWin() {
-		message = "Well done! You Win!";
-		waitingForKeyPress = true;
-		// 게임 승리 후 메뉴로 돌아가기
-		showingMenu = true;
-		mainMenu.reset();
+		boolean roundAdvanced = gameStateManager.advanceRound();
+		
+		if (roundAdvanced) {
+			// Clear current entities and initialize next round
+			gameStateManager.getEntities().clear();
+			initEntities();
+		} else {
+			// Game completed
+			gameStateManager.setMessage("Well done! You Win!");
+			gameStateManager.setWaitingForKeyPress(true);
+			// 게임 승리 후 메뉴로 돌아가기
+			gameStateManager.handleGameEnd();
+		}
 	}
 	
 	/**
 	 * Notification that an alien has been killed
 	 */
 	public void notifyAlienKilled() {
-		// reduce the alient count, if there are none left, the player has won!
-		alienCount--;
+		// Give random skill points for killing aliens
+		int earnedPoints = skillManager.getRandomSkillPoints(gameStateManager.getCurrentRound());
+		gameStateManager.addSkillPoints(earnedPoints);
 		
-		if (alienCount == 0) {
+		// Random chance to drop a skill
+		double dropChance = skillManager.getSkillDropChance(gameStateManager.getCurrentRound());
+		if (Math.random() < dropChance) {
+			skillManager.dropSkill(gameStateManager.getCurrentRound());
+		}
+		
+		// Count remaining aliens dynamically (excluding those marked for removal)
+		int remainingAliens = 0;
+		ArrayList<Entity> entities = gameStateManager.getEntities();
+		ArrayList<Entity> removeList = gameStateManager.getRemoveList();
+		
+		for (Entity entity : entities) {
+			if (entity instanceof AlienEntity && !removeList.contains(entity)) {
+				remainingAliens++;
+			}
+		}
+		
+		if (remainingAliens == 0) {
 			notifyWin();
 		}
 		
-		// if there are still some aliens left then they all need to get faster, so
-		// speed up all the existing aliens
-		for (int i=0;i<entities.size();i++) {
-			Entity entity = (Entity) entities.get(i);
-			
+		// Speed up remaining aliens
+		for (Entity entity : entities) {
 			if (entity instanceof AlienEntity) {
-				// speed up by 2%
-				entity.setHorizontalMovement(entity.getHorizontalMovement() * 1.02);
+				// speed up by 1.5% + round-based bonus (more gradual increase)
+				double speedMultiplier = 1.015 + (gameStateManager.getCurrentRound() * 0.01);
+				entity.setHorizontalMovement(entity.getHorizontalMovement() * speedMultiplier);
+				entity.setVerticalMovement(entity.getVerticalMovement() * speedMultiplier);
 			}
 		}
 	}
@@ -256,15 +290,137 @@ public class Game extends Canvas
 	 * point, i.e. has he/she waited long enough between shots
 	 */
 	public void tryToFire() {
+		// Calculate firing interval based on attack speed skill
+		long currentFiringInterval = (long) (gameStateManager.getFiringInterval() / gameStateManager.getAttackSpeed());
+		
 		// check that we have waiting long enough to fire
-		if (System.currentTimeMillis() - lastFire < firingInterval) {
+		if (System.currentTimeMillis() - gameStateManager.getLastFire() < currentFiringInterval) {
 			return;
 		}
 		
 		// if we waited long enough, create the shot entity, and record the time.
-		lastFire = System.currentTimeMillis();
-		ShotEntity shot = new ShotEntity(this,"sprites/shot.gif",ship.getX()+10,ship.getY()-30);
-		entities.add(shot);
+		gameStateManager.setLastFire(System.currentTimeMillis());
+		
+		if (skillManager.hasTripleShot()) {
+			// Fire three shots in a wider spread pattern
+			ShotEntity shot1 = new ShotEntity(this,"sprites/shot.gif",ship.getX()-5,ship.getY()-30);
+			ShotEntity shot2 = new ShotEntity(this,"sprites/shot.gif",ship.getX()+10,ship.getY()-30);
+			ShotEntity shot3 = new ShotEntity(this,"sprites/shot.gif",ship.getX()+25,ship.getY()-30);
+			gameStateManager.getEntities().add(shot1);
+			gameStateManager.getEntities().add(shot2);
+			gameStateManager.getEntities().add(shot3);
+		} else {
+			// Fire single shot
+			ShotEntity shot = new ShotEntity(this,"sprites/shot.gif",ship.getX()+10,ship.getY()-30);
+			gameStateManager.getEntities().add(shot);
+		}
+	}
+	
+	/**
+	 * Add an alien shot to the game
+	 * 
+	 * @param x The x location of the shot
+	 * @param y The y location of the shot
+	 */
+	public void addAlienShot(int x, int y) {
+		ShotEntity shot = new ShotEntity(this, "sprites/alien2.gif", x, y, true);
+		gameStateManager.getEntities().add(shot);
+	}
+	
+	/**
+	 * Add an alien shot with slight aim adjustment towards player
+	 * 
+	 * @param x The x location of the shot
+	 * @param y The y location of the shot
+	 * @param alienX The x location of the alien firing
+	 */
+	public void addAimedAlienShot(int x, int y, int alienX) {
+		// Add more accurate horizontal adjustment towards player (within 15 pixel range)
+		int playerX = ship.getX() + 10; // Player center
+		int aimOffset = (int)((playerX - alienX) * 0.15); // 15% of distance towards player
+		aimOffset = Math.max(-15, Math.min(15, aimOffset)); // Clamp to player-sized range
+		
+		ShotEntity shot = new ShotEntity(this, "sprites/alien2.gif", x + aimOffset, y, true);
+		gameStateManager.getEntities().add(shot);
+	}
+	
+	/**
+	 * Try to fire shots from aliens (only those close to player)
+	 */
+	private void tryAlienFire() {
+		// check that we have waited long enough to fire
+		if (System.currentTimeMillis() - gameStateManager.getLastAlienFire() < gameStateManager.getAlienFiringInterval()) {
+			return;
+		}
+		
+		// find aliens that are close enough to the player to fire
+		ArrayList<AlienEntity> aliens = new ArrayList<>();
+		ArrayList<Entity> entities = gameStateManager.getEntities();
+		
+		for (Entity entity : entities) {
+			if (entity instanceof AlienEntity) {
+				// Only aliens that are close to the player can fire (within 200 pixels vertically)
+				if (Math.abs(entity.getY() - ship.getY()) < 200) {
+					aliens.add((AlienEntity) entity);
+				}
+			}
+		}
+		
+		if (aliens.size() > 0) {
+			// pick a random alien from those close enough
+			int randomIndex = (int) (Math.random() * aliens.size());
+			AlienEntity alien = aliens.get(randomIndex);
+			
+			// fire from this alien
+			alien.tryToFire();
+			gameStateManager.setLastAlienFire(System.currentTimeMillis());
+		}
+	}
+	
+	/**
+	 * Get the player's current attack power
+	 * 
+	 * @return The player's attack power
+	 */
+	public int getPlayerAttackPower() {
+		return gameStateManager.getAttackPower();
+	}
+	
+	/**
+	 * Get the current round number
+	 * 
+	 * @return The current round
+	 */
+	public int getCurrentRound() {
+		return gameStateManager.getCurrentRound();
+	}
+	
+	/**
+	 * Check if player is currently invincible
+	 */
+	public boolean isPlayerInvincible() {
+		return skillManager.isInvincible();
+	}
+	
+	/**
+	 * Check if player has piercing shots
+	 */
+	public boolean hasPiercingShots() {
+		return skillManager.hasPiercing();
+	}
+	
+	/**
+	 * Check if player has triple shot
+	 */
+	public boolean hasTripleShot() {
+		return skillManager.hasTripleShot();
+	}
+	
+	/**
+	 * Add skill to inventory
+	 */
+	public void addSkillToInventory(int skillType, int skillValue) {
+		skillManager.addSkillToInventory(skillType, skillValue);
 	}
 	
 	/**
@@ -305,88 +461,84 @@ public class Game extends Canvas
 			// surface and blank it out
 			Graphics2D g = (Graphics2D) strategy.getDrawGraphics();
 			
-		// 로그인 화면이 표시 중일 때는 로그인 화면만 그리기
-		if (showingLogin) {
-			loginScreen.update();
-			loginScreen.draw(g);
-		} else if (showingMenu) {
-			// 메뉴가 표시 중일 때는 메뉴만 그리기
-			mainMenu.draw(g);
-		} else {
-				g.setColor(Color.black);
-				g.fillRect(0,0,800,600);
+			// UI 상태에 따른 화면 그리기
+			if (gameStateManager.isShowingLogin() || gameStateManager.isShowingMenu()) {
+				gameStateManager.update();
+				gameStateManager.draw(g);
+			} else if (gameStateManager.isGameplay()) {
+				// Draw background image
+				drawGameplayBackground(g);
 				
 				// cycle round asking each entity to move itself
-				if (!waitingForKeyPress) {
-				for (int i=0;i<entities.size();i++) {
-					Entity entity = (Entity) entities.get(i);
+				// Pause gameplay if any menu is open
+				if (!gameStateManager.isWaitingForKeyPress() && 
+					!gameStateManager.isShowingPauseMenu() && 
+					!gameStateManager.isShowingSkillMenu()) {
+					// Update skill effects
+					skillManager.updateSkillEffects();
 					
-					entity.move(delta);
+					ArrayList<Entity> entities = gameStateManager.getEntities();
+					for (Entity entity : entities) {
+						entity.move(delta);
+					}
+					
+					// try to fire from aliens
+					tryAlienFire();
 				}
-			}
 			
-			// cycle round drawing all the entities we have in the game
-			for (int i=0;i<entities.size();i++) {
-				Entity entity = (Entity) entities.get(i);
+				// cycle round drawing all the visible entities we have in the game
+				ArrayList<Entity> entities = gameStateManager.getEntities();
+				for (Entity entity : entities) {
+					entity.draw(g);
+				}
+			
+				// Simple collision detection (only when not paused)
+				if (!gameStateManager.isShowingPauseMenu() && 
+					!gameStateManager.isShowingSkillMenu()) {
+					for (int i=0;i<entities.size();i++) {
+						Entity entity1 = entities.get(i);
+						for (int j=i+1;j<entities.size();j++) {
+							Entity entity2 = entities.get(j);
+							if (entity1.collidesWith(entity2)) {
+								entity1.collidedWith(entity2);
+								entity2.collidedWith(entity1);
+							}
+						}
+					}
 				
-				entity.draw(g);
-			}
-			
-			// brute force collisions, compare every entity against
-			// every other entity. If any of them collide notify 
-			// both entities that the collision has occured
-			for (int p=0;p<entities.size();p++) {
-				for (int s=p+1;s<entities.size();s++) {
-					Entity me = (Entity) entities.get(p);
-					Entity him = (Entity) entities.get(s);
-					
-					if (me.collidesWith(him)) {
-						me.collidedWith(him);
-						him.collidedWith(me);
+					// remove any entity that has been marked for clear up
+					entities.removeAll(gameStateManager.getRemoveList());
+					gameStateManager.getRemoveList().clear();
+
+					// if a game event has indicated that game logic should
+					// be resolved, cycle round every entity requesting that
+					// their personal logic should be considered.
+					if (gameStateManager.isLogicRequiredThisLoop()) {
+						for (Entity entity : entities) {
+							entity.doLogic();
+						}
+						
+						gameStateManager.setLogicRequiredThisLoop(false);
 					}
 				}
-			}
 			
-			// remove any entity that has been marked for clear up
-			entities.removeAll(removeList);
-			removeList.clear();
-
-			// if a game event has indicated that game logic should
-			// be resolved, cycle round every entity requesting that
-			// their personal logic should be considered.
-			if (logicRequiredThisLoop) {
-				for (int i=0;i<entities.size();i++) {
-					Entity entity = (Entity) entities.get(i);
-					entity.doLogic();
+				// Draw game UI (HP, skill points, etc.)
+				uiRenderer.drawGameUI(g, gameStateManager, skillManager);
+				
+				// Draw pause menu if showing
+				if (gameStateManager.isShowingPauseMenu()) {
+					drawPauseMenu(g);
 				}
 				
-				logicRequiredThisLoop = false;
-			}
-			
+				// Draw skill menu if showing
+				if (gameStateManager.isShowingSkillMenu()) {
+					drawSkillMenu(g);
+				}
+				
 				// if we're waiting for an "any key" press then draw the 
 				// current message 
-				if (waitingForKeyPress) {
-					g.setColor(Color.white);
-					g.drawString(message,(800-g.getFontMetrics().stringWidth(message))/2,250);
-					g.drawString("Press any key",(800-g.getFontMetrics().stringWidth("Press any key"))/2,300);
-				}
-				
-				// resolve the movement of the ship. First assume the ship 
-				// isn't moving. If either cursor key is pressed then
-				// update the movement appropraitely
-				if (ship != null) {
-					ship.setHorizontalMovement(0);
-					
-					if ((leftPressed) && (!rightPressed)) {
-						ship.setHorizontalMovement(-moveSpeed);
-					} else if ((rightPressed) && (!leftPressed)) {
-						ship.setHorizontalMovement(moveSpeed);
-					}
-					
-					// if we're pressing fire, attempt to fire
-					if (firePressed) {
-						tryToFire();
-					}
+				if (gameStateManager.isWaitingForKeyPress()) {
+					uiRenderer.drawMessage(g, gameStateManager.getMessage());
 				}
 			}
 			
@@ -394,6 +546,25 @@ public class Game extends Canvas
 			// and flip the buffer over
 			g.dispose();
 			strategy.show();
+			
+			// resolve the movement of the ship. First assume the ship 
+			// isn't moving. If either cursor key is pressed then
+			// update the movement appropriately (only when not paused)
+			if (ship != null && !gameStateManager.isShowingPauseMenu() && 
+				!gameStateManager.isShowingSkillMenu()) {
+				ship.setHorizontalMovement(0);
+				
+				if (inputManager.isLeftPressed() && !inputManager.isRightPressed()) {
+					ship.setHorizontalMovement(-moveSpeed);
+				} else if (inputManager.isRightPressed() && !inputManager.isLeftPressed()) {
+					ship.setHorizontalMovement(moveSpeed);
+				}
+				
+				// if we're pressing fire, attempt to fire
+				if (inputManager.isFirePressed()) {
+					tryToFire();
+				}
+			}
 			
 			// we want each frame to take 10 milliseconds, to do this
 			// we've recorded when we started the frame. We add 10 milliseconds
@@ -403,156 +574,120 @@ public class Game extends Canvas
 		}
 	}
 	
+	
 	/**
-	 * A class to handle keyboard input from the user. The class
-	 * handles both dynamic input during game play, i.e. left/right 
-	 * and shoot, and more static type input (i.e. press any key to
-	 * continue)
-	 * 
-	 * This has been implemented as an inner class more through 
-	 * habbit then anything else. Its perfectly normal to implement
-	 * this as seperate class if slight less convienient.
-	 * 
-	 * @author Kevin Glass
+	 * Getter methods for InputManager
 	 */
-	private class KeyInputHandler extends KeyAdapter {
-		/** The number of key presses we've had while waiting for an "any key" press */
-		private int pressCount = 1;
-		
-		/**
-		 * Notification from AWT that a key has been pressed. Note that
-		 * a key being pressed is equal to being pushed down but *NOT*
-		 * released. Thats where keyTyped() comes in.
-		 *
-		 * @param e The details of the key that was pressed 
-		 */
-		public void keyPressed(KeyEvent e) {
-			// 로그인 화면이 표시 중일 때는 로그인 화면에서 키 입력 처리
-			if (showingLogin) {
-				loginScreen.handleKeyInput(e.getKeyCode(), e.getKeyChar());
-				// 로그인 성공 시 메인 메뉴로 이동
-				if (loginScreen.getUserManager().isLoggedIn()) {
-					// MainMenu의 UserManager를 LoginScreen의 UserManager로 완전히 교체
-					mainMenu.setUserManager(loginScreen.getUserManager());
-					showingLogin = false;
-					showingMenu = true;
-					System.out.println("로그인 성공, 메인 메뉴로 이동");
-				}
-				return;
-			}
-			
-			// 메뉴가 표시 중일 때는 메뉴에서 키 입력 처리
-			if (showingMenu) {
-				mainMenu.handleKeyInput(e.getKeyCode());
-				// 새게임 시작 요청이 있으면 메뉴 숨기고 게임 시작
-				if (mainMenu.shouldStartGame()) {
-					showingMenu = false;
-					waitingForKeyPress = false;
-					mainMenu.reset(); // 게임 시작 요청 플래그 리셋
-					startGame();
-				}
-				// 로그아웃 요청이 있으면 로그인 화면으로 돌아가기
-				if (mainMenu.isLogoutRequested()) {
-					// LoginScreen의 UserManager도 로그아웃 처리 (사용자 데이터는 DB에 저장됨)
-					loginScreen.getUserManager().logoutUser();
-					// LoginScreen 입력 필드만 초기화 (사용자 데이터는 유지)
-					loginScreen.reset();
-					// 게임 상태 초기화
-					entities.clear();
-					waitingForKeyPress = false;
-					// 메뉴 상태 완전 초기화
-					mainMenu.reset();
-					showingMenu = false;
-					showingLogin = true;
-					System.out.println("로그아웃 요청, 로그인 화면으로 이동 - 사용자 데이터는 DB에 보존됨");
-				}
-				return;
-			}
-			
-			// if we're waiting for an "any key" typed then we don't 
-			// want to do anything with just a "press"
-			if (waitingForKeyPress) {
-				return;
-			}
-			
-			
-			if (e.getKeyCode() == KeyEvent.VK_LEFT) {
-				leftPressed = true;
-			}
-			if (e.getKeyCode() == KeyEvent.VK_RIGHT) {
-				rightPressed = true;
-			}
-			if (e.getKeyCode() == KeyEvent.VK_SPACE) {
-				firePressed = true;
-			}
-
-			// 상점 키 입력 처리
-			if (showingMenu){
-				mainMenu.handleKeyInput(e.getKeyCode());
-                // 상점이 표시 중이면 상점에서 처리함
-				if (mainMenu.isShowingShop()){
-					return;
-				}
-                // 새게임 시작 요청이 있으면 메뉴를 숨기고 게임 시작
-				if (mainMenu.shouldStartGame()){
-					showingMenu = false;
-					waitingForKeyPress = false;
-					mainMenu.reset();
-					startGame();
-				}
-				return;
-			}
-		} 
-		
-		/**
-		 * Notification from AWT that a key has been released.
-		 *
-		 * @param e The details of the key that was released 
-		 */
-		public void keyReleased(KeyEvent e) {
-			// if we're waiting for an "any key" typed then we don't 
-			// want to do anything with just a "released"
-			if (waitingForKeyPress) {
-				return;
-			}
-			
-			if (e.getKeyCode() == KeyEvent.VK_LEFT) {
-				leftPressed = false;
-			}
-			if (e.getKeyCode() == KeyEvent.VK_RIGHT) {
-				rightPressed = false;
-			}
-			if (e.getKeyCode() == KeyEvent.VK_SPACE) {
-				firePressed = false;
-			}
+	public Entity getShip() {
+		return ship;
+	}
+	
+	public double getMoveSpeed() {
+		return moveSpeed;
+	}
+	
+	public boolean isWaitingForKeyPress() {
+		return gameStateManager.isWaitingForKeyPress();
+	}
+	
+	public void setWaitingForKeyPress(boolean waiting) {
+		gameStateManager.setWaitingForKeyPress(waiting);
+	}
+	
+	/**
+	 * 게임 상태 반환 (gameplay 패키지용)
+	 */
+	public String getGameState() {
+		if (gameStateManager.isGameplay()) {
+			return "PLAYING";
+		} else {
+			return "MENU";
 		}
-
-		/**
-		 * Notification from AWT that a key has been typed. Note that
-		 * typing a key means to both press and then release it.
-		 *
-		 * @param e The details of the key that was typed. 
-		 */
-		public void keyTyped(KeyEvent e) {
-			// if we're waiting for a "any key" type then
-			// check if we've recieved any recently. We may
-			// have had a keyType() event from the user releasing
-			// the shoot or move keys, hence the use of the "pressCount"
-			// counter.
-			if (waitingForKeyPress) {
-				if (pressCount == 1) {
-					// since we've now recieved our key typed
-					// event we can mark it as such and start 
-					// our new game
-					waitingForKeyPress = false;
-					startGame();
-					pressCount = 0;
-				} else {
-					pressCount++;
-				}
-			}
+	}
+	
+	/**
+	 * 새 게임 시작 (gameplay 패키지용)
+	 */
+	public void startNewGame() {
+		startGame();
+	}
+	
+	/**
+	 * 엔티티 리스트 반환 (gameplay 패키지용)
+	 */
+	public ArrayList getEntities() {
+		return gameStateManager.getEntities();
+	}
+	
+	/**
+	 * 게임플레이 상태 반환
+	 */
+	public GameStateManager getGameplayState() {
+		return gameStateManager;
+	}
+	
+	/**
+	 * 스킬 매니저 반환
+	 */
+	public SkillManager getSkillManager() {
+		return skillManager;
+	}
+	
+	/**
+	 * UI 렌더러 반환
+	 */
+	public UIRenderer getUIRenderer() {
+		return uiRenderer;
+	}
+	
+	/**
+	 * 스킬 메뉴 그리기
+	 */
+	public void drawSkillMenu(java.awt.Graphics2D g2d) {
+		// 스킬 메뉴 렌더러 사용
+		org.newdawn.spaceinvaders.menu.SkillMenuRenderer skillMenuRenderer = 
+			new org.newdawn.spaceinvaders.menu.SkillMenuRenderer();
+		
+		skillMenuRenderer.drawSkillMenu(
+			g2d,
+			gameStateManager.getSkillPoints(),
+			gameStateManager.getAttackPower(),
+			gameStateManager.getAttackSpeed(),
+			gameStateManager.getMaxHP(),
+			skillManager.getAttackPowerCost(),
+			skillManager.getAttackSpeedCost(),
+			skillManager.getHpUpCost(),
+			gameStateManager.getSelectedSkill()
+		);
+	}
+	
+	/**
+	 * 일시정지 메뉴 그리기
+	 */
+	public void drawPauseMenu(java.awt.Graphics2D g2d) {
+		// 일시정지 메뉴 렌더러 사용
+		org.newdawn.spaceinvaders.menu.PauseMenuRenderer pauseMenuRenderer = 
+			new org.newdawn.spaceinvaders.menu.PauseMenuRenderer();
+		
+		pauseMenuRenderer.drawPauseMenu(g2d, gameStateManager.getSelectedPauseMenuItem());
+	}
+	
+	/**
+	 * 게임플레이 배경 그리기
+	 */
+	private void drawGameplayBackground(java.awt.Graphics2D g) {
+		try {
+			// Load background image
+			java.awt.image.BufferedImage backgroundImage = javax.imageio.ImageIO.read(
+				getClass().getResourceAsStream("/sprites/backgrounds/Background-2.jpg")
+			);
 			
-			// ESC 키로 게임 종료 기능 제거 - 이제 창 닫기 버튼으로만 종료 가능
+			// Draw background image scaled to fit screen
+			g.drawImage(backgroundImage, 0, 0, 800, 600, null);
+		} catch (Exception e) {
+			// Fallback to black background if image loading fails
+			g.setColor(Color.black);
+			g.fillRect(0, 0, 800, 600);
 		}
 	}
 	
@@ -572,63 +707,4 @@ public class Game extends Canvas
 		g.gameLoop();
 	}
 	
-	/**
-	 * 마우스 입력 처리 클래스
-	 * 게임 내 모든 마우스 이벤트를 처리합니다
-	 */
-	private class MouseInputHandler extends MouseAdapter {
-		/**
-		 * 마우스 클릭 이벤트 처리
-		 */
-		public void mouseClicked(MouseEvent e) {
-			int x = e.getX();
-			int y = e.getY();
-			
-			// 로그인 화면이 표시 중일 때는 로그인 화면에서 마우스 클릭 처리
-			if (showingLogin) {
-				loginScreen.handleMouseClick(x, y);
-				// 로그인 성공 시 메인 메뉴로 이동
-				if (loginScreen.getUserManager().isLoggedIn()) {
-					// MainMenu의 UserManager를 LoginScreen의 UserManager로 완전히 교체
-					mainMenu.setUserManager(loginScreen.getUserManager());
-					showingLogin = false;
-					showingMenu = true;
-					System.out.println("로그인 성공, 메인 메뉴로 이동");
-				}
-				return;
-			}
-			
-			// 메뉴가 표시 중일 때는 메뉴에서 마우스 클릭 처리
-			if (showingMenu) {
-				mainMenu.handleMouseClick(x, y);
-				// 새게임 시작 요청이 있으면 메뉴 숨기고 게임 시작
-				if (mainMenu.shouldStartGame()) {
-					showingMenu = false;
-					waitingForKeyPress = false;
-					mainMenu.reset(); // 게임 시작 요청 플래그 리셋
-					startGame();
-				}
-				// 로그아웃 요청이 있으면 로그인 화면으로 돌아가기
-				if (mainMenu.isLogoutRequested()) {
-					// LoginScreen의 UserManager도 로그아웃 처리 (사용자 데이터는 DB에 저장됨)
-					loginScreen.getUserManager().logoutUser();
-					// LoginScreen 입력 필드만 초기화 (사용자 데이터는 유지)
-					loginScreen.reset();
-					// 게임 상태 초기화
-					entities.clear();
-					waitingForKeyPress = false;
-					// 메뉴 상태 완전 초기화
-					mainMenu.reset();
-					showingMenu = false;
-					showingLogin = true;
-					System.out.println("로그아웃 요청, 로그인 화면으로 이동 - 사용자 데이터는 DB에 보존됨");
-				}
-				return;
-			}
-			
-			// 게임 중일 때는 게임 내 마우스 클릭 처리
-			// (필요시 게임 내 마우스 기능 추가 가능)
-			System.out.println("게임 중 마우스 클릭: (" + x + ", " + y + ")");
-		}
-	}
 }
