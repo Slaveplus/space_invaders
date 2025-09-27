@@ -53,8 +53,7 @@ public class ShopInputHandler {
     
     private void handleMainShopInput(int keyCode) {
         String[] mainOptions = {
-            "무기 상점", "우주선 상점", "파워업 상점", 
-            "장식품 상점", "업그레이드 상점", "인벤토리", "뒤로가기"
+            "무기 상점", "우주선 상점", "뒤로가기"
         };
         
         switch (keyCode) {
@@ -89,26 +88,7 @@ public class ShopInputHandler {
                 shopManager.setCurrentCategory(ShopCategory.SPACESHIPS);
                 selectedItem = 0;
                 break;
-            case 2: // 파워업 상점
-                shopManager.setCurrentState(ShopState.CATEGORY);
-                shopManager.setCurrentCategory(ShopCategory.POWERUPS);
-                selectedItem = 0;
-                break;
-            case 3: // 장식품 상점
-                shopManager.setCurrentState(ShopState.CATEGORY);
-                shopManager.setCurrentCategory(ShopCategory.DECORATIONS);
-                selectedItem = 0;
-                break;
-            case 4: // 업그레이드 상점
-                shopManager.setCurrentState(ShopState.CATEGORY);
-                shopManager.setCurrentCategory(ShopCategory.UPGRADES);
-                selectedItem = 0;
-                break;
-            case 5: // 인벤토리
-                shopManager.setCurrentState(ShopState.INVENTORY);
-                selectedItem = 0;
-                break;
-            case 6: // 뒤로가기
+            case 2: // 뒤로가기
                 exitRequested = true;
                 break;
         }
@@ -120,7 +100,7 @@ public class ShopInputHandler {
                 .filter(item -> item.getCategory() == shopManager.getCurrentCategory())
                 .collect(java.util.stream.Collectors.toList());
         
-        int itemsPerRow = 2;
+        int itemsPerRow = 3;
         int totalRows = (categoryItems.size() + itemsPerRow - 1) / itemsPerRow;
         
         switch (keyCode) {
@@ -198,6 +178,7 @@ public class ShopInputHandler {
                         if (shopManager.purchaseItem(item.getId())) {
                             System.out.println(item.getName() + "을(를) 구매했습니다!");
                         } else {
+                            // 구매 실패 메시지는 ShopManager에서 이미 설정됨
                             System.out.println("구매에 실패했습니다. (코인 부족 또는 이미 구매함)");
                         }
                     }
@@ -213,15 +194,7 @@ public class ShopInputHandler {
     }
     
     private void handleInventoryInput(int keyCode) {
-        List<ShopItem> inventory = shopManager.getPlayerInventory();
-        
         switch (keyCode) {
-            case KeyEvent.VK_UP:
-                selectedItem = Math.max(0, selectedItem - 1);
-                break;
-            case KeyEvent.VK_DOWN:
-                selectedItem = Math.min(inventory.size() - 1, selectedItem + 1);
-                break;
             case KeyEvent.VK_ESCAPE:
                 shopManager.returnToMainMenu();
                 // selectedOption은 유지
@@ -309,8 +282,7 @@ public class ShopInputHandler {
     
     private void handleMainShopMouseClick(int x, int y) {
         String[] mainOptions = {
-            "무기 상점", "우주선 상점", "파워업 상점", 
-            "장식품 상점", "업그레이드 상점", "인벤토리", "뒤로가기"
+            "무기 상점", "우주선 상점", "뒤로가기"
         };
         
         int startY = 150;

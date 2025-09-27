@@ -24,6 +24,17 @@ public class Shop {
         initializeShopItems();
     }
     
+    // UserManager 설정 (실시간 DB 동기화용)
+    public void setUserManager(org.newdawn.spaceinvaders.login.UserManager userManager) {
+        this.shopManager.setUserManager(userManager);
+        this.shopRenderer.setUserManager(userManager);
+    }
+    
+    // 상점 상태 설정 (인벤토리 직접 접근용)
+    public void setCurrentState(ShopState state) {
+        this.shopManager.setCurrentState(state);
+    }
+    
     private void loadBackgroundImage() {
         try {
             InputStream inputStream = getClass().getClassLoader().getResourceAsStream("sprites/Background-0.jpg");
@@ -51,21 +62,26 @@ public class Shop {
                                        ShopCategory.WEAPONS, ItemRarity.EPIC);
         missileLauncher.setIconPath("sprites/weapons/missile.png");
         shopManager.addItem(missileLauncher);
+
+        ShopItem report = new ShopItem("report", "레포트 폭탄", "재앙이 몰려온다....", 2000, 
+                                       ShopCategory.WEAPONS, ItemRarity.LEGENDARY);
+        report.setIconPath("sprites/weapons/report.jpg");
+        shopManager.addItem(report);
         
         // 우주선 아이템들
-        ShopItem fighterShip = new ShopItem("fighter_ship", "전투기", "빠른 기동성의 전투기", 200, 
+        ShopItem fighterShip = new ShopItem("fighter_ship", "Green SpaceShip", "기깔나는 초록색 전투기", 200, 
                                        ShopCategory.SPACESHIPS, ItemRarity.COMMON);
-        fighterShip.setIconPath("sprites/ships/fighter_ship.png");
+        fighterShip.setIconPath("sprites/ships/spaceship_green.png");
         shopManager.addItem(fighterShip);
         
-        ShopItem battleship = new ShopItem("battleship", "전함", "강력한 화력을 가진 전함", 800, 
+        ShopItem battleship = new ShopItem("battleship", "Blue SpaceShip", "모두가 부러워하는 파란색 전투기", 200, 
                                        ShopCategory.SPACESHIPS, ItemRarity.RARE);
-        battleship.setIconPath("sprites/ships/battleship.png");
+        battleship.setIconPath("sprites/ships/spaceship_blue.png");
         shopManager.addItem(battleship);
         
-        ShopItem destroyer = new ShopItem("destroyer", "구축함", "최고급 전투 우주선", 1500, 
+        ShopItem destroyer = new ShopItem("destroyer", "평생지도교수님", "개씹초희귀 킹갓제너럴", 1500, 
                                        ShopCategory.SPACESHIPS, ItemRarity.LEGENDARY);
-        destroyer.setIconPath("sprites/ships/destroyer.png");
+        destroyer.setIconPath("sprites/ships/professor.png");
         shopManager.addItem(destroyer);
         
         // 파워업 아이템들
@@ -122,6 +138,11 @@ public class Shop {
     
     public void handleMouseClick(int x, int y) {
         inputHandler.handleMouseClick(x, y);
+    }
+    
+    public void update() {
+        // 메시지 타이머 업데이트
+        shopManager.updateMessageTimer();
     }
     
     public void draw(Graphics2D g2d) {

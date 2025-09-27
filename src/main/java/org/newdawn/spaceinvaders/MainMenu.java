@@ -27,6 +27,7 @@ public class MainMenu {
         SINGLE_PLAYER,  // 싱글플레이 서브메뉴
         MULTI_PLAYER,   // 멀티플레이 서브메뉴
         SHOP,           // 상점 메뉴
+        INVENTORY,      // 인벤토리 메뉴
         SETTINGS,        // 설정 메뉴
         ACCOUNT         // 계정 메뉴
     }
@@ -65,7 +66,6 @@ public class MainMenu {
     private String[] accountOptions = {
         "계정 정보",
         "게임 통계", 
-        "인벤토리",
         "정보수정",
         "로그아웃",
         "이전메뉴"
@@ -88,6 +88,7 @@ public class MainMenu {
             "싱글플레이",
             "멀티플레이", 
             "상점",
+            "인벤토리",
             "설정",
             welcomeMessage  // 환영 메시지
         };
@@ -193,7 +194,10 @@ public class MainMenu {
                 handleMenuSelection();
                 break;
             case KeyEvent.VK_ESCAPE:
-                if (currentState != MenuState.MAIN) {
+                if (currentState == MenuState.INVENTORY) {
+                    currentState = MenuState.MAIN;
+                    selectedOption = 3; // 인벤토리 옵션으로 돌아가기
+                } else if (currentState != MenuState.MAIN) {
                     currentState = MenuState.MAIN;
                     selectedOption = 0;
                 }
@@ -214,6 +218,8 @@ public class MainMenu {
                 return settingsOptions;
             case ACCOUNT:
                 return accountOptions;
+            case INVENTORY:
+                return new String[]{"뒤로가기"}; // 인벤토리는 뒤로가기만
             default:
                 return getMainMenuOptions(); // 동적으로 생성된 메인 메뉴 옵션
         }
@@ -242,6 +248,9 @@ public class MainMenu {
             case ACCOUNT:
                 handleAccountSelection();
                 break;
+            case INVENTORY:
+                handleInventorySelection();
+                break;
         }
     }
     
@@ -263,11 +272,15 @@ public class MainMenu {
                 showingShop = true;
                 shop.reset();
                 break;
-            case 3: // 설정
+            case 3: // 인벤토리
+                currentState = MenuState.INVENTORY;
+                selectedOption = 0;
+                break;
+            case 4: // 설정
                 currentState = MenuState.SETTINGS;
                 selectedOption = 0;
                 break;
-            case 4: // 계정 (사용자 이메일)
+            case 5: // 계정 (사용자 이메일)
                 currentState = MenuState.ACCOUNT;
                 selectedOption = 0;
                 break;
@@ -339,20 +352,26 @@ public class MainMenu {
             case 1: // 게임 통계
                 // 게임 통계 표시 (구현 필요)
                 break;
-            case 2: // 인벤토리
-                // 인벤토리 표시 (구현 필요)
-                break;
-            case 3: // 정보수정
+            case 2: // 정보수정
                 // 정보수정 화면 (구현 필요)
                 break;
-            case 4: // 로그아웃
+            case 3: // 로그아웃
                 userManager.logoutUser();
                 logoutRequested = true;
                 System.out.println("로그아웃 완료");
                 break;
-            case 5: // 이전메뉴
+            case 4: // 이전메뉴
                 currentState = MenuState.MAIN;
                 selectedOption = 0;
+                break;
+        }
+    }
+    
+    private void handleInventorySelection() {
+        switch (selectedOption) {
+            case 0: // 뒤로가기
+                currentState = MenuState.MAIN;
+                selectedOption = 3; // 인벤토리 옵션으로 돌아가기
                 break;
         }
     }
@@ -363,6 +382,14 @@ public class MainMenu {
     public void draw(Graphics2D g2d) {
         // 상점이 표시중이면 상점을 그리기
         if (showingShop) {
+            shop.update(); // 메시지 타이머 업데이트
+            shop.draw(g2d);
+            return;
+        }
+        
+        // 인벤토리가 표시중이면 상점의 인벤토리를 그리기
+        if (currentState == MenuState.INVENTORY) {
+            shop.setCurrentState(org.newdawn.spaceinvaders.shop.ShopState.INVENTORY);
             shop.draw(g2d);
             return;
         }
@@ -516,19 +543,15 @@ public class MainMenu {
                     g2d.drawString("최고 점수 : " + currentUser.getHighScore(), startX, startY + lineHeight * 3);
                     g2d.drawString("현재 레벨 : " + currentUser.getLevel(), startX, startY + lineHeight * 4);
                     break;
-                case 2: // 인벤토리
-                    g2d.drawString("인벤토리 기능은", startX, startY);
-                    g2d.drawString("추후 개발 예정입니다.", startX, startY + lineHeight);
-                    break;
-                case 3: // 정보수정
+                case 2: // 정보수정
                     g2d.drawString("정보수정 기능은", startX, startY);
                     g2d.drawString("추후 개발 예정입니다.", startX, startY + lineHeight);
                     break;
-                case 4: // 로그아웃
+                case 3: // 로그아웃
                     g2d.drawString("로그아웃을 하시겠습니까?", startX, startY);
                     g2d.drawString("확인하려면 Enter를 누르세요.", startX, startY + lineHeight);
                     break;
-                case 5: // 이전메뉴
+                case 4: // 이전메뉴
                     g2d.drawString("메인 메뉴로 돌아갑니다.", startX, startY);
                     g2d.drawString("확인하려면 Enter를 누르세요.", startX, startY + lineHeight);
                     break;
@@ -678,6 +701,10 @@ public class MainMenu {
     
     public void setUserManager(UserManager userManager) {
         this.userManager = userManager;
+        // 상점에도 UserManager 전달 (실시간 DB 동기화용)
+        if (shop != null) {
+            shop.setUserManager(userManager);
+        }
     }
     
     public boolean isLogoutRequested() {

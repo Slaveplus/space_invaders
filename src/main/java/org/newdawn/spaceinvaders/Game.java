@@ -453,9 +453,9 @@ public class Game extends Canvas
 				}
 				// 로그아웃 요청이 있으면 로그인 화면으로 돌아가기
 				if (mainMenu.isLogoutRequested()) {
-					// LoginScreen의 UserManager도 로그아웃 처리
+					// LoginScreen의 UserManager도 로그아웃 처리 (사용자 데이터는 DB에 저장됨)
 					loginScreen.getUserManager().logoutUser();
-					// LoginScreen 필드 초기화
+					// LoginScreen 입력 필드만 초기화 (사용자 데이터는 유지)
 					loginScreen.reset();
 					// 게임 상태 초기화
 					entities.clear();
@@ -464,7 +464,7 @@ public class Game extends Canvas
 					mainMenu.reset();
 					showingMenu = false;
 					showingLogin = true;
-					System.out.println("로그아웃 요청, 로그인 화면으로 이동 - 모든 상태 초기화");
+					System.out.println("로그아웃 요청, 로그인 화면으로 이동 - 사용자 데이터는 DB에 보존됨");
 				}
 				return;
 			}
@@ -610,9 +610,9 @@ public class Game extends Canvas
 				}
 				// 로그아웃 요청이 있으면 로그인 화면으로 돌아가기
 				if (mainMenu.isLogoutRequested()) {
-					// LoginScreen의 UserManager도 로그아웃 처리
+					// LoginScreen의 UserManager도 로그아웃 처리 (사용자 데이터는 DB에 저장됨)
 					loginScreen.getUserManager().logoutUser();
-					// LoginScreen 필드 초기화
+					// LoginScreen 입력 필드만 초기화 (사용자 데이터는 유지)
 					loginScreen.reset();
 					// 게임 상태 초기화
 					entities.clear();
@@ -621,7 +621,7 @@ public class Game extends Canvas
 					mainMenu.reset();
 					showingMenu = false;
 					showingLogin = true;
-					System.out.println("로그아웃 요청, 로그인 화면으로 이동 - 모든 상태 초기화");
+					System.out.println("로그아웃 요청, 로그인 화면으로 이동 - 사용자 데이터는 DB에 보존됨");
 				}
 				return;
 			}

@@ -5,6 +5,9 @@ public final class FirebaseConfig {
 
     // (선택) 추후 DB/Functions 등을 쓸 계획이라면 프로젝트 ID도 보관 가능
     public static final String PROJECT_ID = "spaceinvader-9436d";
+    
+    // Firebase Realtime Database URL
+    public static final String DATABASE_URL = "https://spaceinvader-9436d-default-rtdb.firebaseio.com/";
 
     private FirebaseConfig() {}
 }
