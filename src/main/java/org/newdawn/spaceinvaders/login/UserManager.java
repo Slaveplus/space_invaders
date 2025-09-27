@@ -1,10 +1,9 @@
 package org.newdawn.spaceinvaders.login;
 
-import org.newdawn.spaceinvaders.auth.FirebaseAuthClient;
-import org.newdawn.spaceinvaders.auth.FirebaseConfig;
-import org.newdawn.spaceinvaders.auth.UserSession;
+import org.newdawn.spaceinvaders.database.FirebaseConfig;
 import org.newdawn.spaceinvaders.database.FirebaseDatabaseClient;
 import org.newdawn.spaceinvaders.database.UserProfile;
+import org.newdawn.spaceinvaders.database.UserSession;
 import org.newdawn.spaceinvaders.database.UserStats;
 import java.io.IOException;
 import java.time.LocalDateTime;
@@ -15,13 +14,11 @@ import java.time.format.DateTimeFormatter;
  * 확장 가능한 사용자 시스템
  */
 public class UserManager {
-    private FirebaseAuthClient firebaseAuth;
     private FirebaseDatabaseClient firebaseDB;
     private User currentUser;
     private UserSession currentSession;
     
     public UserManager() {
-        this.firebaseAuth = new FirebaseAuthClient(FirebaseConfig.WEB_API_KEY);
         this.firebaseDB = new FirebaseDatabaseClient(FirebaseConfig.DATABASE_URL);
         this.currentUser = null;
         this.currentSession = null;
@@ -32,7 +29,7 @@ public class UserManager {
     
     public boolean registerUser(String email, String password) {
         try {
-            UserSession session = firebaseAuth.signUp(email, password);
+            UserSession session = firebaseDB.signUp(email, password);
             this.currentSession = session;
             this.currentUser = new User(session);
             
@@ -48,7 +45,7 @@ public class UserManager {
         } catch (IOException e) {
             System.err.println("Firebase 회원가입 실패: " + e.getMessage());
             return false;
-        } catch (FirebaseAuthClient.FirebaseAuthException e) {
+        } catch (FirebaseDatabaseClient.FirebaseAuthException e) {
             System.err.println("Firebase 회원가입 오류: " + e.getMessage());
             return false;
         }
@@ -56,7 +53,7 @@ public class UserManager {
     
     public boolean loginUser(String email, String password) {
         try {
-            UserSession session = firebaseAuth.signIn(email, password);
+            UserSession session = firebaseDB.signIn(email, password);
             this.currentSession = session;
             this.currentUser = new User(session);
             
@@ -74,7 +71,7 @@ public class UserManager {
         } catch (IOException e) {
             System.err.println("Firebase 로그인 실패: " + e.getMessage());
             return false;
-        } catch (FirebaseAuthClient.FirebaseAuthException e) {
+        } catch (FirebaseDatabaseClient.FirebaseAuthException e) {
             System.err.println("Firebase 로그인 오류: " + e.getMessage());
             return false;
         }
@@ -100,7 +97,8 @@ public class UserManager {
         if (currentSession.isExpired()) {
             try {
                 // 토큰 갱신 시도
-                currentSession = firebaseAuth.refresh(currentSession.getRefreshToken());
+                // 토큰 갱신 기능은 현재 미구현
+                // currentSession = firebaseDB.refresh(currentSession.getRefreshToken());
                 System.out.println("Firebase 토큰 갱신 성공");
                 return true;
             } catch (Exception e) {

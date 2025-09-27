@@ -2,7 +2,7 @@ package org.newdawn.spaceinvaders.login;
 
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
-import org.newdawn.spaceinvaders.auth.UserSession;
+import org.newdawn.spaceinvaders.database.UserSession;
 
 /**
  * 사용자 클래스
