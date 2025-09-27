@@ -6,6 +6,8 @@ import java.awt.Dimension;
 import java.awt.Graphics2D;
 import java.awt.event.KeyAdapter;
 import java.awt.event.KeyEvent;
+import java.awt.event.MouseAdapter;
+import java.awt.event.MouseEvent;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
 import java.awt.image.BufferStrategy;
@@ -18,6 +20,7 @@ import org.newdawn.spaceinvaders.entity.AlienEntity;
 import org.newdawn.spaceinvaders.entity.Entity;
 import org.newdawn.spaceinvaders.entity.ShipEntity;
 import org.newdawn.spaceinvaders.entity.ShotEntity;
+import org.newdawn.spaceinvaders.login.LoginScreen;
 
 /**
  * The main hook of our game. This class with both act as a manager
@@ -76,6 +79,15 @@ public class Game extends Canvas
 	/** The game window that we'll update with the frame count */
 	private JFrame container;
 	
+	/** The login screen system */
+	private LoginScreen loginScreen;
+	/** True if we're currently showing the login screen */
+	private boolean showingLogin = true;
+	/** The main menu system */
+	private MainMenu mainMenu;
+	/** True if we're currently showing the main menu */
+	private boolean showingMenu = false;
+	
 	/**
 	 * Construct our game and set it running.
 	 */
@@ -113,6 +125,9 @@ public class Game extends Canvas
 		// so we can respond to key pressed
 		addKeyListener(new KeyInputHandler());
 		
+		// add a mouse input system to our canvas
+		addMouseListener(new MouseInputHandler());
+		
 		// request the focus so key events come to us
 		requestFocus();
 
@@ -120,6 +135,15 @@ public class Game extends Canvas
 		// to manage our accelerated graphics
 		createBufferStrategy(2);
 		strategy = getBufferStrategy();
+		
+		// initialize the login screen
+		loginScreen = new LoginScreen();
+		
+		// initialize the main menu
+		mainMenu = new MainMenu();
+		
+		// MainMenu의 UserManager를 LoginScreen의 UserManager와 동기화
+		mainMenu.getUserManager().setCurrentUser(loginScreen.getUserManager().getCurrentUser());
 		
 		// initialise the entities in our game so there's something
 		// to see at startup
@@ -186,6 +210,9 @@ public class Game extends Canvas
 	public void notifyDeath() {
 		message = "Oh no! They got you, try again?";
 		waitingForKeyPress = true;
+		// 게임 오버 후 메뉴로 돌아가기
+		showingMenu = true;
+		mainMenu.reset();
 	}
 	
 	/**
@@ -195,6 +222,9 @@ public class Game extends Canvas
 	public void notifyWin() {
 		message = "Well done! You Win!";
 		waitingForKeyPress = true;
+		// 게임 승리 후 메뉴로 돌아가기
+		showingMenu = true;
+		mainMenu.reset();
 	}
 	
 	/**
@@ -274,11 +304,20 @@ public class Game extends Canvas
 			// Get hold of a graphics context for the accelerated 
 			// surface and blank it out
 			Graphics2D g = (Graphics2D) strategy.getDrawGraphics();
-			g.setColor(Color.black);
-			g.fillRect(0,0,800,600);
 			
-			// cycle round asking each entity to move itself
-			if (!waitingForKeyPress) {
+		// 로그인 화면이 표시 중일 때는 로그인 화면만 그리기
+		if (showingLogin) {
+			loginScreen.update();
+			loginScreen.draw(g);
+		} else if (showingMenu) {
+			// 메뉴가 표시 중일 때는 메뉴만 그리기
+			mainMenu.draw(g);
+		} else {
+				g.setColor(Color.black);
+				g.fillRect(0,0,800,600);
+				
+				// cycle round asking each entity to move itself
+				if (!waitingForKeyPress) {
 				for (int i=0;i<entities.size();i++) {
 					Entity entity = (Entity) entities.get(i);
 					
@@ -324,34 +363,37 @@ public class Game extends Canvas
 				logicRequiredThisLoop = false;
 			}
 			
-			// if we're waiting for an "any key" press then draw the 
-			// current message 
-			if (waitingForKeyPress) {
-				g.setColor(Color.white);
-				g.drawString(message,(800-g.getFontMetrics().stringWidth(message))/2,250);
-				g.drawString("Press any key",(800-g.getFontMetrics().stringWidth("Press any key"))/2,300);
+				// if we're waiting for an "any key" press then draw the 
+				// current message 
+				if (waitingForKeyPress) {
+					g.setColor(Color.white);
+					g.drawString(message,(800-g.getFontMetrics().stringWidth(message))/2,250);
+					g.drawString("Press any key",(800-g.getFontMetrics().stringWidth("Press any key"))/2,300);
+				}
+				
+				// resolve the movement of the ship. First assume the ship 
+				// isn't moving. If either cursor key is pressed then
+				// update the movement appropraitely
+				if (ship != null) {
+					ship.setHorizontalMovement(0);
+					
+					if ((leftPressed) && (!rightPressed)) {
+						ship.setHorizontalMovement(-moveSpeed);
+					} else if ((rightPressed) && (!leftPressed)) {
+						ship.setHorizontalMovement(moveSpeed);
+					}
+					
+					// if we're pressing fire, attempt to fire
+					if (firePressed) {
+						tryToFire();
+					}
+				}
 			}
 			
 			// finally, we've completed drawing so clear up the graphics
 			// and flip the buffer over
 			g.dispose();
 			strategy.show();
-			
-			// resolve the movement of the ship. First assume the ship 
-			// isn't moving. If either cursor key is pressed then
-			// update the movement appropraitely
-			ship.setHorizontalMovement(0);
-			
-			if ((leftPressed) && (!rightPressed)) {
-				ship.setHorizontalMovement(-moveSpeed);
-			} else if ((rightPressed) && (!leftPressed)) {
-				ship.setHorizontalMovement(moveSpeed);
-			}
-			
-			// if we're pressing fire, attempt to fire
-			if (firePressed) {
-				tryToFire();
-			}
 			
 			// we want each frame to take 10 milliseconds, to do this
 			// we've recorded when we started the frame. We add 10 milliseconds
@@ -385,6 +427,48 @@ public class Game extends Canvas
 		 * @param e The details of the key that was pressed 
 		 */
 		public void keyPressed(KeyEvent e) {
+			// 로그인 화면이 표시 중일 때는 로그인 화면에서 키 입력 처리
+			if (showingLogin) {
+				loginScreen.handleKeyInput(e.getKeyCode(), e.getKeyChar());
+				// 로그인 성공 시 메인 메뉴로 이동
+				if (loginScreen.getUserManager().isLoggedIn()) {
+					// MainMenu의 UserManager를 LoginScreen의 UserManager로 완전히 교체
+					mainMenu.setUserManager(loginScreen.getUserManager());
+					showingLogin = false;
+					showingMenu = true;
+					System.out.println("로그인 성공, 메인 메뉴로 이동");
+				}
+				return;
+			}
+			
+			// 메뉴가 표시 중일 때는 메뉴에서 키 입력 처리
+			if (showingMenu) {
+				mainMenu.handleKeyInput(e.getKeyCode());
+				// 새게임 시작 요청이 있으면 메뉴 숨기고 게임 시작
+				if (mainMenu.shouldStartGame()) {
+					showingMenu = false;
+					waitingForKeyPress = false;
+					mainMenu.reset(); // 게임 시작 요청 플래그 리셋
+					startGame();
+				}
+				// 로그아웃 요청이 있으면 로그인 화면으로 돌아가기
+				if (mainMenu.isLogoutRequested()) {
+					// LoginScreen의 UserManager도 로그아웃 처리
+					loginScreen.getUserManager().logoutUser();
+					// LoginScreen 필드 초기화
+					loginScreen.reset();
+					// 게임 상태 초기화
+					entities.clear();
+					waitingForKeyPress = false;
+					// 메뉴 상태 완전 초기화
+					mainMenu.reset();
+					showingMenu = false;
+					showingLogin = true;
+					System.out.println("로그아웃 요청, 로그인 화면으로 이동 - 모든 상태 초기화");
+				}
+				return;
+			}
+			
 			// if we're waiting for an "any key" typed then we don't 
 			// want to do anything with just a "press"
 			if (waitingForKeyPress) {
@@ -400,6 +484,23 @@ public class Game extends Canvas
 			}
 			if (e.getKeyCode() == KeyEvent.VK_SPACE) {
 				firePressed = true;
+			}
+
+			// 상점 키 입력 처리
+			if (showingMenu){
+				mainMenu.handleKeyInput(e.getKeyCode());
+                // 상점이 표시 중이면 상점에서 처리함
+				if (mainMenu.isShowingShop()){
+					return;
+				}
+                // 새게임 시작 요청이 있으면 메뉴를 숨기고 게임 시작
+				if (mainMenu.shouldStartGame()){
+					showingMenu = false;
+					waitingForKeyPress = false;
+					mainMenu.reset();
+					startGame();
+				}
+				return;
 			}
 		} 
 		
@@ -451,10 +552,7 @@ public class Game extends Canvas
 				}
 			}
 			
-			// if we hit escape, then quit the game
-			if (e.getKeyChar() == 27) {
-				System.exit(0);
-			}
+			// ESC 키로 게임 종료 기능 제거 - 이제 창 닫기 버튼으로만 종료 가능
 		}
 	}
 	
@@ -472,5 +570,65 @@ public class Game extends Canvas
 		// return until the game has finished running. Hence we are
 		// using the actual main thread to run the game.
 		g.gameLoop();
+	}
+	
+	/**
+	 * 마우스 입력 처리 클래스
+	 * 게임 내 모든 마우스 이벤트를 처리합니다
+	 */
+	private class MouseInputHandler extends MouseAdapter {
+		/**
+		 * 마우스 클릭 이벤트 처리
+		 */
+		public void mouseClicked(MouseEvent e) {
+			int x = e.getX();
+			int y = e.getY();
+			
+			// 로그인 화면이 표시 중일 때는 로그인 화면에서 마우스 클릭 처리
+			if (showingLogin) {
+				loginScreen.handleMouseClick(x, y);
+				// 로그인 성공 시 메인 메뉴로 이동
+				if (loginScreen.getUserManager().isLoggedIn()) {
+					// MainMenu의 UserManager를 LoginScreen의 UserManager로 완전히 교체
+					mainMenu.setUserManager(loginScreen.getUserManager());
+					showingLogin = false;
+					showingMenu = true;
+					System.out.println("로그인 성공, 메인 메뉴로 이동");
+				}
+				return;
+			}
+			
+			// 메뉴가 표시 중일 때는 메뉴에서 마우스 클릭 처리
+			if (showingMenu) {
+				mainMenu.handleMouseClick(x, y);
+				// 새게임 시작 요청이 있으면 메뉴 숨기고 게임 시작
+				if (mainMenu.shouldStartGame()) {
+					showingMenu = false;
+					waitingForKeyPress = false;
+					mainMenu.reset(); // 게임 시작 요청 플래그 리셋
+					startGame();
+				}
+				// 로그아웃 요청이 있으면 로그인 화면으로 돌아가기
+				if (mainMenu.isLogoutRequested()) {
+					// LoginScreen의 UserManager도 로그아웃 처리
+					loginScreen.getUserManager().logoutUser();
+					// LoginScreen 필드 초기화
+					loginScreen.reset();
+					// 게임 상태 초기화
+					entities.clear();
+					waitingForKeyPress = false;
+					// 메뉴 상태 완전 초기화
+					mainMenu.reset();
+					showingMenu = false;
+					showingLogin = true;
+					System.out.println("로그아웃 요청, 로그인 화면으로 이동 - 모든 상태 초기화");
+				}
+				return;
+			}
+			
+			// 게임 중일 때는 게임 내 마우스 클릭 처리
+			// (필요시 게임 내 마우스 기능 추가 가능)
+			System.out.println("게임 중 마우스 클릭: (" + x + ", " + y + ")");
+		}
 	}
 }

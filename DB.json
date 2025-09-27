@@ -1,0 +1,310 @@
+{
+    "users": {
+      "user_001": {
+        "profile": {
+          "username": "player123",
+          "email": "player@example.com",
+          "uid": "firebase_auth_uid",
+          "level": 5,
+          "coins": 2500,
+          "gems": 75,
+          "lastLogin": "2024-01-15T10:30:00",
+          "registrationDate": "2024-01-01T09:00:00"
+        },
+        "stats": {
+          "highScore": 15000,
+          "totalGamesPlayed": 25,
+          "totalWins": 18,
+          "winRate": 72.0,
+          "aliensKilled": 450,
+          "shotsFired": 1200,
+          "totalPlayTime": 3600,
+          "currentStreak": 3,
+          "longestStreak": 8
+        },
+        "inventory": {
+          "laser_gun": {
+            "purchased": true,
+            "purchasedDate": "2024-01-10T14:20:00",
+            "isEquipped": false,
+            "level": 1,
+            "upgradeCount": 0
+          },
+          "fighter_ship": {
+            "purchased": true,
+            "purchasedDate": "2024-01-12T16:45:00",
+            "isEquipped": true,
+            "level": 2,
+            "upgradeCount": 1
+          },
+          "health_boost": {
+            "purchased": true,
+            "purchasedDate": "2024-01-14T09:15:00",
+            "isEquipped": false,
+            "level": 1,
+            "quantity": 5
+          }
+        },
+        "settings": {
+          "musicEnabled": true,
+          "soundEnabled": true,
+          "difficulty": "normal",
+          "language": "ko",
+          "autoSave": true
+        },
+        "achievements": {
+          "first_win": {
+            "unlocked": true,
+            "unlockedDate": "2024-01-02T15:30:00",
+            "description": "첫 승리 달성"
+          },
+          "score_master": {
+            "unlocked": false,
+            "progress": 75,
+            "target": 100,
+            "description": "10000점 이상 달성"
+          }
+        }
+      }
+    },
+    
+    "gameSessions": {
+      "session_001": {
+        "uid": "user_001",
+        "startTime": "2024-01-15T10:00:00",
+        "endTime": "2024-01-15T10:15:00",
+        "duration": 900,
+        "score": 12000,
+        "level": 4,
+        "result": "win",
+        "aliensKilled": 45,
+        "shotsFired": 120,
+        "accuracy": 37.5,
+        "coinsEarned": 150,
+        "gemsEarned": 5,
+        "equippedItems": {
+          "weapon": "laser_gun",
+          "spaceship": "fighter_ship",
+          "powerup": "health_boost"
+        }
+      },
+      "session_002": {
+        "uid": "user_001",
+        "startTime": "2024-01-15T11:00:00",
+        "endTime": "2024-01-15T11:08:00",
+        "duration": 480,
+        "score": 8500,
+        "level": 3,
+        "result": "lose",
+        "aliensKilled": 28,
+        "shotsFired": 95,
+        "accuracy": 29.5,
+        "coinsEarned": 85,
+        "gemsEarned": 2,
+        "equippedItems": {
+          "weapon": "plasma_gun",
+          "spaceship": "fighter_ship",
+          "powerup": "speed_boost"
+        }
+      }
+    },
+    
+    "leaderboard": {
+      "global": {
+        "user_001": {
+          "username": "pro_gamer",
+          "highScore": 50000,
+          "level": 10,
+          "rank": 1,
+          "lastUpdated": "2024-01-15T12:00:00"
+        },
+        "user_002": {
+          "username": "space_warrior",
+          "highScore": 45000,
+          "level": 9,
+          "rank": 2,
+          "lastUpdated": "2024-01-15T11:30:00"
+        },
+        "user_003": {
+          "username": "alien_hunter",
+          "highScore": 40000,
+          "level": 8,
+          "rank": 3,
+          "lastUpdated": "2024-01-15T10:45:00"
+        }
+      },
+      "weekly": {
+        "2024-W03": {
+          "user_002": {
+            "username": "weekly_champ",
+            "weeklyScore": 25000,
+            "rank": 1,
+            "gamesPlayed": 15
+          },
+          "user_001": {
+            "username": "pro_gamer",
+            "weeklyScore": 22000,
+            "rank": 2,
+            "gamesPlayed": 12
+          }
+        }
+      },
+      "monthly": {
+        "2024-01": {
+          "user_001": {
+            "username": "pro_gamer",
+            "monthlyScore": 85000,
+            "rank": 1,
+            "gamesPlayed": 45
+          }
+        }
+      }
+    },
+    
+    "shopItems": {
+      "weapons": {
+        "laser_gun": {
+          "name": "레이저 건",
+          "description": "기본 레이저 무기",
+          "basePrice": 100,
+          "rarity": "common",
+          "iconPath": "sprites/weapons/green_laser.png",
+          "isAvailable": true,
+          "maxLevel": 3,
+          "effects": {
+            "damage": 10,
+            "fireRate": 1.0,
+            "range": 100
+          }
+        },
+        "plasma_gun": {
+          "name": "플라즈마 건",
+          "description": "강력한 플라즈마 무기",
+          "basePrice": 300,
+          "rarity": "rare",
+          "iconPath": "sprites/weapons/plasma.png",
+          "isAvailable": true,
+          "maxLevel": 5,
+          "effects": {
+            "damage": 25,
+            "fireRate": 0.8,
+            "range": 120
+          }
+        },
+        "missile_launcher": {
+          "name": "미사일 발사기",
+          "description": "원거리 미사일 무기",
+          "basePrice": 500,
+          "rarity": "epic",
+          "iconPath": "sprites/weapons/missile.png",
+          "isAvailable": true,
+          "maxLevel": 3,
+          "effects": {
+            "damage": 50,
+            "fireRate": 0.3,
+            "range": 200
+          }
+        }
+      },
+      "spaceships": {
+        "fighter_ship": {
+          "name": "전투기",
+          "description": "빠른 기동성의 전투기",
+          "basePrice": 200,
+          "rarity": "common",
+          "iconPath": "sprites/ships/fighter_ship.png",
+          "isAvailable": true,
+          "maxLevel": 5,
+          "effects": {
+            "speed": 15,
+            "health": 100,
+            "agility": 20
+          }
+        },
+        "battleship": {
+          "name": "전함",
+          "description": "강력한 화력을 가진 전함",
+          "basePrice": 800,
+          "rarity": "rare",
+          "iconPath": "sprites/ships/battleship.png",
+          "isAvailable": true,
+          "maxLevel": 3,
+          "effects": {
+            "speed": 5,
+            "health": 200,
+            "agility": 5
+          }
+        }
+      },
+      "powerups": {
+        "health_boost": {
+          "name": "체력 부스트",
+          "description": "체력을 50% 증가",
+          "basePrice": 150,
+          "rarity": "common",
+          "iconPath": "sprites/powerups/health_boost.png",
+          "isAvailable": true,
+          "maxLevel": 1,
+          "effects": {
+            "healthMultiplier": 1.5,
+            "duration": 30
+          }
+        },
+        "speed_boost": {
+          "name": "속도 부스트",
+          "description": "이동 속도를 30% 증가",
+          "basePrice": 200,
+          "rarity": "rare",
+          "iconPath": "sprites/powerups/speed_boost.png",
+          "isAvailable": true,
+          "maxLevel": 1,
+          "effects": {
+            "speedMultiplier": 1.3,
+            "duration": 20
+          }
+        }
+      }
+    },
+    
+    "achievements": {
+      "first_win": {
+        "name": "첫 승리",
+        "description": "첫 번째 게임에서 승리하기",
+        "type": "gameplay",
+        "reward": {
+          "coins": 100,
+          "gems": 5
+        },
+        "condition": {
+          "type": "win_count",
+          "value": 1
+        }
+      },
+      "score_master": {
+        "name": "점수 마스터",
+        "description": "10000점 이상 달성하기",
+        "type": "score",
+        "reward": {
+          "coins": 500,
+          "gems": 20
+        },
+        "condition": {
+          "type": "high_score",
+          "value": 10000
+        }
+      },
+      "alien_hunter": {
+        "name": "외계인 헌터",
+        "description": "100마리의 외계인 처치하기",
+        "type": "kill_count",
+        "reward": {
+          "coins": 300,
+          "gems": 15
+        },
+        "condition": {
+          "type": "total_kills",
+          "value": 100
+        }
+      }
+    }
+  }
