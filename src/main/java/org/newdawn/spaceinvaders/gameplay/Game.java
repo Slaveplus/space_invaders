@@ -1,29 +1,19 @@
-package org.newdawn.spaceinvaders;
+package org.newdawn.spaceinvaders.gameplay;
 
 import java.awt.Canvas;
 import java.awt.Color;
-import java.awt.Dimension;
 import java.awt.Graphics2D;
-import java.awt.event.KeyAdapter;
-import java.awt.event.KeyEvent;
-import java.awt.event.MouseAdapter;
-import java.awt.event.MouseEvent;
-import java.awt.event.WindowAdapter;
-import java.awt.event.WindowEvent;
-import java.awt.image.BufferStrategy;
+// no direct AWT listeners here; handled via InputManager
 import java.util.ArrayList;
 
-import javax.swing.JFrame;
-import javax.swing.JPanel;
+// JFrame/Panel are managed by SpaceInvadersApp
 
 import org.newdawn.spaceinvaders.entity.AlienEntity;
 import org.newdawn.spaceinvaders.entity.Entity;
 import org.newdawn.spaceinvaders.entity.ShipEntity;
 import org.newdawn.spaceinvaders.entity.ShotEntity;
-import org.newdawn.spaceinvaders.gameplay.GameStateManager;
-import org.newdawn.spaceinvaders.gameplay.InputManager;
-import org.newdawn.spaceinvaders.gameplay.SkillManager;
-import org.newdawn.spaceinvaders.gameplay.UIRenderer;
+import org.newdawn.spaceinvaders.app.Screen;
+import org.newdawn.spaceinvaders.app.ScreenNavigator;
 
 /**
  * The main hook of our game. This class with both act as a manager
@@ -40,12 +30,10 @@ import org.newdawn.spaceinvaders.gameplay.UIRenderer;
  * 
  * @author Kevin Glass
  */
-public class Game extends Canvas 
+public class Game extends Canvas implements Screen
 {
 	/** The stragey that allows us to use accelerate page flipping */
-	private BufferStrategy strategy;
-	/** True if the game is currently "running", i.e. the game loop is looping */
-	private boolean gameRunning = true;
+	// BufferStrategy는 상위 App에서 관리
 	// entities and removeList are now managed by GameStateManager
 	/** The entity representing the player */
 	private Entity ship;
@@ -59,11 +47,11 @@ public class Game extends Canvas
 	/** The last time at which we recorded the frame rate */
 	private long lastFpsTime;
 	/** The current number of frames recorded */
-	private int fps;
+	// FPS 표시 기능은 상위에서 처리 가능, 내부적으로는 카운트만 유지하지 않음
 	/** The normal title of the game window */
-	private String windowTitle = "Space Invaders 102";
-	/** The game window that we'll update with the frame count */
-	private JFrame container;
+	// 창 제목은 상위 App에서 관리
+	/** navigator for screen transitions */
+	private final ScreenNavigator navigator;
 	
 	/** The game state manager */
 	private GameStateManager gameStateManager;
@@ -77,43 +65,14 @@ public class Game extends Canvas
 	/**
 	 * Construct our game and set it running.
 	 */
-	public Game() {
-		// create a frame to contain our game
-		container = new JFrame("Space Invaders 102");
-		
-		// get hold the content of the frame and set up the resolution of the game
-		JPanel panel = (JPanel) container.getContentPane();
-		panel.setPreferredSize(new Dimension(800,600));
-		panel.setLayout(null);
-		
-		// setup our canvas size and put it into the content of the frame
-		setBounds(0,0,800,600);
-		panel.add(this);
-		
-		// Tell AWT not to bother repainting our canvas since we're
-		// going to do that our self in accelerated mode
+	public Game(ScreenNavigator navigator) {
+		this.navigator = navigator;
 		setIgnoreRepaint(true);
-		
-		// finally make the window visible 
-		container.pack();
-		container.setResizable(false);
-		container.setVisible(true);
-		
-		// add a listener to respond to the user closing the window. If they
-		// do we'd like to exit the game
-		container.addWindowListener(new WindowAdapter() {
-			public void windowClosing(WindowEvent e) {
-				System.exit(0);
-			}
-		});
-		
-		// create the buffering strategy which will allow AWT
-		// to manage our accelerated graphics
-		createBufferStrategy(2);
-		strategy = getBufferStrategy();
+		setBounds(0,0,800,600);
 		
 		// initialize the game state manager
 		gameStateManager = new GameStateManager();
+		gameStateManager.showGameplay();
 		
 		// initialize the skill manager
 		skillManager = new SkillManager(this);
@@ -128,9 +87,6 @@ public class Game extends Canvas
 		addKeyListener(inputManager.new KeyInputHandler());
 		addMouseListener(inputManager.new MouseInputHandler());
 		
-		// request the focus so key events come to us
-		requestFocus();
-		
 		// initialise the entities in our game so there's something
 		// to see at startup
 		initEntities();
@@ -143,6 +99,7 @@ public class Game extends Canvas
 	public void startGame() {
 		// 게임플레이 상태 초기화 (entities.clear() 포함)
 		gameStateManager.startNewGame();
+		gameStateManager.showGameplay();
 		
 		// 엔티티 초기화 (startNewGame() 후에 호출)
 		initEntities();
@@ -220,7 +177,7 @@ public class Game extends Canvas
 			gameStateManager.setMessage("Oh no! They got you, try again?");
 			gameStateManager.setWaitingForKeyPress(true);
 			// 게임 오버 후 메뉴로 돌아가기
-			gameStateManager.handleGameEnd();
+			if (navigator != null) navigator.showMainMenu();
 		}
 	}
 	
@@ -240,7 +197,7 @@ public class Game extends Canvas
 			gameStateManager.setMessage("Well done! You Win!");
 			gameStateManager.setWaitingForKeyPress(true);
 			// 게임 승리 후 메뉴로 돌아가기
-			gameStateManager.handleGameEnd();
+			if (navigator != null) navigator.showMainMenu();
 		}
 	}
 	
@@ -434,143 +391,81 @@ public class Game extends Canvas
 	 * - Checking Input
 	 * <p>
 	 */
-	public void gameLoop() {
-		long lastLoopTime = SystemTimer.getTime();
-		
-		// keep looping round til the game ends
-		while (gameRunning) {
-			// work out how long its been since the last update, this
-			// will be used to calculate how far the entities should
-			// move this loop
-			long delta = SystemTimer.getTime() - lastLoopTime;
-			lastLoopTime = SystemTimer.getTime();
+	public void update(long delta) {
+		// update frame timing (optional)
+		lastFpsTime += delta;
+		if (lastFpsTime >= 1000) {
+			lastFpsTime = 0;
+		}
 
-			// update the frame counter
-			lastFpsTime += delta;
-			fps++;
-			
-			// update our FPS counter if a second has passed since
-			// we last recorded
-			if (lastFpsTime >= 1000) {
-				container.setTitle(windowTitle+" (FPS: "+fps+")");
-				lastFpsTime = 0;
-				fps = 0;
-			}
-			
-			// Get hold of a graphics context for the accelerated 
-			// surface and blank it out
-			Graphics2D g = (Graphics2D) strategy.getDrawGraphics();
-			
-			// UI 상태에 따른 화면 그리기
-			if (gameStateManager.isShowingLogin() || gameStateManager.isShowingMenu()) {
-				gameStateManager.update();
-				gameStateManager.draw(g);
-			} else if (gameStateManager.isGameplay()) {
-				// Draw background image
-				drawGameplayBackground(g);
-				
-				// cycle round asking each entity to move itself
-				// Pause gameplay if any menu is open
-				if (!gameStateManager.isWaitingForKeyPress() && 
-					!gameStateManager.isShowingPauseMenu() && 
-					!gameStateManager.isShowingSkillMenu()) {
-					// Update skill effects
-					skillManager.updateSkillEffects();
-					
-					ArrayList<Entity> entities = gameStateManager.getEntities();
-					for (Entity entity : entities) {
-						entity.move(delta);
-					}
-					
-					// try to fire from aliens
-					tryAlienFire();
-				}
-			
-				// cycle round drawing all the visible entities we have in the game
+		// gameplay update
+		if (gameStateManager.isGameplay()) {
+			if (!gameStateManager.isWaitingForKeyPress() &&
+				!gameStateManager.isShowingPauseMenu() &&
+				!gameStateManager.isShowingSkillMenu()) {
+				// Update skill effects
+				skillManager.updateSkillEffects();
 				ArrayList<Entity> entities = gameStateManager.getEntities();
 				for (Entity entity : entities) {
-					entity.draw(g);
+					entity.move(delta);
 				}
-			
-				// Simple collision detection (only when not paused)
-				if (!gameStateManager.isShowingPauseMenu() && 
-					!gameStateManager.isShowingSkillMenu()) {
-					for (int i=0;i<entities.size();i++) {
-						Entity entity1 = entities.get(i);
-						for (int j=i+1;j<entities.size();j++) {
-							Entity entity2 = entities.get(j);
-							if (entity1.collidesWith(entity2)) {
-								entity1.collidedWith(entity2);
-								entity2.collidedWith(entity1);
-							}
-						}
-					}
-				
-					// remove any entity that has been marked for clear up
-					entities.removeAll(gameStateManager.getRemoveList());
-					gameStateManager.getRemoveList().clear();
-
-					// if a game event has indicated that game logic should
-					// be resolved, cycle round every entity requesting that
-					// their personal logic should be considered.
-					if (gameStateManager.isLogicRequiredThisLoop()) {
-						for (Entity entity : entities) {
-							entity.doLogic();
-						}
-						
-						gameStateManager.setLogicRequiredThisLoop(false);
-					}
-				}
-			
-				// Draw game UI (HP, skill points, etc.)
-				uiRenderer.drawGameUI(g, gameStateManager, skillManager);
-				
-				// Draw pause menu if showing
-				if (gameStateManager.isShowingPauseMenu()) {
-					drawPauseMenu(g);
-				}
-				
-				// Draw skill menu if showing
-				if (gameStateManager.isShowingSkillMenu()) {
-					drawSkillMenu(g);
-				}
-				
-				// if we're waiting for an "any key" press then draw the 
-				// current message 
-				if (gameStateManager.isWaitingForKeyPress()) {
-					uiRenderer.drawMessage(g, gameStateManager.getMessage());
-				}
+				tryAlienFire();
 			}
-			
-			// finally, we've completed drawing so clear up the graphics
-			// and flip the buffer over
-			g.dispose();
-			strategy.show();
-			
-			// resolve the movement of the ship. First assume the ship 
-			// isn't moving. If either cursor key is pressed then
-			// update the movement appropriately (only when not paused)
-			if (ship != null && !gameStateManager.isShowingPauseMenu() && 
-				!gameStateManager.isShowingSkillMenu()) {
+
+			// Ship movement & fire
+			if (ship != null && !gameStateManager.isShowingPauseMenu() && !gameStateManager.isShowingSkillMenu()) {
 				ship.setHorizontalMovement(0);
-				
 				if (inputManager.isLeftPressed() && !inputManager.isRightPressed()) {
 					ship.setHorizontalMovement(-moveSpeed);
 				} else if (inputManager.isRightPressed() && !inputManager.isLeftPressed()) {
 					ship.setHorizontalMovement(moveSpeed);
 				}
-				
-				// if we're pressing fire, attempt to fire
 				if (inputManager.isFirePressed()) {
 					tryToFire();
 				}
 			}
-			
-			// we want each frame to take 10 milliseconds, to do this
-			// we've recorded when we started the frame. We add 10 milliseconds
-			// to this and then factor in the current time to give 
-			// us our final value to wait for
-			SystemTimer.sleep(lastLoopTime+10-SystemTimer.getTime());
+
+			// collisions
+			ArrayList<Entity> entities = gameStateManager.getEntities();
+			if (!gameStateManager.isShowingPauseMenu() && !gameStateManager.isShowingSkillMenu()) {
+				for (int i=0;i<entities.size();i++) {
+					Entity e1 = entities.get(i);
+					for (int j=i+1;j<entities.size();j++) {
+						Entity e2 = entities.get(j);
+						if (e1.collidesWith(e2)) {
+							e1.collidedWith(e2);
+							e2.collidedWith(e1);
+						}
+					}
+				}
+				entities.removeAll(gameStateManager.getRemoveList());
+				gameStateManager.getRemoveList().clear();
+				if (gameStateManager.isLogicRequiredThisLoop()) {
+					for (Entity e : entities) e.doLogic();
+					gameStateManager.setLogicRequiredThisLoop(false);
+				}
+			}
+		}
+	}
+
+	public void render(Graphics2D g) {
+		if (gameStateManager.isGameplay()) {
+			// background
+			drawGameplayBackground(g);
+			// entities
+			ArrayList<Entity> entities = gameStateManager.getEntities();
+			for (Entity entity : entities) entity.draw(g);
+			// UI & overlays
+			uiRenderer.drawGameUI(g, gameStateManager, skillManager);
+			if (gameStateManager.isShowingPauseMenu()) { drawPauseMenu(g); }
+			if (gameStateManager.isShowingSkillMenu()) { drawSkillMenu(g); }
+			if (gameStateManager.isWaitingForKeyPress()) {
+				uiRenderer.drawMessage(g, gameStateManager.getMessage());
+			}
+		} else {
+			// 비게임플레이 화면은 상위 앱이 처리하므로 이곳에서는 배경만
+			g.setColor(Color.black);
+			g.fillRect(0,0,800,600);
 		}
 	}
 	
@@ -615,7 +510,7 @@ public class Game extends Canvas
 	/**
 	 * 엔티티 리스트 반환 (gameplay 패키지용)
 	 */
-	public ArrayList getEntities() {
+	public ArrayList<Entity> getEntities() {
 		return gameStateManager.getEntities();
 	}
 	
@@ -645,8 +540,8 @@ public class Game extends Canvas
 	 */
 	public void drawSkillMenu(java.awt.Graphics2D g2d) {
 		// 스킬 메뉴 렌더러 사용
-		org.newdawn.spaceinvaders.menu.SkillMenuRenderer skillMenuRenderer = 
-			new org.newdawn.spaceinvaders.menu.SkillMenuRenderer();
+		org.newdawn.spaceinvaders.mainmenu.SkillMenuRenderer skillMenuRenderer = 
+			new org.newdawn.spaceinvaders.mainmenu.SkillMenuRenderer();
 		
 		skillMenuRenderer.drawSkillMenu(
 			g2d,
@@ -666,8 +561,8 @@ public class Game extends Canvas
 	 */
 	public void drawPauseMenu(java.awt.Graphics2D g2d) {
 		// 일시정지 메뉴 렌더러 사용
-		org.newdawn.spaceinvaders.menu.PauseMenuRenderer pauseMenuRenderer = 
-			new org.newdawn.spaceinvaders.menu.PauseMenuRenderer();
+		org.newdawn.spaceinvaders.mainmenu.PauseMenuRenderer pauseMenuRenderer = 
+			new org.newdawn.spaceinvaders.mainmenu.PauseMenuRenderer();
 		
 		pauseMenuRenderer.drawPauseMenu(g2d, gameStateManager.getSelectedPauseMenuItem());
 	}
@@ -699,12 +594,8 @@ public class Game extends Canvas
 	 * @param argv The arguments that are passed into our game
 	 */
 	public static void main(String argv[]) {
-		Game g = new Game();
-
-		// Start the main game loop, note: this method will not
-		// return until the game has finished running. Hence we are
-		// using the actual main thread to run the game.
-		g.gameLoop();
+		// 엔트리포인트는 SpaceInvadersApp으로 이동
+		org.newdawn.spaceinvaders.SpaceInvadersApp.main(argv);
 	}
 	
 }

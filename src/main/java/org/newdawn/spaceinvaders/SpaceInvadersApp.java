@@ -1,0 +1,141 @@
+package org.newdawn.spaceinvaders;
+
+import org.newdawn.spaceinvaders.app.Screen;
+import org.newdawn.spaceinvaders.app.ScreenNavigator;
+import org.newdawn.spaceinvaders.gameplay.Game;
+import org.newdawn.spaceinvaders.login.LoginScreenCanvas;
+import org.newdawn.spaceinvaders.mainmenu.MainMenuCanvas;
+
+import javax.swing.*;
+import java.awt.*;
+import java.awt.image.BufferStrategy;
+
+/**
+ * 애플리케이션 프레임. 창, 메인 루프, 화면 전환을 관리합니다.
+ */
+public class SpaceInvadersApp extends JFrame implements ScreenNavigator {
+    public static final int WIDTH = 800;
+    public static final int HEIGHT = 600;
+
+    private Canvas canvas;              // 현재 화면이 부착되는 캔버스
+    private BufferStrategy strategy;    // 더블버퍼
+
+    // 스크린(캔버스)
+    private LoginScreenCanvas loginScreenCanvas;
+    private MainMenuCanvas mainMenuCanvas;
+    private Game gameScreen; // Game 자체를 캔버스로 이용
+
+    private Screen currentScreen; // update/render 가상화
+    private volatile boolean running = true;
+
+    public SpaceInvadersApp() {
+        super("Space Invaders");
+        setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+        setIgnoreRepaint(true);
+        setResizable(false);
+
+        JPanel panel = (JPanel) getContentPane();
+        panel.setPreferredSize(new Dimension(WIDTH, HEIGHT));
+        panel.setLayout(null);
+
+        // 기본 캔버스 생성 (실제 화면 캔버스로 교체됨)
+        canvas = new Canvas();
+        canvas.setBounds(0, 0, WIDTH, HEIGHT);
+        canvas.setIgnoreRepaint(true);
+        panel.add(canvas);
+
+        pack();
+        setLocationRelativeTo(null);
+        setVisible(true);
+
+        canvas.createBufferStrategy(2);
+        strategy = canvas.getBufferStrategy();
+
+        // 스크린 생성
+        loginScreenCanvas = new LoginScreenCanvas(this);
+        mainMenuCanvas = new MainMenuCanvas(this);
+        gameScreen = new Game(this); // Game을 스크린(캔버스)으로 사용
+
+        // 초기 화면
+        setScreen(loginScreenCanvas);
+    }
+
+    private void setScreen(Canvas newCanvas) {
+        // 현재 화면 제거
+        if (canvas != null) {
+            canvas.setVisible(false);
+            getContentPane().remove(canvas);
+            if (currentScreen != null) currentScreen.onHide();
+        }
+
+        // 새 화면 추가
+        canvas = newCanvas;
+        canvas.setBounds(0, 0, WIDTH, HEIGHT);
+        canvas.setIgnoreRepaint(true);
+        getContentPane().add(canvas);
+        canvas.requestFocus();
+        getContentPane().revalidate();
+        getContentPane().repaint();
+
+        // 버퍼 전략 갱신
+        canvas.createBufferStrategy(2);
+        strategy = canvas.getBufferStrategy();
+
+        if (newCanvas instanceof Screen) {
+            currentScreen = (Screen) newCanvas;
+            currentScreen.onShow();
+        } else {
+            currentScreen = null;
+        }
+    }
+
+    public void runMainLoop() {
+        long last = System.currentTimeMillis();
+        while (running) {
+            long now = System.currentTimeMillis();
+            long delta = now - last;
+            last = now;
+
+            if (currentScreen != null) {
+                currentScreen.update(delta);
+            }
+
+            Graphics2D g = (Graphics2D) strategy.getDrawGraphics();
+            try {
+                g.setColor(Color.black);
+                g.fillRect(0, 0, WIDTH, HEIGHT);
+                if (currentScreen != null) currentScreen.render(g);
+            } finally {
+                g.dispose();
+            }
+            strategy.show();
+
+            // 간단한 프레임 타임 유지
+            try { Thread.sleep(Math.max(0, 10)); } catch (InterruptedException ignored) {}
+        }
+        dispose();
+    }
+
+    // ============== ScreenNavigator 구현 ==============
+    @Override
+    public void showLogin() { setScreen(loginScreenCanvas); }
+
+    @Override
+    public void showMainMenu() { setScreen(mainMenuCanvas); }
+
+    @Override
+    public void startNewGame() {
+        if (gameScreen != null) gameScreen.startNewGame();
+        setScreen(gameScreen);
+    }
+
+    @Override
+    public void exitGame() {
+        running = false;
+    }
+
+    public static void main(String[] args) {
+        SpaceInvadersApp app = new SpaceInvadersApp();
+        app.runMainLoop();
+    }
+}

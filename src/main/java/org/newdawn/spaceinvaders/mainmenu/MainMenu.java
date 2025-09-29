@@ -1,4 +1,4 @@
-package org.newdawn.spaceinvaders.menu;
+package org.newdawn.spaceinvaders.mainmenu;
 
 import java.awt.*;
 import java.awt.event.KeyEvent;

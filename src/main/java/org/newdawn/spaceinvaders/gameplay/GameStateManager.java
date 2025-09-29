@@ -2,7 +2,8 @@ package org.newdawn.spaceinvaders.gameplay;
 
 import org.newdawn.spaceinvaders.login.LoginScreen;
 import org.newdawn.spaceinvaders.login.UserManager;
-import org.newdawn.spaceinvaders.menu.MainMenu;
+import org.newdawn.spaceinvaders.mainmenu.MainMenu;
+
 import java.util.ArrayList;
 import org.newdawn.spaceinvaders.entity.Entity;
 

@@ -4,7 +4,7 @@ import java.awt.AlphaComposite;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
 
-import org.newdawn.spaceinvaders.Game;
+import org.newdawn.spaceinvaders.gameplay.Game;
 
 /**
  * The entity that represents the players ship

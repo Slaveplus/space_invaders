@@ -1,7 +1,5 @@
 package org.newdawn.spaceinvaders.gameplay;
 
-import org.newdawn.spaceinvaders.Game;
-
 import java.util.ArrayList;
 import org.newdawn.spaceinvaders.entity.Entity;
 import org.newdawn.spaceinvaders.entity.ShotEntity;

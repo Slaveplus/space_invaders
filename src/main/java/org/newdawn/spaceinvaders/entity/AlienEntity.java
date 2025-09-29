@@ -1,6 +1,6 @@
 package org.newdawn.spaceinvaders.entity;
 
-import org.newdawn.spaceinvaders.Game;
+import org.newdawn.spaceinvaders.gameplay.Game;
 import org.newdawn.spaceinvaders.sprite.Sprite;
 import org.newdawn.spaceinvaders.sprite.SpriteStore;
 

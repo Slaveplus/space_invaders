@@ -1,8 +1,6 @@
 
 package org.newdawn.spaceinvaders.gameplay;
 
-import org.newdawn.spaceinvaders.Game;
-
 import java.awt.*;
 
 /**

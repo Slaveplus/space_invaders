@@ -5,7 +5,7 @@ import java.awt.Graphics;
 import java.awt.Graphics2D;
 import java.awt.image.BufferedImage;
 
-import org.newdawn.spaceinvaders.Game;
+import org.newdawn.spaceinvaders.gameplay.Game;
 
 /**
  * An entity representing a shot fired by the player's ship
