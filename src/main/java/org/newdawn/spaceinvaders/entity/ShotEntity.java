@@ -27,6 +27,8 @@ public class ShotEntity extends Entity {
 	private int skillType = -1;
 	/** Skill value for skill drops */
 	private int skillValue = 0;
+	/** True if this shot has piercing ability */
+	private boolean hasPiercing = false;
 	
 	/**
 	 * Create a new shot from the player
@@ -67,6 +69,30 @@ public class ShotEntity extends Entity {
 	}
 	
 	/**
+	 * Create a new shot with piercing ability
+	 * 
+	 * @param game The game in which the shot has been created
+	 * @param sprite The sprite representing this shot
+	 * @param x The initial x location of the shot
+	 * @param y The initial y location of the shot
+	 * @param isAlienShot True if this is an alien shot
+	 * @param hasPiercing True if this shot has piercing ability
+	 */
+	public ShotEntity(Game game,String sprite,int x,int y,boolean isAlienShot,boolean hasPiercing) {
+		super(sprite,x,y);
+		
+		this.game = game;
+		this.isAlienShot = isAlienShot;
+		this.hasPiercing = hasPiercing;
+		
+		if (isAlienShot) {
+			dy = 300; // Move downward for alien shots
+		} else {
+			dy = moveSpeed; // Move upward for player shots
+		}
+	}
+	
+	/**
 	 * Create a new shot (player, alien, or skill drop)
 	 * 
 	 * @param game The game in which the shot has been created
@@ -86,9 +112,27 @@ public class ShotEntity extends Entity {
 		this.skillValue = skillValue;
 		
 		if (skillType >= 0) {
-			// This is a skill drop
+			// This is a skill drop - move towards player
 			isSkillDrop = true;
-			dy = 150; // Skill drops move downward toward player
+			
+			// Calculate direction towards player
+			int playerX = game.getShip().getX() + 15; // Player center
+			int playerY = game.getShip().getY();
+			
+			// Calculate distance and direction
+			double dxToPlayer = playerX - x;
+			double dyToPlayer = playerY - y;
+			double distance = Math.sqrt(dxToPlayer * dxToPlayer + dyToPlayer * dyToPlayer);
+			
+			// Normalize and scale to desired speed (200 pixels per second)
+			double speed = 200;
+			if (distance > 0) {
+				dx = (dxToPlayer / distance) * speed;
+				dy = (dyToPlayer / distance) * speed;
+			} else {
+				dx = 0;
+				dy = speed; // Fallback to downward movement
+			}
 		} else if (isAlienShot) {
 			dy = 300; // Alien shots move downward
 		} else {
@@ -278,8 +322,8 @@ public class ShotEntity extends Entity {
 				AlienEntity alien = (AlienEntity) other;
 				alien.takeDamage(game.getPlayerAttackPower());
 				
-				// Check if player has piercing shots
-				if (!game.hasPiercingShots()) {
+				// Check if this shot has piercing ability or player has piercing shots
+				if (!hasPiercing && !game.hasPiercingShots()) {
 					// remove the shot only if not piercing
 					game.removeEntity(this);
 					used = true;
@@ -287,5 +331,14 @@ public class ShotEntity extends Entity {
 				// If piercing, the shot continues through aliens
 			}
 		}
+	}
+	
+	/**
+	 * Check if this is an alien shot
+	 * 
+	 * @return True if this is an alien shot
+	 */
+	public boolean isAlienShot() {
+		return isAlienShot;
 	}
 }

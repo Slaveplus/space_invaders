@@ -2,6 +2,10 @@ package org.newdawn.spaceinvaders.menu;
 
 import java.awt.*;
 import java.awt.geom.AffineTransform;
+import java.awt.image.BufferedImage;
+import javax.imageio.ImageIO;
+import java.io.IOException;
+import java.io.InputStream;
 
 /**
  * 스킬 메뉴 UI 렌더링을 담당하는 클래스
@@ -123,38 +127,80 @@ public class SkillMenuRenderer {
         int iconX = panelX + (panelWidth - iconSize) / 2;
         int iconY = panelY + 25;
         
-        g.setColor(Color.WHITE);
-        g.setStroke(new BasicStroke(2));
-        
+        // Load and draw PNG skill icon
+        BufferedImage skillIcon = loadSkillIcon(skillType);
+        if (skillIcon != null) {
+            // Draw the PNG icon, scaled to fit the icon size
+            g.drawImage(skillIcon, iconX, iconY, iconSize, iconSize, null);
+        } else {
+            // Fallback to original drawn icons if PNG loading fails
+            g.setColor(Color.WHITE);
+            g.setStroke(new BasicStroke(2));
+            
+            switch (skillType) {
+                case 0: // Attack Power - Sword
+                    int centerX = iconX + iconSize/2;
+                    g.fillRect(centerX - 3, iconY + 5, 6, iconSize - 25);
+                    int[] tipX = {centerX - 4, centerX + 4, centerX};
+                    int[] tipY = {iconY + 5, iconY + 5, iconY + 1};
+                    g.fillPolygon(tipX, tipY, 3);
+                    g.fillRect(centerX - 6, iconY + iconSize - 25, 12, 3);
+                    g.fillRect(centerX - 4, iconY + iconSize - 22, 8, 12);
+                    break;
+                case 1: // Attack Speed - Arrow
+                    g.setStroke(new BasicStroke(3));
+                    g.drawLine(iconX + 8, iconY + iconSize/2, iconX + iconSize - 8, iconY + iconSize/2);
+                    int ahx = iconX + iconSize - 8;
+                    int ahy = iconY + iconSize/2;
+                    int[] arrowHeadX = {ahx, ahx + 6, ahx};
+                    int[] arrowHeadY = {ahy - 4, ahy, ahy + 4};
+                    g.fillPolygon(arrowHeadX, arrowHeadY, 3);
+                    break;
+                case 2: // Heart
+                    int heartX = iconX + 11;
+                    int heartY = iconY + 12;
+                    g.fillOval(heartX, heartY, 16, 16);
+                    g.fillOval(heartX + 16, heartY, 16, 16);
+                    int[] xPoints = {heartX - 1, heartX + 33, heartX + 16};
+                    int[] yPoints = {heartY + 10, heartY + 10, heartY + 30};
+                    g.fillPolygon(xPoints, yPoints, 3);
+                    break;
+            }
+        }
+    }
+    
+    /**
+     * Load PNG skill icon based on skill type
+     */
+    private BufferedImage loadSkillIcon(int skillType) {
+        String iconPath;
         switch (skillType) {
-            case 0: // Attack Power - Sword
-                int centerX = iconX + iconSize/2;
-                g.fillRect(centerX - 3, iconY + 5, 6, iconSize - 25);
-                int[] tipX = {centerX - 4, centerX + 4, centerX};
-                int[] tipY = {iconY + 5, iconY + 5, iconY + 1};
-                g.fillPolygon(tipX, tipY, 3);
-                g.fillRect(centerX - 6, iconY + iconSize - 25, 12, 3);
-                g.fillRect(centerX - 4, iconY + iconSize - 22, 8, 12);
+            case 0: // Attack Power
+                iconPath = "sprites/Skill/Icon.6_26.png";
                 break;
-            case 1: // Attack Speed - Arrow
-                g.setStroke(new BasicStroke(3));
-                g.drawLine(iconX + 8, iconY + iconSize/2, iconX + iconSize - 8, iconY + iconSize/2);
-                int ahx = iconX + iconSize - 8;
-                int ahy = iconY + iconSize/2;
-                int[] arrowHeadX = {ahx, ahx + 6, ahx};
-                int[] arrowHeadY = {ahy - 4, ahy, ahy + 4};
-                g.fillPolygon(arrowHeadX, arrowHeadY, 3);
+            case 1: // Attack Speed
+                iconPath = "sprites/Skill/Icon.1_45.png";
                 break;
-            case 2: // Heart
-                int heartX = iconX + 11;
-                int heartY = iconY + 12;
-                g.fillOval(heartX, heartY, 16, 16);
-                g.fillOval(heartX + 16, heartY, 16, 16);
-                int[] xPoints = {heartX - 1, heartX + 33, heartX + 16};
-                int[] yPoints = {heartY + 10, heartY + 10, heartY + 30};
-                g.fillPolygon(xPoints, yPoints, 3);
+            case 2: // HP Recovery
+                iconPath = "sprites/Skill/Icon.7_11.png";
+                break;
+            default:
+                iconPath = "sprites/Skill/Icon.6_26.png";
                 break;
         }
+        
+        try {
+            InputStream is = getClass().getClassLoader().getResourceAsStream(iconPath);
+            if (is != null) {
+                BufferedImage icon = ImageIO.read(is);
+                is.close();
+                return icon;
+            }
+        } catch (IOException e) {
+            System.err.println("Failed to load skill icon: " + iconPath);
+            e.printStackTrace();
+        }
+        return null;
     }
     
     private void drawSkillStats(Graphics2D g, int skillType, int panelX, int panelY, int panelWidth,

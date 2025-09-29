@@ -60,21 +60,30 @@ public class AlienEntity extends Entity {
 		// Apply round-based difficulty scaling with balanced progression
 		int round = game.getCurrentRound();
 		
-		// HP scaling: 2, 3, 4, 6, 8 for rounds 1-5 (increased to balance player attack power)
-		maxHP = 2 + round + (round > 3 ? round - 3 : 0); // Extra HP for later rounds
+		// HP scaling: 1, 4, 10, 18, 30 for rounds 1-5 (더 도전적인 체력 증가)
+		switch (round) {
+			case 1: maxHP = 1; break;
+			case 2: maxHP = 4; break;
+			case 3: maxHP = 10; break;
+			case 4: maxHP = 18; break;
+			case 5: maxHP = 30; break;
+			default: maxHP = 30 + ((round - 5) * 15); // 6라운드+: 45, 60, 75...
+		}
 		currentHP = maxHP;
 		
 		// Speed scaling: 75, 85, 95, 105, 115 for rounds 1-5 (more gradual increase)
 		moveSpeed = 75 + (round * 10);
 		
-		// Firing interval scaling: 2500, 2000, 1500, 1000, 700, 500, 400 for rounds 1-7+
-		// More aggressive progression with exponential decrease
-		if (round <= 3) {
-			firingInterval = 2500 - (round * 500); // 2500, 2000, 1500
+		// Firing interval scaling: 2000, 1500, 1000, 700, 500, 400, 300 for rounds 1-7+
+		// More aggressive progression with faster decrease
+		if (round == 1) {
+			firingInterval = 2000; // 1라운드: 2초
+		} else if (round <= 3) {
+			firingInterval = 2000 - (round * 500); // 1500, 1000
 		} else if (round <= 6) {
-			firingInterval = 1000 - ((round - 3) * 100); // 1000, 900, 700
+			firingInterval = 700 - ((round - 3) * 100); // 600, 500, 400
 		} else {
-			firingInterval = Math.max(300, 700 - ((round - 6) * 100)); // 600, 500, 400, 300...
+			firingInterval = Math.max(200, 400 - ((round - 6) * 50)); // 350, 300, 250, 200...
 		}
 		
 		// Add some randomness to firing intervals (±20% variation)
@@ -149,6 +158,9 @@ public class AlienEntity extends Entity {
 			lastDirectionChange = 0;
 		}
 		
+		// Check distance to player and avoid getting too close
+		avoidPlayer();
+		
 		// proceed with normal move
 		super.move(delta);
 	}
@@ -173,36 +185,20 @@ public class AlienEntity extends Entity {
 		int round = game.getCurrentRound();
 		boolean shouldFire = false;
 		
-		// Progressive firing conditions based on round
+		// 모든 라운드에서 전체 범위에서 공격 가능 (거리 제한 없음)
+		// 라운드별로 공격 확률만 차등 적용
 		if (round <= 2) {
-			// Early rounds: Fire from medium range (350 pixels vertically) - increased from 200
-			if (Math.abs(y - 550) < 350) {
-				shouldFire = Math.random() < 0.6; // 60% chance when in range
-			}
+			// 초기 라운드: 낮은 공격 확률
+			shouldFire = Math.random() < 0.3; // 30% 확률
 		} else if (round <= 4) {
-			// Mid rounds: Fire from long range (450 pixels vertically) - increased from 300
-			if (Math.abs(y - 550) < 450) {
-				// Add some randomness to make it less predictable
-				shouldFire = Math.random() < 0.8; // 80% chance when in range
-			}
+			// 중간 라운드: 중간 공격 확률
+			shouldFire = Math.random() < 0.5; // 50% 확률
+		} else if (round <= 6) {
+			// 고급 라운드: 높은 공격 확률
+			shouldFire = Math.random() < 0.7; // 70% 확률
 		} else {
-			// Later rounds: More aggressive firing from longer range
-			if (Math.abs(y - 550) < 500) { // increased from 400
-				// Higher chance to fire and can fire from further away
-				shouldFire = Math.random() < 0.9; // 90% chance when in range
-			}
-			// Very close aliens (within 150 pixels) always fire
-			if (Math.abs(y - 550) < 150) {
-				shouldFire = true;
-			}
-		}
-		
-		// Additional firing conditions for higher rounds
-		if (round >= 5) {
-			// High rounds: Chance to fire even when not perfectly aligned
-			if (Math.random() < 0.05) { // 5% chance per frame regardless of position
-				shouldFire = true;
-			}
+			// 최고 라운드: 매우 높은 공격 확률
+			shouldFire = Math.random() < 0.85; // 85% 확률
 		}
 		
 		if (shouldFire) {
@@ -219,6 +215,17 @@ public class AlienEntity extends Entity {
 	public void takeDamage(int damage) {
 		currentHP -= damage;
 		if (currentHP <= 0) {
+			// 7% 확률로 스킬 드랍
+			if (Math.random() < 0.07) {
+				// 랜덤 스킬 타입 선택 (0: 공격력, 1: 공격속도, 2: 체력회복, 3: 미사일)
+				int skillType = (int)(Math.random() * 4);
+				// 스킬 지속 시간 설정
+				int skillValue = 10000; // 10초
+				
+				// 스킬 드랍 생성 (플레이어 쪽으로 이동)
+				game.createSkillDrop((int)x, (int)y, skillType, skillValue);
+			}
+			
 			// Alien is destroyed
 			game.removeEntity(this);
 			game.notifyAlienKilled();
@@ -271,14 +278,44 @@ public class AlienEntity extends Entity {
 	}
 	
 	/**
+	 * Avoid getting too close to the player
+	 */
+	private void avoidPlayer() {
+		try {
+			// Get player position
+			int playerX = game.getShipX();
+			int playerY = game.getShipY();
+			
+			// Calculate distance to player
+			double dxToPlayer = playerX - x;
+			double dyToPlayer = playerY - y;
+			double distanceToPlayer = Math.sqrt(dxToPlayer * dxToPlayer + dyToPlayer * dyToPlayer);
+			
+			// Minimum safe distance (120 pixels) - 더 넉넉한 거리
+			double minDistance = 120;
+			
+			// If too close to player, move away
+			if (distanceToPlayer < minDistance && distanceToPlayer > 0) {
+				// Calculate direction away from player
+				double moveAwayX = -dxToPlayer / distanceToPlayer;
+				double moveAwayY = -dyToPlayer / distanceToPlayer;
+				
+				// Apply movement away from player (override current movement)
+				this.dx = moveAwayX * moveSpeed * 1.5; // Move away faster
+				this.dy = moveAwayY * moveSpeed * 0.5;
+			}
+		} catch (Exception e) {
+			// Ignore errors in player avoidance
+		}
+	}
+	
+	/**
 	 * Notification that this alien has collided with another entity
 	 * 
 	 * @param other The other entity
 	 */
 	public void collidedWith(Entity other) {
-		// Handle collision with another alien
-		if (other instanceof AlienEntity) {
-			collideWithAlien();
-		}
+		// 적들끼리는 통과되도록 충돌 처리하지 않음
+		// (AlienEntity와의 충돌은 무시)
 	}
 }

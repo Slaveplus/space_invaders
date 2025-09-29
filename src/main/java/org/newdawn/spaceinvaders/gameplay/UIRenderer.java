@@ -49,10 +49,7 @@ public class UIRenderer {
         // Skill inventory display
         drawSkillInventory(g, skillManager);
         
-        // Instructions
-        g.setColor(Color.CYAN);
-        g.setFont(new Font("Arial", Font.PLAIN, 12));
-        g.drawString("Q: 스킬 메뉴", 20, 280);
+        // Instructions moved to drawSkillInventory to avoid overlap
     }
     
     /**
@@ -131,6 +128,12 @@ public class UIRenderer {
         g.drawString("1: 무적 (" + skillManager.getInvincibleSkills() + "개)", 20, effectY + 15);
         g.drawString("2: 관통 (" + skillManager.getPiercingSkills() + "개)", 20, effectY + 30);
         g.drawString("3: 3줄공격 (" + skillManager.getTripleShotSkills() + "개)", 20, effectY + 45);
+        g.drawString("4: 미사일 (" + skillManager.getMissileSkills() + "개)", 20, effectY + 60);
+        
+        // Instructions (moved here to avoid overlap)
+        g.setColor(Color.CYAN);
+        g.setFont(new Font("Arial", Font.PLAIN, 12));
+        g.drawString("Q: 강화", 20, effectY + 85);
     }
     
     /**

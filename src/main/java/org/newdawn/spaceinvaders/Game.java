@@ -20,10 +20,14 @@ import org.newdawn.spaceinvaders.entity.AlienEntity;
 import org.newdawn.spaceinvaders.entity.Entity;
 import org.newdawn.spaceinvaders.entity.ShipEntity;
 import org.newdawn.spaceinvaders.entity.ShotEntity;
+import org.newdawn.spaceinvaders.entity.Skill;
+import org.newdawn.spaceinvaders.entity.MissileEntity;
+import org.newdawn.spaceinvaders.entity.ExplosionEntity;
 import org.newdawn.spaceinvaders.gameplay.GameStateManager;
 import org.newdawn.spaceinvaders.gameplay.InputManager;
 import org.newdawn.spaceinvaders.gameplay.SkillManager;
 import org.newdawn.spaceinvaders.gameplay.UIRenderer;
+import org.newdawn.spaceinvaders.SystemTimer;
 
 /**
  * The main hook of our game. This class with both act as a manager
@@ -345,6 +349,23 @@ public class Game extends Canvas
 	}
 	
 	/**
+	 * Create a skill drop that moves downward in a straight line
+	 * 
+	 * @param x The x location where the skill drop is created
+	 * @param y The y location where the skill drop is created
+	 * @param skillType The type of skill (0: Invincible, 1: Piercing, 2: Triple Shot)
+	 * @param skillValue The value/duration of the skill
+	 */
+	public void createSkillDrop(int x, int y, int skillType, int skillValue) {
+		// Create skill drop with custom icons (sprite name not used, custom drawing)
+		String spriteName = "sprites/shot.gif"; // Default sprite, will be overridden by custom drawing
+		
+		// Create skill drop entity using new Skill class
+		Skill skillDrop = new Skill(this, spriteName, x, y, skillType, skillValue);
+		gameStateManager.getEntities().add(skillDrop);
+	}
+	
+	/**
 	 * Try to fire shots from aliens (only those close to player)
 	 */
 	private void tryAlienFire() {
@@ -353,16 +374,14 @@ public class Game extends Canvas
 			return;
 		}
 		
-		// find aliens that are close enough to the player to fire
+		// find all aliens (no distance restriction)
 		ArrayList<AlienEntity> aliens = new ArrayList<>();
 		ArrayList<Entity> entities = gameStateManager.getEntities();
 		
 		for (Entity entity : entities) {
 			if (entity instanceof AlienEntity) {
-				// Only aliens that are close to the player can fire (within 200 pixels vertically)
-				if (Math.abs(entity.getY() - ship.getY()) < 200) {
-					aliens.add((AlienEntity) entity);
-				}
+				// 모든 적이 공격 가능 (거리 제한 없음)
+				aliens.add((AlienEntity) entity);
 			}
 		}
 		
@@ -424,6 +443,28 @@ public class Game extends Canvas
 	}
 	
 	/**
+	 * Fire missile at a target location
+	 * 
+	 * @param targetX The target x location
+	 * @param targetY The target y location
+	 */
+	public void fireMissile(double targetX, double targetY) {
+		// Fire missile from player position
+		MissileEntity missile = new MissileEntity(this, "sprites/Skill/spaceMissiles.png", 
+				(int)ship.getX() + 15, (int)ship.getY(), targetX, targetY);
+		gameStateManager.getEntities().add(missile);
+	}
+	
+	/**
+	 * Add entity to the game
+	 * 
+	 * @param entity The entity to add
+	 */
+	public void addEntity(Entity entity) {
+		gameStateManager.getEntities().add(entity);
+	}
+	
+	/**
 	 * The main game loop. This loop is running during all game
 	 * play as is responsible for the following activities:
 	 * <p>
@@ -477,46 +518,66 @@ public class Game extends Canvas
 					// Update skill effects
 					skillManager.updateSkillEffects();
 					
-					ArrayList<Entity> entities = gameStateManager.getEntities();
+					// Create a copy of entities list to avoid ConcurrentModificationException
+					ArrayList<Entity> entities = new ArrayList<>(gameStateManager.getEntities());
 					for (Entity entity : entities) {
-						entity.move(delta);
+						try {
+							entity.move(delta);
+						} catch (Exception e) {
+							System.err.println("Error moving entity: " + e.getMessage());
+						}
 					}
 					
 					// try to fire from aliens
 					tryAlienFire();
 				}
 			
-				// cycle round drawing all the visible entities we have in the game
-				ArrayList<Entity> entities = gameStateManager.getEntities();
-				for (Entity entity : entities) {
-					entity.draw(g);
-				}
+		// cycle round drawing all the visible entities we have in the game
+		ArrayList<Entity> entities = new ArrayList<>(gameStateManager.getEntities());
+		for (Entity entity : entities) {
+			try {
+				entity.draw(g);
+			} catch (Exception e) {
+				System.err.println("Error drawing entity: " + e.getMessage());
+			}
+		}
 			
 				// Simple collision detection (only when not paused)
 				if (!gameStateManager.isShowingPauseMenu() && 
 					!gameStateManager.isShowingSkillMenu()) {
-					for (int i=0;i<entities.size();i++) {
-						Entity entity1 = entities.get(i);
-						for (int j=i+1;j<entities.size();j++) {
-							Entity entity2 = entities.get(j);
+					// Create a copy for collision detection
+					ArrayList<Entity> collisionEntities = new ArrayList<>(gameStateManager.getEntities());
+					for (int i=0;i<collisionEntities.size();i++) {
+						Entity entity1 = collisionEntities.get(i);
+						for (int j=i+1;j<collisionEntities.size();j++) {
+							Entity entity2 = collisionEntities.get(j);
 							if (entity1.collidesWith(entity2)) {
-								entity1.collidedWith(entity2);
-								entity2.collidedWith(entity1);
+								try {
+									entity1.collidedWith(entity2);
+									entity2.collidedWith(entity1);
+								} catch (Exception e) {
+									System.err.println("Error in collision: " + e.getMessage());
+								}
 							}
 						}
 					}
 				
 					// remove any entity that has been marked for clear up
-					entities.removeAll(gameStateManager.getRemoveList());
+					gameStateManager.getEntities().removeAll(gameStateManager.getRemoveList());
 					gameStateManager.getRemoveList().clear();
 
 					// if a game event has indicated that game logic should
 					// be resolved, cycle round every entity requesting that
 					// their personal logic should be considered.
-					if (gameStateManager.isLogicRequiredThisLoop()) {
-						for (Entity entity : entities) {
+				if (gameStateManager.isLogicRequiredThisLoop()) {
+					ArrayList<Entity> logicEntities = new ArrayList<>(gameStateManager.getEntities());
+					for (Entity entity : logicEntities) {
+						try {
 							entity.doLogic();
+						} catch (Exception e) {
+							System.err.println("Error in entity logic: " + e.getMessage());
 						}
+					}
 						
 						gameStateManager.setLogicRequiredThisLoop(false);
 					}
@@ -580,6 +641,14 @@ public class Game extends Canvas
 	 */
 	public Entity getShip() {
 		return ship;
+	}
+	
+	public int getShipX() {
+		return ship != null ? (int)ship.getX() : 370;
+	}
+	
+	public int getShipY() {
+		return ship != null ? (int)ship.getY() : 550;
 	}
 	
 	public double getMoveSpeed() {

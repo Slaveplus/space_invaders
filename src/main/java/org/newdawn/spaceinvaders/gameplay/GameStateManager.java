@@ -67,6 +67,9 @@ public class GameStateManager {
     // 게임 로직
     private boolean logicRequiredThisLoop = false;
     
+    // 라운드 전환 상태 구분
+    private boolean isRoundTransition = false;
+    
     public GameStateManager() {
         // 로그인 화면 초기화
         loginScreen = new LoginScreen();
@@ -313,6 +316,7 @@ public class GameStateManager {
         waitingForKeyPress = false;
         message = "";
         logicRequiredThisLoop = false;
+        isRoundTransition = false;
     }
     
     // Getters and Setters for gameplay state
@@ -373,6 +377,9 @@ public class GameStateManager {
     public boolean isLogicRequiredThisLoop() { return logicRequiredThisLoop; }
     public void setLogicRequiredThisLoop(boolean logicRequiredThisLoop) { this.logicRequiredThisLoop = logicRequiredThisLoop; }
     
+    public boolean isRoundTransition() { return isRoundTransition; }
+    public void setRoundTransition(boolean roundTransition) { this.isRoundTransition = roundTransition; }
+    
     /**
      * 플레이어 데미지 처리
      */
@@ -381,6 +388,7 @@ public class GameStateManager {
         if (currentHP <= 0) {
             message = "Oh no! They got you, try again?";
             waitingForKeyPress = true;
+            isRoundTransition = false; // 게임 오버 시 라운드 전환 플래그 해제
         }
     }
     
@@ -392,6 +400,7 @@ public class GameStateManager {
             currentRound++;
             message = "라운드 " + currentRound + " 시작! 준비하세요!";
             waitingForKeyPress = true;
+            isRoundTransition = true; // 라운드 전환 플래그 설정
             
             // Update alien firing interval for new round
             alienFiringInterval = Math.max(300, baseAlienFiringInterval - (currentRound * 300));
@@ -401,6 +410,7 @@ public class GameStateManager {
             // Game completed
             message = "축하합니다! 모든 라운드를 클리어했습니다!";
             waitingForKeyPress = true;
+            isRoundTransition = false; // 게임 완료
             return false; // Game completed
         }
     }

@@ -44,6 +44,15 @@ public class Sprite {
 	}
 	
 	/**
+	 * Get the image of this sprite
+	 * 
+	 * @return The image of this sprite
+	 */
+	public Image getImage() {
+		return image;
+	}
+	
+	/**
 	 * Draw the sprite onto the graphics context provided
 	 * 
 	 * @param g The graphics context on which to draw the sprite
