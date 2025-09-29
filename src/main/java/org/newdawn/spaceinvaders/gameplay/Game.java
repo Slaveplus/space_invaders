@@ -42,10 +42,7 @@ public class Game extends Canvas implements Screen
 	// lastFire and firingInterval are now managed by GameStateManager
 	/** The number of aliens left on the screen */
 	private int alienCount;
-	
-	// message, waitingForKeyPress, and logicRequiredThisLoop are now managed by GameStateManager
-	/** The last time at which we recorded the frame rate */
-	private long lastFpsTime;
+
 	/** The current number of frames recorded */
 	// FPS 표시 기능은 상위에서 처리 가능, 내부적으로는 카운트만 유지하지 않음
 	/** The normal title of the game window */
@@ -392,11 +389,6 @@ public class Game extends Canvas implements Screen
 	 * <p>
 	 */
 	public void update(long delta) {
-		// update frame timing (optional)
-		lastFpsTime += delta;
-		if (lastFpsTime >= 1000) {
-			lastFpsTime = 0;
-		}
 
 		// gameplay update
 		if (gameStateManager.isGameplay()) {
@@ -585,17 +577,4 @@ public class Game extends Canvas implements Screen
 			g.fillRect(0, 0, 800, 600);
 		}
 	}
-	
-	/**
-	 * The entry point into the game. We'll simply create an
-	 * instance of class which will start the display and game
-	 * loop.
-	 * 
-	 * @param argv The arguments that are passed into our game
-	 */
-	public static void main(String argv[]) {
-		// 엔트리포인트는 SpaceInvadersApp으로 이동
-		org.newdawn.spaceinvaders.SpaceInvadersApp.main(argv);
-	}
-	
 }

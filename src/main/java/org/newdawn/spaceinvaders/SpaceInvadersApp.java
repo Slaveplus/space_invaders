@@ -28,8 +28,17 @@ public class SpaceInvadersApp extends JFrame implements ScreenNavigator {
     private Screen currentScreen; // update/render 가상화
     private volatile boolean running = true;
 
+    private static final String windowTitle = "Space Invaders";
+
+    // message, waitingForKeyPress, and logicRequiredThisLoop are now managed by GameStateManager
+
+    /** The last time at which we recorded the frame rate */
+    private long lastFpsTime;
+    /** The current number of frames recorded */
+    private int fps;
+
     public SpaceInvadersApp() {
-        super("Space Invaders");
+        super(windowTitle);
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         setIgnoreRepaint(true);
         setResizable(false);
@@ -90,11 +99,23 @@ public class SpaceInvadersApp extends JFrame implements ScreenNavigator {
     }
 
     public void runMainLoop() {
-        long last = System.currentTimeMillis();
+        long lastLoopTime = SystemTimer.getTime();
         while (running) {
-            long now = System.currentTimeMillis();
-            long delta = now - last;
-            last = now;
+            long delta = SystemTimer.getTime() - lastLoopTime;
+            lastLoopTime = SystemTimer.getTime();
+
+            // update the frame counter
+            lastFpsTime += delta;
+            fps++;
+
+            // update our FPS counter if a second has passed since
+            // we last recorded
+            if (lastFpsTime >= 1000) {
+
+                this.setTitle(windowTitle+" (FPS: "+fps+")");
+                lastFpsTime = 0;
+                fps = 0;
+            }
 
             if (currentScreen != null) {
                 currentScreen.update(delta);
@@ -110,8 +131,7 @@ public class SpaceInvadersApp extends JFrame implements ScreenNavigator {
             }
             strategy.show();
 
-            // 간단한 프레임 타임 유지
-            try { Thread.sleep(Math.max(0, 10)); } catch (InterruptedException ignored) {}
+            SystemTimer.sleep(10);
         }
         dispose();
     }
