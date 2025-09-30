@@ -57,13 +57,14 @@ public class MainMenuCanvas extends Canvas implements Screen {
         setIgnoreRepaint(true);
         setBackground(Color.black);
         setSize(SpaceInvadersApp.WIDTH, SpaceInvadersApp.HEIGHT);
+        setFocusable(true);
     }
 
     @Override
     public void onShow() {
         addKeyListener(keyAdapter);
         addMouseListener(mouseAdapter);
-        requestFocus();
+        requestFocusInWindow();
     }
 
     @Override

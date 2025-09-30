@@ -7,9 +7,7 @@ import java.io.*;
 import java.lang.reflect.Type;
 import java.net.HttpURLConnection;
 import java.net.URL;
-import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
-import java.util.HashMap;
 import java.util.Map;
 
 /**
@@ -226,7 +224,8 @@ public class FirebaseDatabaseClient {
                     }
                     
                     // Firebase는 POST 시 생성된 키를 반환 {"name": "generated_key"}
-                    Map<String, String> result = gson.fromJson(response.toString(), Map.class);
+                    Type type = new TypeToken<Map<String, String>>(){}.getType();
+                    Map<String, String> result = gson.fromJson(response.toString(), type);
                     return result.get("name");
                 }
             }

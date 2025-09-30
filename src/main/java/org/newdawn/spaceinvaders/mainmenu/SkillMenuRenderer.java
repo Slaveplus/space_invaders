@@ -1,7 +1,6 @@
 package org.newdawn.spaceinvaders.mainmenu;
 
 import java.awt.*;
-import java.awt.geom.AffineTransform;
 
 /**
  * 스킬 메뉴 UI 렌더링을 담당하는 클래스

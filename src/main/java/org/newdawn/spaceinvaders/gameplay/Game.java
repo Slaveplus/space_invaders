@@ -1,7 +1,6 @@
 package org.newdawn.spaceinvaders.gameplay;
 
 import java.awt.Canvas;
-import java.awt.Color;
 import java.awt.Graphics2D;
 // no direct AWT listeners here; handled via InputManager
 import java.util.ArrayList;
@@ -58,9 +57,7 @@ public class Game extends Canvas implements Screen
 	private UIRenderer uiRenderer;
 	/** Background renderer (cached) */
 	private BackgroundRenderer backgroundRenderer;
-	/** Reused menu renderers to avoid per-frame allocations */
-	private org.newdawn.spaceinvaders.mainmenu.PauseMenuRenderer pauseMenuRenderer;
-	private org.newdawn.spaceinvaders.mainmenu.SkillMenuRenderer skillMenuRenderer;
+	// gameplay는 mainmenu 패키지에 의존하지 않도록, 오버레이는 UIRenderer에서 처리
 	
 	/**
 	 * Construct our game and set it running.
@@ -69,10 +66,10 @@ public class Game extends Canvas implements Screen
 		this.navigator = navigator;
 		setIgnoreRepaint(true);
 		setBounds(0,0,800,600);
+		setFocusable(true);
 		
 		// initialize the game state manager
 		gameStateManager = new GameStateManager();
-		gameStateManager.showGameplay();
 		
 		// initialize the skill manager
 		skillManager = new SkillManager(this);
@@ -80,10 +77,8 @@ public class Game extends Canvas implements Screen
 		// initialize the UI renderer
 		uiRenderer = new UIRenderer(this);
 
-		// background & menu renderers
+		// background & overlays
 		backgroundRenderer = new BackgroundRenderer("sprites/backgrounds/Background-2.jpg");
-		pauseMenuRenderer = new org.newdawn.spaceinvaders.mainmenu.PauseMenuRenderer();
-		skillMenuRenderer = new org.newdawn.spaceinvaders.mainmenu.SkillMenuRenderer();
 		
 		// initialize the input manager
 		inputManager = new InputManager(gameStateManager, this);
@@ -96,6 +91,18 @@ public class Game extends Canvas implements Screen
 		// to see at startup
 		initEntities();
 	}
+
+	@Override
+	public void onShow() {
+		// 게임 화면이 표시될 때 포커스 보장
+		requestFocusInWindow();
+	}
+
+	@Override
+	public void onHide() {
+		// 현재는 리스너를 생성자에서 등록했으므로 별도 해제는 없음.
+		// 필요 시 입력 리셋 등 처리 가능
+	}
 	
 	/**
 	 * Start a fresh game, this should clear out any old data and
@@ -104,7 +111,6 @@ public class Game extends Canvas implements Screen
 	public void startGame() {
 		// 게임플레이 상태 초기화 (entities.clear() 포함)
 		gameStateManager.startNewGame();
-		gameStateManager.showGameplay();
 		
 		// 엔티티 초기화 (startNewGame() 후에 호출)
 		initEntities();
@@ -397,75 +403,66 @@ public class Game extends Canvas implements Screen
 	 * <p>
 	 */
 	public void update(long delta) {
-
-		// gameplay update
-		if (gameStateManager.isGameplay()) {
-			if (!gameStateManager.isWaitingForKeyPress() &&
-				!gameStateManager.isShowingPauseMenu() &&
-				!gameStateManager.isShowingSkillMenu()) {
-				// Update skill effects
-				skillManager.updateSkillEffects();
-				ArrayList<Entity> entities = gameStateManager.getEntities();
-				for (Entity entity : entities) {
-					entity.move(delta);
-				}
-				tryAlienFire();
-			}
-
-			// Ship movement & fire
-			if (ship != null && !gameStateManager.isShowingPauseMenu() && !gameStateManager.isShowingSkillMenu()) {
-				ship.setHorizontalMovement(0);
-				if (inputManager.isLeftPressed() && !inputManager.isRightPressed()) {
-					ship.setHorizontalMovement(-moveSpeed);
-				} else if (inputManager.isRightPressed() && !inputManager.isLeftPressed()) {
-					ship.setHorizontalMovement(moveSpeed);
-				}
-				if (inputManager.isFirePressed()) {
-					tryToFire();
-				}
-			}
-
-			// collisions
+		// 게임플레이 업데이트 (Game 화면은 항상 게임플레이)
+		if (!gameStateManager.isWaitingForKeyPress() &&
+			!gameStateManager.isShowingPauseMenu() &&
+			!gameStateManager.isShowingSkillMenu()) {
+			// Update skill effects
+			skillManager.updateSkillEffects();
 			ArrayList<Entity> entities = gameStateManager.getEntities();
-			if (!gameStateManager.isShowingPauseMenu() && !gameStateManager.isShowingSkillMenu()) {
-				for (int i=0;i<entities.size();i++) {
-					Entity e1 = entities.get(i);
-					for (int j=i+1;j<entities.size();j++) {
-						Entity e2 = entities.get(j);
-						if (e1.collidesWith(e2)) {
-							e1.collidedWith(e2);
-							e2.collidedWith(e1);
-						}
+			for (Entity entity : entities) {
+				entity.move(delta);
+			}
+			tryAlienFire();
+		}
+
+		// Ship movement & fire
+		if (ship != null && !gameStateManager.isShowingPauseMenu() && !gameStateManager.isShowingSkillMenu()) {
+			ship.setHorizontalMovement(0);
+			if (inputManager.isLeftPressed() && !inputManager.isRightPressed()) {
+				ship.setHorizontalMovement(-moveSpeed);
+			} else if (inputManager.isRightPressed() && !inputManager.isLeftPressed()) {
+				ship.setHorizontalMovement(moveSpeed);
+			}
+			if (inputManager.isFirePressed()) {
+				tryToFire();
+			}
+		}
+
+		// collisions
+		ArrayList<Entity> entities = gameStateManager.getEntities();
+		if (!gameStateManager.isShowingPauseMenu() && !gameStateManager.isShowingSkillMenu()) {
+			for (int i=0;i<entities.size();i++) {
+				Entity e1 = entities.get(i);
+				for (int j=i+1;j<entities.size();j++) {
+					Entity e2 = entities.get(j);
+					if (e1.collidesWith(e2)) {
+						e1.collidedWith(e2);
+						e2.collidedWith(e1);
 					}
 				}
-				entities.removeAll(gameStateManager.getRemoveList());
-				gameStateManager.getRemoveList().clear();
-				if (gameStateManager.isLogicRequiredThisLoop()) {
-					for (Entity e : entities) e.doLogic();
-					gameStateManager.setLogicRequiredThisLoop(false);
-				}
+			}
+			entities.removeAll(gameStateManager.getRemoveList());
+			gameStateManager.getRemoveList().clear();
+			if (gameStateManager.isLogicRequiredThisLoop()) {
+				for (Entity e : entities) e.doLogic();
+				gameStateManager.setLogicRequiredThisLoop(false);
 			}
 		}
 	}
 
 	public void render(Graphics2D g) {
-		if (gameStateManager.isGameplay()) {
-			// background (cached)
-			backgroundRenderer.draw(g);
-			// entities
-			ArrayList<Entity> entities = gameStateManager.getEntities();
-			for (Entity entity : entities) entity.draw(g);
-			// UI & overlays
-			uiRenderer.drawGameUI(g, gameStateManager, skillManager);
-			if (gameStateManager.isShowingPauseMenu()) { drawPauseMenu(g); }
-			if (gameStateManager.isShowingSkillMenu()) { drawSkillMenu(g); }
-			if (gameStateManager.isWaitingForKeyPress()) {
-				uiRenderer.drawMessage(g, gameStateManager.getMessage());
-			}
-		} else {
-			// 비게임플레이 화면은 상위 앱이 처리하므로 이곳에서는 배경만
-			g.setColor(Color.black);
-			g.fillRect(0,0,800,600);
+		// 배경 (cached)
+		backgroundRenderer.draw(g);
+		// entities
+		ArrayList<Entity> entities = gameStateManager.getEntities();
+		for (Entity entity : entities) entity.draw(g);
+		// UI & overlays
+		uiRenderer.drawGameUI(g, gameStateManager, skillManager);
+		if (gameStateManager.isShowingPauseMenu()) { drawPauseMenu(g); }
+		if (gameStateManager.isShowingSkillMenu()) { drawSkillMenu(g); }
+		if (gameStateManager.isWaitingForKeyPress()) {
+			uiRenderer.drawMessage(g, gameStateManager.getMessage());
 		}
 	}
 	
@@ -492,20 +489,12 @@ public class Game extends Canvas implements Screen
 	/**
 	 * 게임 상태 반환 (gameplay 패키지용)
 	 */
-	public String getGameState() {
-		if (gameStateManager.isGameplay()) {
-			return "PLAYING";
-		} else {
-			return "MENU";
-		}
-	}
+	// 게임 상태 텍스트 반환은 더 이상 필요하지 않음 (화면 전환은 App에서 관리)
 	
 	/**
 	 * 새 게임 시작 (gameplay 패키지용)
 	 */
-	public void startNewGame() {
-		startGame();
-	}
+	public void startNewGame() { startGame(); }
 	
 	/**
 	 * 엔티티 리스트 반환 (gameplay 패키지용)
@@ -539,8 +528,7 @@ public class Game extends Canvas implements Screen
 	 * 스킬 메뉴 그리기
 	 */
 	public void drawSkillMenu(java.awt.Graphics2D g2d) {
-		// 스킬 메뉴 렌더러 재사용
-		skillMenuRenderer.drawSkillMenu(
+		uiRenderer.drawSkillOverlay(
 			g2d,
 			gameStateManager.getSkillPoints(),
 			gameStateManager.getAttackPower(),
@@ -557,8 +545,12 @@ public class Game extends Canvas implements Screen
 	 * 일시정지 메뉴 그리기
 	 */
 	public void drawPauseMenu(java.awt.Graphics2D g2d) {
-		// 일시정지 메뉴 렌더러 재사용
-		pauseMenuRenderer.drawPauseMenu(g2d, gameStateManager.getSelectedPauseMenuItem());
+		uiRenderer.drawPauseOverlay(g2d, gameStateManager.getSelectedPauseMenuItem());
+	}
+
+	// 메인메뉴로 이동 (InputManager가 호출)
+	void goToMainMenu() {
+		if (navigator != null) navigator.showMainMenu();
 	}
 	
 	/**

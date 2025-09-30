@@ -100,8 +100,7 @@ public class ShopInputHandler {
                 .filter(item -> item.getCategory() == shopManager.getCurrentCategory())
                 .collect(java.util.stream.Collectors.toList());
         
-        int itemsPerRow = 3;
-        int totalRows = (categoryItems.size() + itemsPerRow - 1) / itemsPerRow;
+    int itemsPerRow = 3;
         
         switch (keyCode) {
             case KeyEvent.VK_UP:

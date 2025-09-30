@@ -48,12 +48,12 @@ public class ShopRenderer {
     }
     
     // 실시간 젬 데이터 가져오기
-    private int getCurrentGems() {
-        if (userManager != null && userManager.isLoggedIn() && userManager.getCurrentUser() != null) {
-            return userManager.getCurrentUser().getGems();
-        }
-        return 0; // 기본값
-    }
+    // private int getCurrentGems() {
+    //     if (userManager != null && userManager.isLoggedIn() && userManager.getCurrentUser() != null) {
+    //         return userManager.getCurrentUser().getGems();
+    //     }
+    //     return 0; // 기본값
+    // }
     
     private void initializeFonts() {
         try {
@@ -230,7 +230,6 @@ public class ShopRenderer {
             }
             
             g2d.setColor(i == inputHandler.getSelectedOption() ? Color.YELLOW : Color.WHITE);
-            FontMetrics metrics = g2d.getFontMetrics();
             int x = 70;
             int y = startY + (i * lineHeight);
             g2d.drawString(mainOptions[i], x, y);
@@ -721,9 +720,9 @@ public class ShopRenderer {
         // 구현 필요...
     }
     
-    private void drawControls(Graphics2D g2d) {
-        g2d.setColor(Color.GRAY);
-        g2d.setFont(new Font("Arial", Font.PLAIN, 14));
-        g2d.drawString("↑↓: 이동  Enter/Space: 선택  ESC: 뒤로가기", 250, 550);
-    }
+    // private void drawControls(Graphics2D g2d) {
+    //     g2d.setColor(Color.GRAY);
+    //     g2d.setFont(new Font("Arial", Font.PLAIN, 14));
+    //     g2d.drawString("↑↓: 이동  Enter/Space: 선택  ESC: 뒤로가기", 250, 550);
+    // }
 }

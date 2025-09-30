@@ -26,6 +26,7 @@ public class LoginScreen {
     private int selectedButton = 0; // 0: 로그인, 1: 회원가입
     private int cursorTimer = 0; // 커서 깜빡임 타이머
     private boolean showCursor = true; // 커서 표시 여부
+    private boolean loginSucceeded = false; // 로그인 성공 플래그 (화면 전환 트리거)
     
     public LoginScreen() {
         this.userManager = new UserManager();
@@ -287,5 +288,13 @@ public class LoginScreen {
         selectedButton = 0;
         message = "";
         messageTimer = 0;
+        loginSucceeded = false;
+    }
+
+    // 로그인 성공 상태 설정/소비
+    public void markLoginSucceeded() { this.loginSucceeded = true; }
+    public boolean consumeLoginSuccess() {
+        if (loginSucceeded) { loginSucceeded = false; return true; }
+        return false;
     }
 }

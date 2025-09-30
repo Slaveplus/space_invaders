@@ -187,7 +187,7 @@ public class SkillManager {
      */
     private void addSkillDrop(int x, int y, int skillType, int skillValue) {
         // ShotEntity는 기본 생성자만 지원하므로 일반 ShotEntity로 생성
-        ShotEntity skillDrop = new ShotEntity(game, "sprites/shot.gif", x, y);
+        new ShotEntity(game, "sprites/shot.gif", x, y);
         // TODO: 스킬 드롭 기능은 별도 엔티티로 구현 필요
     }
     

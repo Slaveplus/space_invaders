@@ -1,293 +1,59 @@
 package org.newdawn.spaceinvaders.gameplay;
 
 import org.newdawn.spaceinvaders.gameplay.entity.Entity;
-import org.newdawn.spaceinvaders.login.LoginScreen;
-import org.newdawn.spaceinvaders.login.UserManager;
-import org.newdawn.spaceinvaders.mainmenu.MainMenu;
 
 import java.util.ArrayList;
 
 /**
- * 게임 상태 관리 클래스
- * 로그인, 메뉴, 게임플레이 간의 전환을 관리합니다
+ * 게임 상태 관리 클래스 (게임플레이 전용)
+ * - 화면 전환(로그인/메뉴)은 SpaceInvadersApp에서 전담합니다.
+ * - 본 클래스는 게임 내 상태(라운드/스탯/오버레이/엔티티/타이밍)만 관리합니다.
  */
 public class GameStateManager {
-    /** 현재 게임 상태 */
-    public enum GameState {
-        LOGIN,      // 로그인 화면
-        MENU,       // 메인 메뉴
-        GAMEPLAY,   // 게임플레이
-        SKILL_MENU  // 스킬 메뉴
-    }
-    
-    private GameState currentState = GameState.LOGIN;
-    private LoginScreen loginScreen;
-    private MainMenu mainMenu;
-    private UserManager userManager;
-    
-    // 게임플레이 상태 (GameState.java에서 통합)
+    // 게임플레이 상태
     private boolean gameRunning = true;
     private boolean waitingForKeyPress = true;
     private String message = "";
-    
+
     // 라운드 정보
     private int currentRound = 1;
     private final int MAX_ROUND = 5;
     private int alienCount;
-    
+
     // 플레이어 스탯
     private int attackPower = 1;
     private double attackSpeed = 1.0;
     private int maxHP = 3;
     private int currentHP = 3;
     private int skillPoints = 0;
-    
+
     // 스킬 메뉴 관련
     private boolean showingSkillMenu = false;
     private int selectedSkill = 0; // 0: Attack Power, 1: Attack Speed, 2: HP Up
-    
+
     // 일시정지 메뉴 관련
     private boolean showingPauseMenu = false;
     private int selectedPauseMenuItem = 0; // 0: 계속하기, 1: 메인메뉴, 2: 설정
-    
+
     // 게임 타이밍
     private long lastFire = 0;
     private long lastAlienFire = 0;
     private long alienFiringInterval = 1500;
-    private long baseAlienFiringInterval = 1500;
-    private long firingInterval = 500;
-    
-    // FPS 카운터
+    private final long baseAlienFiringInterval = 1500;
+    private final long firingInterval = 500;
+
+    // FPS 카운터 (필요 시 외부에서 사용 가능하도록 유지)
     private long lastFpsTime;
     private int fps;
-    
+
     // 엔티티 관리
-    private ArrayList<Entity> entities = new ArrayList<>();
-    private ArrayList<Entity> removeList = new ArrayList<>();
-    
+    private final ArrayList<Entity> entities = new ArrayList<>();
+    private final ArrayList<Entity> removeList = new ArrayList<>();
+
     // 게임 로직
     private boolean logicRequiredThisLoop = false;
-    
-    public GameStateManager() {
-        // 로그인 화면 초기화
-        loginScreen = new LoginScreen();
-        
-        // 메인 메뉴 초기화
-        mainMenu = new MainMenu();
-        
-        // UserManager 동기화
-        mainMenu.setUserManager(loginScreen.getUserManager());
-        
-        System.out.println("GameStateManager 초기화 완료");
-    }
-    
-    /**
-     * 현재 상태 반환
-     */
-    public GameState getCurrentState() {
-        return currentState;
-    }
-    
-    /**
-     * 로그인 화면으로 전환
-     */
-    public void showLogin() {
-        currentState = GameState.LOGIN;
-        loginScreen.reset();
-        System.out.println("로그인 화면으로 전환");
-    }
-    
-    /**
-     * 메인 메뉴로 전환
-     */
-    public void showMenu() {
-        currentState = GameState.MENU;
-        mainMenu.reset();
-        System.out.println("메인 메뉴로 전환");
-    }
-    
-    /**
-     * 게임플레이로 전환
-     */
-    public void showGameplay() {
-        currentState = GameState.GAMEPLAY;
-        System.out.println("게임플레이로 전환");
-    }
-    
-    /**
-     * 로그인 성공 처리
-     */
-    public void handleLoginSuccess() {
-        // MainMenu의 UserManager를 LoginScreen의 UserManager로 완전히 교체
-        mainMenu.setUserManager(loginScreen.getUserManager());
-        showMenu();
-        System.out.println("로그인 성공, 메인 메뉴로 이동");
-    }
-    
-    /**
-     * 로그아웃 처리
-     */
-    public void handleLogout() {
-        // LoginScreen의 UserManager도 로그아웃 처리 (사용자 데이터는 DB에 저장됨)
-        loginScreen.getUserManager().logoutUser();
-        // LoginScreen 입력 필드만 초기화 (사용자 데이터는 유지)
-        loginScreen.reset();
-        // 메뉴 상태 완전 초기화
-        mainMenu.reset();
-        showLogin();
-        System.out.println("로그아웃 요청, 로그인 화면으로 이동 - 사용자 데이터는 DB에 보존됨");
-    }
-    
-    /**
-     * 게임 시작 처리
-     */
-    public void handleGameStart() {
-        showGameplay();
-        System.out.println("게임 시작");
-    }
-    
-    /**
-     * 게임 종료 처리 (메뉴로 돌아가기)
-     */
-    public void handleGameEnd() {
-        showMenu();
-        System.out.println("게임 종료, 메뉴로 돌아가기");
-    }
-    
-    /**
-     * 현재 화면 업데이트
-     */
-    public void update() {
-        switch (currentState) {
-            case LOGIN:
-                loginScreen.update();
-                break;
-            case MENU:
-                mainMenu.update();
-                break;
-            case GAMEPLAY:
-                // 게임플레이는 Game 클래스에서 처리
-                break;
-            case SKILL_MENU:
-                // 스킬 메뉴는 입력으로만 처리
-                break;
-        }
-    }
-    
-    /**
-     * 현재 화면 그리기
-     */
-    public void draw(java.awt.Graphics2D g2d) {
-        switch (currentState) {
-            case LOGIN:
-                loginScreen.draw(g2d);
-                break;
-            case MENU:
-                mainMenu.draw(g2d);
-                break;
-            case GAMEPLAY:
-                // 게임플레이는 Game 클래스에서 처리
-                break;
-            case SKILL_MENU:
-                // 스킬 메뉴는 Game 클래스에서 처리
-                break;
-        }
-    }
-    
-    /**
-     * 키 입력 처리
-     */
-    public void handleKeyInput(int keyCode, char keyChar) {
-        switch (currentState) {
-            case LOGIN:
-                loginScreen.handleKeyInput(keyCode, keyChar);
-                // 로그인 성공 시 메인 메뉴로 이동
-                if (loginScreen.getUserManager().isLoggedIn()) {
-                    handleLoginSuccess();
-                }
-                break;
-            case MENU:
-                mainMenu.handleKeyInput(keyCode);
-                // 새게임 시작 요청이 있으면 게임 시작
-                if (mainMenu.shouldStartGame()) {
-                    handleGameStart();
-                }
-                // 로그아웃 요청이 있으면 로그인 화면으로 돌아가기
-                if (mainMenu.isLogoutRequested()) {
-                    handleLogout();
-                }
-                break;
-            case GAMEPLAY:
-                // 게임플레이 입력은 Game 클래스에서 처리
-                break;
-            case SKILL_MENU:
-                // 스킬 메뉴 입력은 Game 클래스에서 처리
-                break;
-        }
-    }
-    
-    /**
-     * 마우스 클릭 처리
-     */
-    public void handleMouseClick(int x, int y) {
-        switch (currentState) {
-            case LOGIN:
-                loginScreen.handleMouseClick(x, y);
-                // 로그인 성공 시 메인 메뉴로 이동
-                if (loginScreen.getUserManager().isLoggedIn()) {
-                    handleLoginSuccess();
-                }
-                break;
-            case MENU:
-                mainMenu.handleMouseClick(x, y);
-                // 새게임 시작 요청이 있으면 게임 시작
-                if (mainMenu.shouldStartGame()) {
-                    handleGameStart();
-                }
-                // 로그아웃 요청이 있으면 로그인 화면으로 돌아가기
-                if (mainMenu.isLogoutRequested()) {
-                    handleLogout();
-                }
-                break;
-            case GAMEPLAY:
-                // 게임플레이 마우스는 Game 클래스에서 처리
-                System.out.println("게임 중 마우스 클릭: (" + x + ", " + y + ")");
-                break;
-            case SKILL_MENU:
-                // 스킬 메뉴 마우스는 Game 클래스에서 처리
-                break;
-        }
-    }
-    
-    /**
-     * 로그인 화면 표시 여부
-     */
-    public boolean isShowingLogin() {
-        return currentState == GameState.LOGIN;
-    }
-    
-    /**
-     * 메뉴 표시 여부
-     */
-    public boolean isShowingMenu() {
-        return currentState == GameState.MENU;
-    }
-    
-    /**
-     * 게임플레이 중 여부
-     */
-    public boolean isGameplay() {
-        return currentState == GameState.GAMEPLAY;
-    }
-    
-    /**
-     * UserManager 반환
-     */
-    public UserManager getUserManager() {
-        return loginScreen.getUserManager();
-    }
-    
-    // ========== 게임플레이 상태 관리 (GameState.java에서 통합) ==========
+
+    public GameStateManager() { }
     
     /**
      * 게임 시작 시 초기화

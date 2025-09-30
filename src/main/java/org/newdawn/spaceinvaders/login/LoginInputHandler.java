@@ -118,6 +118,7 @@ public class LoginInputHandler {
         if (loginScreen.getUserManager().loginUser(email, password)) {
             loginScreen.setMessage("로그인 성공! 환영합니다, " + email + "님!");
             System.out.println("로그인 성공: " + email);
+            loginScreen.markLoginSucceeded();
         } else {
             loginScreen.setMessage("로그인 실패. 이메일 또는 비밀번호를 확인해주세요.");
             System.out.println("로그인 실패: " + email);

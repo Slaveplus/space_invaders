@@ -18,7 +18,7 @@ public class MainMenu {
     private Shop shop;
     private boolean showingShop = false;
     private UserManager userManager;
-    private User currentUser;
+    // private User currentUser; // 직접 사용하지 않으므로 제거
     private boolean logoutRequested = false;
 
     /** 현재 메뉴 상태 */
@@ -76,7 +76,7 @@ public class MainMenu {
         initializeFonts();
         shop = new Shop();
         this.userManager = new UserManager();
-        this.currentUser = userManager.getCurrentUser();
+    // currentUser 캐싱은 사용하지 않음 (UserManager에서 직접 조회)
     }
 
     private String[] getMainMenuOptions() {
@@ -227,6 +227,9 @@ public class MainMenu {
                 return accountOptions;
             case INVENTORY:
                 return new String[]{"뒤로가기"}; // 인벤토리는 뒤로가기만
+            case SHOP:
+                // 별도 Shop 화면을 갖고 있으므로 여기서는 기본 옵션 반환
+                return new String[]{"뒤로가기"};
             default:
                 return getMainMenuOptions(); // 동적으로 생성된 메인 메뉴 옵션
         }
@@ -236,7 +239,7 @@ public class MainMenu {
      * 메뉴 선택을 처리합니다
      */
     private void handleMenuSelection() {
-        String[] options = getCurrentMenuOptions();
+    String[] options = getCurrentMenuOptions();
         if (selectedOption >= options.length) return;
         
         switch (currentState) {
@@ -258,6 +261,11 @@ public class MainMenu {
             case INVENTORY:
                 handleInventorySelection();
                 break;
+            case SHOP:
+                // 현재 구조에서 SHOP 상태는 별도 Shop 화면으로 대체됨
+                showingShop = true;
+                shop.reset();
+                break;
         }
     }
     
@@ -265,7 +273,6 @@ public class MainMenu {
      * 메인 메뉴 선택을 처리합니다
      */
     private void handleMainMenuSelection() {
-        String[] options = getMainMenuOptions();
         switch (selectedOption) {
             case 0: // 싱글플레이
                 currentState = MenuState.SINGLE_PLAYER;
@@ -363,7 +370,12 @@ public class MainMenu {
                 // 정보수정 화면 (구현 필요)
                 break;
             case 3: // 로그아웃
-                userManager.logoutUser();
+                if (userManager != null) {
+                    userManager.logoutUser();
+                }
+                // 즉시 메인 메뉴 상태로 돌아가 선택값 초기화 (다음 화면 전환 시 깔끔한 상태)
+                currentState = MenuState.MAIN;
+                selectedOption = 0;
                 logoutRequested = true;
                 System.out.println("로그아웃 완료");
                 break;
@@ -512,7 +524,6 @@ public class MainMenu {
             }
             
             g2d.setColor(i == selectedOption ? Color.YELLOW : Color.WHITE);
-            FontMetrics metrics = g2d.getFontMetrics();
             int x = 70;
             int y = startY + (i * lineHeight);
             g2d.drawString(options[i], x, y);
@@ -617,7 +628,7 @@ public class MainMenu {
             }
             
             g2d.setColor(i == selectedOption ? Color.YELLOW : Color.WHITE);
-            FontMetrics metrics = g2d.getFontMetrics();
+            // int x = 70; // metrics 사용 제거하고 고정 여백 사용
             int x = 70;
             int y = startY + (i * lineHeight);
             g2d.drawString(options[i], x, y);
@@ -693,10 +704,7 @@ public class MainMenu {
     }
 
     // 상점 메뉴 선택 처리
-    private void handleShopSelection() {
-        showingShop = true;
-        shop.reset();
-    }
+    // 상점 메뉴 선택 처리는 handleMainMenuSelection과 SHOP case에서 처리
 
     public boolean isShowingShop() {
         return showingShop;

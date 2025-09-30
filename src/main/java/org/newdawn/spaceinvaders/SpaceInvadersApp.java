@@ -27,6 +27,7 @@ public class SpaceInvadersApp extends JFrame implements ScreenNavigator {
 
     private Screen currentScreen; // update/render 가상화
     private volatile boolean running = true;
+    private volatile Canvas pendingScreen; // 전환 요청된 다음 화면
 
     private static final String windowTitle = "Space Invaders";
 
@@ -69,10 +70,14 @@ public class SpaceInvadersApp extends JFrame implements ScreenNavigator {
         setScreen(loginScreenCanvas);
     }
 
+    /** 다음 화면 전환을 요청 (렌더 루프가 EDT에서 안전하게 처리) */
+    private void requestSetScreen(Canvas next) {
+        pendingScreen = next;
+    }
+
     private void setScreen(Canvas newCanvas) {
         // 현재 화면 제거
         if (canvas != null) {
-            canvas.setVisible(false);
             getContentPane().remove(canvas);
             if (currentScreen != null) currentScreen.onHide();
         }
@@ -81,8 +86,9 @@ public class SpaceInvadersApp extends JFrame implements ScreenNavigator {
         canvas = newCanvas;
         canvas.setBounds(0, 0, WIDTH, HEIGHT);
         canvas.setIgnoreRepaint(true);
-        getContentPane().add(canvas);
-        canvas.requestFocus();
+    getContentPane().add(canvas);
+    canvas.setVisible(true);
+    canvas.setFocusable(true);
         getContentPane().revalidate();
         getContentPane().repaint();
 
@@ -91,7 +97,10 @@ public class SpaceInvadersApp extends JFrame implements ScreenNavigator {
 
         if (newCanvas instanceof Screen) {
             currentScreen = (Screen) newCanvas;
+            currentScreen.init();
             currentScreen.onShow();
+            // 포커스는 리스너 등록 이후 안정적으로 요청
+            javax.swing.SwingUtilities.invokeLater(() -> canvas.requestFocusInWindow());
         } else {
             currentScreen = null;
         }
@@ -100,6 +109,18 @@ public class SpaceInvadersApp extends JFrame implements ScreenNavigator {
     public void runMainLoop() {
         long lastLoopTime = SystemTimer.getTime();
         while (running) {
+            // 화면 전환 요청이 있으면 먼저 처리 (EDT 동기)
+            if (pendingScreen != null) {
+                Canvas next = pendingScreen;
+                pendingScreen = null;
+                try {
+                    javax.swing.SwingUtilities.invokeAndWait(() -> setScreen(next));
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+                // 전환 직후 다음 루프에서 버퍼 재생성/렌더 진행
+            }
+
             long delta = SystemTimer.getTime() - lastLoopTime;
             lastLoopTime = SystemTimer.getTime();
 
@@ -153,7 +174,12 @@ public class SpaceInvadersApp extends JFrame implements ScreenNavigator {
                 if (g != null) g.dispose();
             }
             if (strategy != null) {
-                strategy.show();
+                try {
+                    strategy.show();
+                } catch (IllegalStateException ise) {
+                    // 전환 타이밍 등으로 peer가 무효화된 경우 다음 루프에서 재시도
+                    strategy = null;
+                }
             }
 
             SystemTimer.sleep(1);
@@ -163,15 +189,15 @@ public class SpaceInvadersApp extends JFrame implements ScreenNavigator {
 
     // ============== ScreenNavigator 구현 ==============
     @Override
-    public void showLogin() { setScreen(loginScreenCanvas); }
+    public void showLogin() { requestSetScreen(loginScreenCanvas); }
 
     @Override
-    public void showMainMenu() { setScreen(mainMenuCanvas); }
+    public void showMainMenu() { requestSetScreen(mainMenuCanvas); }
 
     @Override
     public void startNewGame() {
         if (gameScreen != null) gameScreen.startNewGame();
-        setScreen(gameScreen);
+        requestSetScreen(gameScreen);
     }
 
     @Override

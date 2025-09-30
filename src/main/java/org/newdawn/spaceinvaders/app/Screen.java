@@ -13,6 +13,9 @@ public interface Screen {
     /** 화면이 숨겨질 때 호출 (리스너 해제 등) */
     default void onHide() {}
 
+    /** 화면이 최초로 생성될 때 호출 (리소스 초기화 등) */
+    default void init() {}
+
     /**
      * 프레임 업데이트
      * @param deltaMillis 지난 프레임으로부터 경과 시간(ms)

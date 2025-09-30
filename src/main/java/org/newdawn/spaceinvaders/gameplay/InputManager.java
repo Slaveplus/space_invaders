@@ -5,8 +5,6 @@ import java.awt.event.KeyEvent;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 
-import org.newdawn.spaceinvaders.gameplay.GameStateManager;
-import org.newdawn.spaceinvaders.gameplay.SkillManager;
 
 /**
  * 입력 관리 클래스
@@ -38,35 +36,19 @@ public class InputManager {
         /**
          * 키가 눌렸을 때 처리
          */
-        public void keyPressed(KeyEvent e) {
-            // 게임 상태에 따른 입력 처리
-            if (gameStateManager.isShowingLogin() || gameStateManager.isShowingMenu()) {
-                gameStateManager.handleKeyInput(e.getKeyCode(), e.getKeyChar());
-                return;
-            }
-            
-            // 게임플레이 중일 때
-            if (gameStateManager.isGameplay()) {
-                handleGameplayKeyPressed(e);
-            }
-        }
+        public void keyPressed(KeyEvent e) { handleGameplayKeyPressed(e); }
         
         /**
          * 키가 떼어졌을 때 처리
          */
-        public void keyReleased(KeyEvent e) {
-            // 게임플레이 중일 때만 키 릴리즈 처리
-            if (gameStateManager.isGameplay()) {
-                handleGameplayKeyReleased(e);
-            }
-        }
+        public void keyReleased(KeyEvent e) { handleGameplayKeyReleased(e); }
         
         /**
          * 키가 타이핑되었을 때 처리
          */
         public void keyTyped(KeyEvent e) {
             // 게임플레이 중 "any key" 대기 상태일 때
-            if (gameStateManager.isGameplay() && gameStateManager.isWaitingForKeyPress()) {
+            if (gameStateManager.isWaitingForKeyPress()) {
                 if (pressCount == 1) {
                     // since we've now recieved our key typed
                     // event we can mark it as such and start 
@@ -155,9 +137,7 @@ public class InputManager {
          */
         private void handleGameplayKeyReleased(KeyEvent e) {
             // "any key" 대기 중이면 키 입력 무시
-            if (gameStateManager.isWaitingForKeyPress()) {
-                return;
-            }
+            if (gameStateManager.isWaitingForKeyPress()) { return; }
             
             if (e.getKeyCode() == KeyEvent.VK_LEFT) {
                 leftPressed = false;
@@ -181,17 +161,7 @@ public class InputManager {
         public void mouseClicked(MouseEvent e) {
             int x = e.getX();
             int y = e.getY();
-            
-            // 게임 상태에 따른 마우스 클릭 처리
-            if (gameStateManager.isShowingLogin() || gameStateManager.isShowingMenu()) {
-                gameStateManager.handleMouseClick(x, y);
-                return;
-            }
-            
-            // 게임플레이 중일 때
-            if (gameStateManager.isGameplay()) {
-                System.out.println("게임 중 마우스 클릭: (" + x + ", " + y + ")");
-            }
+            System.out.println("게임 중 마우스 클릭: (" + x + ", " + y + ")");
         }
     }
     
@@ -199,7 +169,7 @@ public class InputManager {
      * 게임플레이 입력 상태 업데이트
      */
     public void updateGameplayInput() {
-        if (gameStateManager.isGameplay() && game.getShip() != null && 
+        if (game.getShip() != null && 
             !gameStateManager.isShowingPauseMenu() && !gameStateManager.isShowingSkillMenu()) {
             // 우주선 이동 처리
             game.getShip().setHorizontalMovement(0);
@@ -253,7 +223,7 @@ public class InputManager {
                 break;
             case 1: // 메인메뉴
                 gameStateManager.hidePauseMenu();
-                gameStateManager.showMenu();
+                game.goToMainMenu();
                 break;
             case 2: // 설정
                 gameStateManager.setMessage("설정 기능은 준비 중입니다!");
