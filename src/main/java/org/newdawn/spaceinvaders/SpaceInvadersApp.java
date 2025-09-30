@@ -86,9 +86,8 @@ public class SpaceInvadersApp extends JFrame implements ScreenNavigator {
         getContentPane().revalidate();
         getContentPane().repaint();
 
-        // 버퍼 전략 갱신
-        canvas.createBufferStrategy(2);
-        strategy = canvas.getBufferStrategy();
+        // 화면 전환 시 버퍼 전략 무효화
+        strategy = null;
 
         if (newCanvas instanceof Screen) {
             currentScreen = (Screen) newCanvas;
@@ -111,7 +110,6 @@ public class SpaceInvadersApp extends JFrame implements ScreenNavigator {
             // update our FPS counter if a second has passed since
             // we last recorded
             if (lastFpsTime >= 1000) {
-
                 this.setTitle(windowTitle+" (FPS: "+fps+")");
                 lastFpsTime = 0;
                 fps = 0;
@@ -121,15 +119,42 @@ public class SpaceInvadersApp extends JFrame implements ScreenNavigator {
                 currentScreen.update(delta);
             }
 
-            Graphics2D g = (Graphics2D) strategy.getDrawGraphics();
+            // strategy가 null이거나 캔버스가 displayable 상태가 아니면 버퍼 전략 재생성
+            if (strategy == null || !canvas.isDisplayable()) {
+                if (canvas != null && canvas.isDisplayable()) {
+                    canvas.createBufferStrategy(2);
+                    strategy = canvas.getBufferStrategy();
+                } else {
+                    SystemTimer.sleep(10);
+                    continue;
+                }
+            }
+
+            // drawGraphics 얻기 전에 displayable 상태 재확인
+            if (!canvas.isDisplayable()) {
+                SystemTimer.sleep(10);
+                continue;
+            }
+
+            Graphics2D g = null;
+            try {
+                g = (Graphics2D) strategy.getDrawGraphics();
+            } catch (IllegalStateException e) {
+                // 버퍼 전략이 유효하지 않으면 무효화하고 다음 루프에서 재생성
+                strategy = null;
+                SystemTimer.sleep(10);
+                continue;
+            }
             try {
                 g.setColor(Color.black);
                 g.fillRect(0, 0, WIDTH, HEIGHT);
                 if (currentScreen != null) currentScreen.render(g);
             } finally {
-                g.dispose();
+                if (g != null) g.dispose();
             }
-            strategy.show();
+            if (strategy != null) {
+                strategy.show();
+            }
 
             SystemTimer.sleep(10);
         }
