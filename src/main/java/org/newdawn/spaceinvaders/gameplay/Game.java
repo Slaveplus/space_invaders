@@ -6,14 +6,12 @@ import java.awt.Graphics2D;
 // no direct AWT listeners here; handled via InputManager
 import java.util.ArrayList;
 
-// JFrame/Panel are managed by SpaceInvadersApp
-
-import org.newdawn.spaceinvaders.entity.AlienEntity;
-import org.newdawn.spaceinvaders.entity.Entity;
-import org.newdawn.spaceinvaders.entity.ShipEntity;
-import org.newdawn.spaceinvaders.entity.ShotEntity;
 import org.newdawn.spaceinvaders.app.Screen;
 import org.newdawn.spaceinvaders.app.ScreenNavigator;
+import org.newdawn.spaceinvaders.gameplay.entity.AlienEntity;
+import org.newdawn.spaceinvaders.gameplay.entity.Entity;
+import org.newdawn.spaceinvaders.gameplay.entity.ShipEntity;
+import org.newdawn.spaceinvaders.gameplay.entity.ShotEntity;
 
 /**
  * The main hook of our game. This class with both act as a manager
@@ -58,6 +56,11 @@ public class Game extends Canvas implements Screen
 	private SkillManager skillManager;
 	/** The UI renderer */
 	private UIRenderer uiRenderer;
+	/** Background renderer (cached) */
+	private BackgroundRenderer backgroundRenderer;
+	/** Reused menu renderers to avoid per-frame allocations */
+	private org.newdawn.spaceinvaders.mainmenu.PauseMenuRenderer pauseMenuRenderer;
+	private org.newdawn.spaceinvaders.mainmenu.SkillMenuRenderer skillMenuRenderer;
 	
 	/**
 	 * Construct our game and set it running.
@@ -76,6 +79,11 @@ public class Game extends Canvas implements Screen
 		
 		// initialize the UI renderer
 		uiRenderer = new UIRenderer(this);
+
+		// background & menu renderers
+		backgroundRenderer = new BackgroundRenderer("sprites/backgrounds/Background-2.jpg");
+		pauseMenuRenderer = new org.newdawn.spaceinvaders.mainmenu.PauseMenuRenderer();
+		skillMenuRenderer = new org.newdawn.spaceinvaders.mainmenu.SkillMenuRenderer();
 		
 		// initialize the input manager
 		inputManager = new InputManager(gameStateManager, this);
@@ -442,8 +450,8 @@ public class Game extends Canvas implements Screen
 
 	public void render(Graphics2D g) {
 		if (gameStateManager.isGameplay()) {
-			// background
-			drawGameplayBackground(g);
+			// background (cached)
+			backgroundRenderer.draw(g);
 			// entities
 			ArrayList<Entity> entities = gameStateManager.getEntities();
 			for (Entity entity : entities) entity.draw(g);
@@ -531,10 +539,7 @@ public class Game extends Canvas implements Screen
 	 * 스킬 메뉴 그리기
 	 */
 	public void drawSkillMenu(java.awt.Graphics2D g2d) {
-		// 스킬 메뉴 렌더러 사용
-		org.newdawn.spaceinvaders.mainmenu.SkillMenuRenderer skillMenuRenderer = 
-			new org.newdawn.spaceinvaders.mainmenu.SkillMenuRenderer();
-		
+		// 스킬 메뉴 렌더러 재사용
 		skillMenuRenderer.drawSkillMenu(
 			g2d,
 			gameStateManager.getSkillPoints(),
@@ -552,29 +557,12 @@ public class Game extends Canvas implements Screen
 	 * 일시정지 메뉴 그리기
 	 */
 	public void drawPauseMenu(java.awt.Graphics2D g2d) {
-		// 일시정지 메뉴 렌더러 사용
-		org.newdawn.spaceinvaders.mainmenu.PauseMenuRenderer pauseMenuRenderer = 
-			new org.newdawn.spaceinvaders.mainmenu.PauseMenuRenderer();
-		
+		// 일시정지 메뉴 렌더러 재사용
 		pauseMenuRenderer.drawPauseMenu(g2d, gameStateManager.getSelectedPauseMenuItem());
 	}
 	
 	/**
 	 * 게임플레이 배경 그리기
 	 */
-	private void drawGameplayBackground(java.awt.Graphics2D g) {
-		try {
-			// Load background image
-			java.awt.image.BufferedImage backgroundImage = javax.imageio.ImageIO.read(
-				getClass().getResourceAsStream("/sprites/backgrounds/Background-2.jpg")
-			);
-			
-			// Draw background image scaled to fit screen
-			g.drawImage(backgroundImage, 0, 0, 800, 600, null);
-		} catch (Exception e) {
-			// Fallback to black background if image loading fails
-			g.setColor(Color.black);
-			g.fillRect(0, 0, 800, 600);
-		}
-	}
+    // 배경 렌더링은 BackgroundRenderer가 담당
 }

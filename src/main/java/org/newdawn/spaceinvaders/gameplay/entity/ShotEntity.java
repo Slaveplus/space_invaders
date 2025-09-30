@@ -1,9 +1,9 @@
-package org.newdawn.spaceinvaders.entity;
+package org.newdawn.spaceinvaders.gameplay.entity;
 
 import java.awt.Color;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
-import java.awt.image.BufferedImage;
+import java.awt.BasicStroke;
 
 import org.newdawn.spaceinvaders.gameplay.Game;
 
@@ -27,6 +27,9 @@ public class ShotEntity extends Entity {
 	private int skillType = -1;
 	/** Skill value for skill drops */
 	private int skillValue = 0;
+
+	// Reusable strokes to avoid per-frame allocations
+	private static final BasicStroke STROKE_2PX = new BasicStroke(2);
 	
 	/**
 	 * Create a new shot from the player
@@ -145,12 +148,12 @@ public class ShotEntity extends Entity {
 				
 				// Border
 				g2d.setColor(new Color(255, 140, 0));
-				g2d.setStroke(new java.awt.BasicStroke(2));
+				g2d.setStroke(STROKE_2PX);
 				g2d.drawOval((int)x - 8, (int)y - 8, 16, 16);
 				
 				// Cross symbol for invincibility
 				g2d.setColor(Color.WHITE);
-				g2d.setStroke(new java.awt.BasicStroke(2));
+				g2d.setStroke(STROKE_2PX);
 				g2d.drawLine((int)x - 3, (int)y, (int)x + 3, (int)y);
 				g2d.drawLine((int)x, (int)y - 3, (int)x, (int)y + 3);
 				
@@ -165,12 +168,12 @@ public class ShotEntity extends Entity {
 				
 				// Border
 				g2d.setColor(new Color(180, 0, 0));
-				g2d.setStroke(new java.awt.BasicStroke(2));
+				g2d.setStroke(STROKE_2PX);
 				g2d.drawOval((int)x - 8, (int)y - 8, 16, 16);
 				
 				// Arrow symbol for piercing
 				g2d.setColor(Color.WHITE);
-				g2d.setStroke(new java.awt.BasicStroke(2));
+				g2d.setStroke(STROKE_2PX);
 				// Arrow pointing down
 				g2d.drawLine((int)x, (int)y - 4, (int)x, (int)y + 2);
 				g2d.drawLine((int)x - 2, (int)y, (int)x, (int)y + 2);
@@ -187,12 +190,12 @@ public class ShotEntity extends Entity {
 				
 				// Border
 				g2d.setColor(new Color(0, 50, 150));
-				g2d.setStroke(new java.awt.BasicStroke(2));
+				g2d.setStroke(STROKE_2PX);
 				g2d.drawOval((int)x - 8, (int)y - 8, 16, 16);
 				
 				// Three dots symbol for triple shot
 				g2d.setColor(Color.WHITE);
-				g2d.setStroke(new java.awt.BasicStroke(2));
+				g2d.setStroke(STROKE_2PX);
 				g2d.fillOval((int)x - 4, (int)y - 2, 3, 3);
 				g2d.fillOval((int)x - 1, (int)y - 2, 3, 3);
 				g2d.fillOval((int)x + 2, (int)y - 2, 3, 3);
@@ -207,8 +210,10 @@ public class ShotEntity extends Entity {
 			Graphics2D g2d = (Graphics2D) g;
 			
 			// Calculate center position for perfect circle
-			int centerX = (int) x + sprite.getWidth() / 2;
-			int centerY = (int) y + sprite.getHeight() / 2;
+			int w = (sprite != null ? sprite.getWidth() : 16);
+			int h = (sprite != null ? sprite.getHeight() : 16);
+			int centerX = (int) x + w / 2;
+			int centerY = (int) y + h / 2;
 			int radius = 8; // Fixed radius for perfect circle
 			
 			// Outer glow effect (larger circle)

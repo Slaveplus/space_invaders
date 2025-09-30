@@ -1,4 +1,4 @@
-package org.newdawn.spaceinvaders.entity;
+package org.newdawn.spaceinvaders.gameplay.entity;
 
 import java.awt.AlphaComposite;
 import java.awt.Graphics;

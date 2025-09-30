@@ -1,4 +1,4 @@
-package org.newdawn.spaceinvaders.sprite;
+package org.newdawn.spaceinvaders.gameplay.sprite;
 
 import java.awt.Graphics;
 import java.awt.Image;

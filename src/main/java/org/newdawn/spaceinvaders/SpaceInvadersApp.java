@@ -156,7 +156,7 @@ public class SpaceInvadersApp extends JFrame implements ScreenNavigator {
                 strategy.show();
             }
 
-            SystemTimer.sleep(10);
+            SystemTimer.sleep(1);
         }
         dispose();
     }

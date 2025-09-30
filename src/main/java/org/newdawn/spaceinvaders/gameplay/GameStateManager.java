@@ -1,11 +1,11 @@
 package org.newdawn.spaceinvaders.gameplay;
 
+import org.newdawn.spaceinvaders.gameplay.entity.Entity;
 import org.newdawn.spaceinvaders.login.LoginScreen;
 import org.newdawn.spaceinvaders.login.UserManager;
 import org.newdawn.spaceinvaders.mainmenu.MainMenu;
 
 import java.util.ArrayList;
-import org.newdawn.spaceinvaders.entity.Entity;
 
 /**
  * 게임 상태 관리 클래스

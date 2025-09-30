@@ -1,8 +1,9 @@
 package org.newdawn.spaceinvaders.gameplay;
 
 import java.util.ArrayList;
-import org.newdawn.spaceinvaders.entity.Entity;
-import org.newdawn.spaceinvaders.entity.ShotEntity;
+
+import org.newdawn.spaceinvaders.gameplay.entity.Entity;
+import org.newdawn.spaceinvaders.gameplay.entity.ShotEntity;
 
 /**
  * 스킬 시스템을 관리하는 클래스
@@ -154,7 +155,7 @@ public class SkillManager {
         // Try to find an alien position for more realistic dropping
         ArrayList<Entity> entities = game.getEntities();
         for (Entity entity : entities) {
-            if (entity instanceof org.newdawn.spaceinvaders.entity.AlienEntity) {
+            if (entity instanceof org.newdawn.spaceinvaders.gameplay.entity.AlienEntity) {
                 dropX = (int) entity.getX();
                 dropY = (int) entity.getY();
                 break;
