@@ -28,8 +28,8 @@ public class LoginScreen {
     private boolean showCursor = true; // 커서 표시 여부
     private boolean loginSucceeded = false; // 로그인 성공 플래그 (화면 전환 트리거)
     
-    public LoginScreen() {
-        this.userManager = new UserManager();
+    public LoginScreen(UserManager userManager) {
+        this.userManager = userManager;
         this.inputHandler = new LoginInputHandler(this);
         loadBackgroundImage();
         initializeFonts();

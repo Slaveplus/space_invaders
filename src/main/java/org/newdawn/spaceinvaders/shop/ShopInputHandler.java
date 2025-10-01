@@ -193,12 +193,114 @@ public class ShopInputHandler {
     }
     
     private void handleInventoryInput(int keyCode) {
+        System.out.println("인벤토리 키 입력 처리: " + keyCode + " (Tab=" + KeyEvent.VK_TAB + ")");
         switch (keyCode) {
+            case KeyEvent.VK_Q:
+                // Q 키로 카테고리 변경 (Tab 키 대신)
+                System.out.println("Q 키 감지됨 - 카테고리 변경 시작");
+                changeInventoryCategory(1);
+                break;
+            case KeyEvent.VK_LEFT:
+                // 아이템 선택 왼쪽으로
+                moveInventorySelection(-1);
+                break;
+            case KeyEvent.VK_RIGHT:
+                // 아이템 선택 오른쪽으로
+                moveInventorySelection(1);
+                break;
+            case KeyEvent.VK_UP:
+                // 아이템 선택 위로
+                moveInventorySelection(-3); // 3컬럼이므로 -3
+                break;
+            case KeyEvent.VK_DOWN:
+                // 아이템 선택 아래로
+                moveInventorySelection(3); // 3컬럼이므로 +3
+                break;
+            case KeyEvent.VK_ENTER:
+            case KeyEvent.VK_SPACE:
+                // 아이템 장착/해제
+                toggleItemEquip();
+                break;
             case KeyEvent.VK_ESCAPE:
                 shopManager.returnToMainMenu();
                 // selectedOption은 유지
                 System.out.println("메인 메뉴로 돌아가기 - 이전 선택 유지: " + selectedOption);
                 break;
+        }
+    }
+    
+    private void changeInventoryCategory(int direction) {
+        ShopCategory[] categories = {
+            ShopCategory.WEAPONS,
+            ShopCategory.SPACESHIPS
+        };
+        
+        ShopCategory currentCategory = shopManager.getInventoryCategory();
+        System.out.println("현재 카테고리: " + currentCategory + ", 방향: " + direction);
+        
+        int currentIndex = -1;
+        
+        for (int i = 0; i < categories.length; i++) {
+            if (categories[i] == currentCategory) {
+                currentIndex = i;
+                break;
+            }
+        }
+        
+        System.out.println("현재 인덱스: " + currentIndex);
+        
+        if (currentIndex != -1) {
+            int newIndex = currentIndex + direction;
+            if (newIndex < 0) {
+                newIndex = categories.length - 1;
+            } else if (newIndex >= categories.length) {
+                newIndex = 0;
+            }
+            
+            System.out.println("새 인덱스: " + newIndex + " -> " + categories[newIndex]);
+            shopManager.setInventoryCategory(categories[newIndex]);
+            selectedItem = 0; // 카테고리 변경 시 선택 초기화
+            System.out.println("인벤토리 카테고리 변경 완료: " + categories[newIndex].getDisplayName());
+        } else {
+            System.out.println("현재 카테고리를 찾을 수 없음: " + currentCategory);
+        }
+    }
+    
+    private void moveInventorySelection(int direction) {
+        List<ShopItem> categoryItems = shopManager.getInventoryByCategory(shopManager.getInventoryCategory());
+        if (!categoryItems.isEmpty()) {
+            int itemsPerRow = 3; // 3컬럼 레이아웃
+            int newSelectedItem = selectedItem + direction;
+            
+            // 범위 체크 및 순환 처리
+            if (newSelectedItem < 0) {
+                newSelectedItem = categoryItems.size() - 1;
+            } else if (newSelectedItem >= categoryItems.size()) {
+                newSelectedItem = 0;
+            }
+            
+            selectedItem = newSelectedItem;
+            System.out.println("인벤토리 아이템 선택: " + selectedItem + " (총 " + categoryItems.size() + "개)");
+        }
+    }
+    
+    private void toggleItemEquip() {
+        List<ShopItem> categoryItems = shopManager.getInventoryByCategory(shopManager.getInventoryCategory());
+        if (!categoryItems.isEmpty() && selectedItem < categoryItems.size()) {
+            ShopItem item = categoryItems.get(selectedItem);
+            ShopCategory category = item.getCategory();
+            
+            if (shopManager.isItemEquipped(item)) {
+                // 아이템 해제
+                if (shopManager.unequipItem(category)) {
+                    System.out.println("아이템 해제: " + item.getName());
+                }
+            } else {
+                // 아이템 장착
+                if (shopManager.equipItem(item)) {
+                    System.out.println("아이템 장착: " + item.getName());
+                }
+            }
         }
     }
     

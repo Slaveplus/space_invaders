@@ -4,6 +4,7 @@ import org.newdawn.spaceinvaders.app.Screen;
 import org.newdawn.spaceinvaders.app.ScreenNavigator;
 import org.newdawn.spaceinvaders.gameplay.Game;
 import org.newdawn.spaceinvaders.login.LoginScreenCanvas;
+import org.newdawn.spaceinvaders.login.UserManager;
 import org.newdawn.spaceinvaders.mainmenu.MainMenuCanvas;
 
 import javax.swing.*;
@@ -20,6 +21,9 @@ public class SpaceInvadersApp extends JFrame implements ScreenNavigator {
     private Canvas canvas;              // 현재 화면이 부착되는 캔버스
     private BufferStrategy strategy;    // 더블버퍼
 
+    // 공유 UserManager
+    private UserManager userManager;
+    
     // 스크린(캔버스)
     private LoginScreenCanvas loginScreenCanvas;
     private MainMenuCanvas mainMenuCanvas;
@@ -61,10 +65,14 @@ public class SpaceInvadersApp extends JFrame implements ScreenNavigator {
         canvas.createBufferStrategy(2);
         strategy = canvas.getBufferStrategy();
 
-        // 스크린 생성
-        loginScreenCanvas = new LoginScreenCanvas(this);
-        mainMenuCanvas = new MainMenuCanvas(this);
+        // 공유 UserManager 생성
+        userManager = new UserManager();
+
+        // 스크린 생성 (UserManager 공유)
+        loginScreenCanvas = new LoginScreenCanvas(this, userManager);
+        mainMenuCanvas = new MainMenuCanvas(this, userManager);
         gameScreen = new Game(this); // Game을 스크린(캔버스)으로 사용
+        gameScreen.setUserManager(userManager); // Game에 UserManager 전달
 
         // 초기 화면
         setScreen(loginScreenCanvas);

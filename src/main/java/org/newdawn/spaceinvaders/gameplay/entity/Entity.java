@@ -144,6 +144,18 @@ public abstract class Entity {
 	}
 	
 	/**
+	 * 엔티티의 스킨을 동적으로 변경
+	 * 
+	 * @param newSkinPath 새로운 스킨 파일 경로
+	 */
+	public void changeSkin(String newSkinPath) {
+		System.out.println("Entity: changeSkin 호출 - " + newSkinPath);
+		System.out.println("Entity: 이전 스프라이트 = " + (this.sprite != null ? "존재" : "null"));
+		this.sprite = SpriteStore.get().getSprite(newSkinPath);
+		System.out.println("Entity: 스킨 변경 - " + newSkinPath);
+	}
+	
+	/**
 	 * Notification that this entity collided with another.
 	 * 
 	 * @param other The entity with which this entity collided.

@@ -10,4 +10,6 @@ public interface ItemEffect {
     void applyEffect();
     void removeEffect();
     boolean isActive();
+    String getType();
+    double getValue();
 }

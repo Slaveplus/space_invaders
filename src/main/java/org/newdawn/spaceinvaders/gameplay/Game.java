@@ -7,6 +7,9 @@ import java.util.ArrayList;
 
 import org.newdawn.spaceinvaders.app.Screen;
 import org.newdawn.spaceinvaders.app.ScreenNavigator;
+import org.newdawn.spaceinvaders.login.UserManager;
+import org.newdawn.spaceinvaders.shop.ShopCategory;
+import org.newdawn.spaceinvaders.shop.ShopItem;
 import org.newdawn.spaceinvaders.gameplay.entity.AlienEntity;
 import org.newdawn.spaceinvaders.gameplay.entity.Entity;
 import org.newdawn.spaceinvaders.gameplay.entity.ShipEntity;
@@ -36,9 +39,16 @@ public class Game extends Canvas implements Screen
 	private Entity ship;
 	/** The speed at which the player's ship should move (pixels/sec) */
 	private double moveSpeed = 300;
+	/** UserManager for accessing equipped items */
+	private UserManager userManager;
 	// lastFire and firingInterval are now managed by GameStateManager
 	/** The number of aliens left on the screen */
 	private int alienCount;
+	
+	/** 현재 장착된 우주선 스킨 경로 */
+	private String currentSpaceshipSkin = "sprites/ship.gif";
+	/** 현재 장착된 무기 스킨 경로 */
+	private String currentWeaponSkin = "sprites/shot.gif";
 
 	/** The current number of frames recorded */
 	// FPS 표시 기능은 상위에서 처리 가능, 내부적으로는 카운트만 유지하지 않음
@@ -64,6 +74,7 @@ public class Game extends Canvas implements Screen
 	 */
 	public Game(ScreenNavigator navigator) {
 		this.navigator = navigator;
+		this.userManager = null;
 		setIgnoreRepaint(true);
 		setBounds(0,0,800,600);
 		setFocusable(true);
@@ -120,6 +131,168 @@ public class Game extends Canvas implements Screen
 		
 		// 스킬 매니저 초기화
 		skillManager.reset();
+		
+		// 장착된 아이템 적용
+		applyEquippedItems();
+	}
+	
+	
+	/**
+	 * UserManager 설정
+	 */
+	public void setUserManager(UserManager userManager) {
+		this.userManager = userManager;
+		// ShopManager의 장착 정보 동기화
+		if (userManager != null && userManager.isLoggedIn()) {
+			userManager.getShopManager().loadInventoryFromDB();
+			userManager.getShopManager().loadEquipmentFromDB();
+			System.out.println("Game: UserManager 설정 완료 - 장착 정보 동기화");
+		}
+		this.userManager = userManager;
+	}
+
+	
+	/**
+	 * 현재 우주선 스킨 경로 반환
+	 */
+	public String getCurrentSpaceshipSkin() {
+		return currentSpaceshipSkin;
+	}
+	
+	/**
+	 * 현재 무기 스킨 경로 반환
+	 */
+	public String getCurrentWeaponSkin() {
+		return currentWeaponSkin;
+	}
+	
+	/**
+	 * 장착된 아이템을 게임에 적용
+	 */
+	private void applyEquippedItems() {
+		if (userManager == null || !userManager.isLoggedIn()) {
+			System.out.println("Game: UserManager가 없거나 로그인되지 않음 - 기본 설정 사용");
+			return;
+	}
+		
+		System.out.println("Game: 장착된 아이템 적용 시작");
+		
+		// 장착된 우주선 적용
+		ShopItem equippedSpaceship = getEquippedItem(ShopCategory.SPACESHIPS);
+		if (equippedSpaceship != null) {
+			System.out.println("Game: 우주선 적용 - " + equippedSpaceship.getName());
+			// 우주선 스킨 변경
+			applySpaceshipSkin(equippedSpaceship);
+		} else {
+			// 기본 우주선 스킨 사용
+			currentSpaceshipSkin = "sprites/ship.gif";
+		}
+		
+		// 장착된 무기 적용
+		ShopItem equippedWeapon = getEquippedItem(ShopCategory.WEAPONS);
+		if (equippedWeapon != null) {
+			System.out.println("Game: 무기 적용 - " + equippedWeapon.getName());
+			// 무기 스킨 및 효과 적용
+			applyWeaponSkin(equippedWeapon);
+			applyWeaponEffects(equippedWeapon);
+		} else {
+			// 기본 무기 스킨 사용
+			currentWeaponSkin = "sprites/shot.gif";
+		}
+		
+		// 장착된 파워업 적용
+		ShopItem equippedPowerup = getEquippedItem(ShopCategory.POWERUPS);
+		if (equippedPowerup != null) {
+			System.out.println("Game: 파워업 적용 - " + equippedPowerup.getName());
+			// 파워업 효과 적용
+			applyPowerupEffects(equippedPowerup);
+		}
+	}
+	
+	/**
+	 * 특정 카테고리의 장착된 아이템 가져오기
+	 */
+	private ShopItem getEquippedItem(ShopCategory category) {
+		System.out.println("Game: getEquippedItem 호출 - category: " + category);
+		System.out.println("Game: userManager = " + (userManager != null ? "존재" : "null"));
+		if (userManager != null) {
+			System.out.println("Game: isLoggedIn = " + userManager.isLoggedIn());
+		}
+		if (userManager == null || !userManager.isLoggedIn()) {
+			return null;
+		}
+		
+		// UserManager에서 ShopManager를 통해 장착된 아이템 가져오기
+		ShopItem result = userManager.getShopManager().getEquippedItem(category);
+		System.out.println("Game: getEquippedItem 결과 = " + (result != null ? result.getName() : "null"));
+		return result;
+	}
+	
+	/**
+	 * 우주선 스킨 적용
+	 */
+	private void applySpaceshipSkin(ShopItem spaceship) {
+		System.out.println("Game: applySpaceshipSkin 호출 - " + spaceship.getName());
+		System.out.println("Game: spaceship.getIconPath() = " + spaceship.getIconPath());
+		// ShopItem의 getIconPath()를 사용하여 스킨 파일 경로 가져오기
+		String newSkinPath = spaceship.getIconPath();
+		
+		// 스킨이 변경된 경우에만 업데이트
+		if (!newSkinPath.equals(currentSpaceshipSkin)) {
+			currentSpaceshipSkin = newSkinPath;
+			updateShipSkin();
+			System.out.println("Game: 우주선 스킨 변경 - " + currentSpaceshipSkin);
+		}
+	}
+	
+	/**
+	 * 우주선 스킨 업데이트
+	 */
+	private void updateShipSkin() {
+		System.out.println("Game: updateShipSkin 호출 - " + currentSpaceshipSkin);
+		System.out.println("Game: ship = " + (ship != null ? "존재" : "null"));
+		if (ship != null) {
+			ship.changeSkin(currentSpaceshipSkin);
+		}
+	}
+	
+	/**
+	 * 무기 스킨 적용
+	 */
+	private void applyWeaponSkin(ShopItem weapon) {
+		// ShopItem의 getIconPath()를 사용하여 스킨 파일 경로 가져오기
+		currentWeaponSkin = weapon.getIconPath();
+		
+		System.out.println("Game: 무기 스킨 변경 - " + currentWeaponSkin);
+	}
+	
+	/**
+	 * 무기 효과 적용
+	 */
+	private void applyWeaponEffects(ShopItem weapon) {
+		// 무기별 효과 적용
+		String weaponName = weapon.getName();
+		if (weaponName.contains("강화")) {
+			gameStateManager.setAttackPower(gameStateManager.getAttackPower() + 1);
+			System.out.println("Game: 공격력 +1 증가");
+		}
+		if (weaponName.contains("빠른")) {
+			gameStateManager.setAttackSpeed(gameStateManager.getAttackSpeed() * 1.2);
+			System.out.println("Game: 공격속도 20% 증가");
+		}
+	}
+	
+	/**
+	 * 파워업 효과 적용 (일단 쓰지마셈)
+	 */
+	private void applyPowerupEffects(ShopItem powerup) {
+		// 파워업별 효과 적용
+		String powerupName = powerup.getName();
+		if (powerupName.contains("체력")) {
+			gameStateManager.setMaxHP(gameStateManager.getMaxHP() + 1);
+			gameStateManager.setCurrentHP(gameStateManager.getCurrentHP() + 1);
+			System.out.println("Game: 최대 체력 +1 증가");
+		}
 	}
 	
 	/**
@@ -128,7 +301,7 @@ public class Game extends Canvas implements Screen
 	 */
 	private void initEntities() {
 		// create the player ship and place it roughly in the center of the screen
-		ship = new ShipEntity(this,"sprites/ship.gif",370,550);
+		ship = new ShipEntity(this, currentSpaceshipSkin, 370, 550);
 		gameStateManager.getEntities().add(ship);
 		
 		// Create aliens based on current round with balanced progression
@@ -271,15 +444,15 @@ public class Game extends Canvas implements Screen
 		
 		if (skillManager.hasTripleShot()) {
 			// Fire three shots in a wider spread pattern
-			ShotEntity shot1 = new ShotEntity(this,"sprites/shot.gif",ship.getX()-5,ship.getY()-30);
-			ShotEntity shot2 = new ShotEntity(this,"sprites/shot.gif",ship.getX()+10,ship.getY()-30);
-			ShotEntity shot3 = new ShotEntity(this,"sprites/shot.gif",ship.getX()+25,ship.getY()-30);
+			ShotEntity shot1 = new ShotEntity(this, currentWeaponSkin, ship.getX()-5, ship.getY()-30);
+			ShotEntity shot2 = new ShotEntity(this, currentWeaponSkin, ship.getX()+10, ship.getY()-30);
+			ShotEntity shot3 = new ShotEntity(this, currentWeaponSkin, ship.getX()+25, ship.getY()-30);
 			gameStateManager.getEntities().add(shot1);
 			gameStateManager.getEntities().add(shot2);
 			gameStateManager.getEntities().add(shot3);
 		} else {
 			// Fire single shot
-			ShotEntity shot = new ShotEntity(this,"sprites/shot.gif",ship.getX()+10,ship.getY()-30);
+			ShotEntity shot = new ShotEntity(this, currentWeaponSkin, ship.getX()+10, ship.getY()-30);
 			gameStateManager.getEntities().add(shot);
 		}
 	}

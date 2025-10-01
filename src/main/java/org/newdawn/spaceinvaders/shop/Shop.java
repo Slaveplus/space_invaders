@@ -24,6 +24,15 @@ public class Shop {
         initializeShopItems();
     }
     
+    public Shop(org.newdawn.spaceinvaders.login.UserManager userManager) {
+        this.shopManager = new ShopManager(userManager);
+        this.shopRenderer = new ShopRenderer();
+        this.shopRenderer.setUserManager(userManager); // ShopRenderer에도 UserManager 설정
+        this.inputHandler = new ShopInputHandler(shopManager);
+        loadBackgroundImage();
+        initializeShopItems();
+    }
+    
     // UserManager 설정 (실시간 DB 동기화용)
     public void setUserManager(org.newdawn.spaceinvaders.login.UserManager userManager) {
         this.shopManager.setUserManager(userManager);
@@ -33,6 +42,16 @@ public class Shop {
     // 상점 상태 설정 (인벤토리 직접 접근용)
     public void setCurrentState(ShopState state) {
         this.shopManager.setCurrentState(state);
+    }
+    
+    // 인벤토리 입력 처리 (MainMenu에서 호출)
+    public void handleInventoryInput(int keyCode) {
+        this.inputHandler.handleInput(keyCode);
+    }
+    
+    // ShopManager 접근자 (MainMenu에서 인벤토리 새로고침용)
+    public ShopManager getShopManager() {
+        return this.shopManager;
     }
     
     private void loadBackgroundImage() {
@@ -48,7 +67,7 @@ public class Shop {
     
     private void initializeShopItems() {
         // 무기 아이템들
-        ShopItem laserGun = new ShopItem("laser_gun", "레이저 건", "기본 레이저 무기", 100, 
+        ShopItem laserGun = new ShopItem("laser_gun", "레이저 건", "기본 레이저 무기", 100,
                                        ShopCategory.WEAPONS, ItemRarity.COMMON);
         laserGun.setIconPath("sprites/weapons/green_laser.png");
         shopManager.addItem(laserGun);
@@ -79,12 +98,12 @@ public class Shop {
         battleship.setIconPath("sprites/ships/spaceship_blue.png");
         shopManager.addItem(battleship);
         
-        ShopItem destroyer = new ShopItem("destroyer", "평생지도교수님", "개씹초희귀 킹갓제너럴", 1500, 
+        ShopItem destroyer = new ShopItem("destroyer", "평생지도교수님", "초초초희귀 킹갓제너럴 프로페서", 1500, 
                                        ShopCategory.SPACESHIPS, ItemRarity.LEGENDARY);
         destroyer.setIconPath("sprites/ships/professor.png");
         shopManager.addItem(destroyer);
         
-        // 파워업 아이템들
+        // 파워업 아이템들 (일단은 사용하지 않음)
         ShopItem healthBoost = new ShopItem("health_boost", "체력 부스트", "체력을 50% 증가", 150, 
                                        ShopCategory.POWERUPS, ItemRarity.COMMON);
         healthBoost.setIconPath("sprites/powerups/health_boost.png");

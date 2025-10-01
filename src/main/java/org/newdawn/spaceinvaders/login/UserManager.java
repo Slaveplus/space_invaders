@@ -5,6 +5,7 @@ import org.newdawn.spaceinvaders.database.FirebaseDatabaseClient;
 import org.newdawn.spaceinvaders.database.UserProfile;
 import org.newdawn.spaceinvaders.database.UserSession;
 import org.newdawn.spaceinvaders.database.UserStats;
+import org.newdawn.spaceinvaders.shop.ShopManager;
 import java.io.IOException;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
@@ -17,11 +18,13 @@ public class UserManager {
     private FirebaseDatabaseClient firebaseDB;
     private User currentUser;
     private UserSession currentSession;
+    private ShopManager shopManager;
     
     public UserManager() {
         this.firebaseDB = new FirebaseDatabaseClient(FirebaseConfig.DATABASE_URL);
         this.currentUser = null;
         this.currentSession = null;
+        this.shopManager = new ShopManager(this);
         
         System.out.println("UserManager 초기화 완료");
         System.out.println("Firebase DB URL: " + FirebaseConfig.DATABASE_URL);
@@ -53,26 +56,39 @@ public class UserManager {
     
     public boolean loginUser(String email, String password) {
         try {
+            System.out.println("로그인 시도: " + email);
+            
             UserSession session = firebaseDB.signIn(email, password);
             this.currentSession = session;
             this.currentUser = new User(session);
+            
+            System.out.println("Firebase 인증 성공. UID: " + session.getLocalId());
             
             // Firebase DB 클라이언트에 인증 토큰 설정
             firebaseDB.setAuthToken(session.getIdToken());
             
             // Firebase DB에서 사용자 데이터 로드
+            System.out.println("DB에서 사용자 데이터 로드 시작...");
             loadUserDataFromDB();
             
             // 마지막 로그인 시간 업데이트
             updateLastLogin();
             
-            System.out.println("Firebase 로그인 성공: " + email);
+            System.out.println("Firebase 로그인 완료: " + email + 
+                             " (사용자명: " + currentUser.getUsername() + 
+                             ", 코인: " + currentUser.getCoins() + ")");
             return true;
         } catch (IOException e) {
             System.err.println("Firebase 로그인 실패: " + e.getMessage());
+            e.printStackTrace();
             return false;
         } catch (FirebaseDatabaseClient.FirebaseAuthException e) {
             System.err.println("Firebase 로그인 오류: " + e.getMessage());
+            e.printStackTrace();
+            return false;
+        } catch (Exception e) {
+            System.err.println("로그인 중 예상치 못한 오류: " + e.getMessage());
+            e.printStackTrace();
             return false;
         }
     }
@@ -125,6 +141,10 @@ public class UserManager {
     
     public org.newdawn.spaceinvaders.database.FirebaseDatabaseClient getFirebaseDB() {
         return firebaseDB;
+    }
+    
+    public ShopManager getShopManager() {
+        return shopManager;
     }
     
     public boolean userExists(String email) {
@@ -219,8 +239,20 @@ public class UserManager {
     // DB에서 최신 데이터 로드 (실시간 동기화용)
     public void syncFromDB() {
         if (currentUser != null) {
+            System.out.println("DB에서 최신 데이터 동기화 시작...");
             loadUserDataFromDB();
             System.out.println("DB에서 최신 데이터 동기화 완료");
+        } else {
+            System.out.println("동기화 실패: 로그인된 사용자가 없습니다.");
+        }
+    }
+    
+    // 사용자 정보를 강제로 새로고침 (UI 업데이트용)
+    public void refreshUserData() {
+        if (isLoggedIn()) {
+            syncFromDB();
+            System.out.println("사용자 데이터 새로고침 완료: " + 
+                             (currentUser != null ? currentUser.getUsername() : "null"));
         }
     }
     
@@ -284,27 +316,54 @@ public class UserManager {
     }
     
     private void loadUserDataFromDB() {
-        if (currentUser == null) return;
-        
-        String uid = currentUser.getUid();
-        
-        // 프로필 데이터 로드
-        UserProfile profile = firebaseDB.getData("users/" + uid + "/profile", UserProfile.class);
-        if (profile != null) {
-            currentUser.setUsername(profile.getUsername());
-            currentUser.setLevel(profile.getLevel());
-            currentUser.setCoins(profile.getCoins());
-            currentUser.setGems(profile.getGems());
-            System.out.println("사용자 프로필 로드 완료: " + uid);
+        if (currentUser == null) {
+            System.err.println("loadUserDataFromDB: currentUser가 null입니다.");
+            return;
         }
         
-        // 통계 데이터 로드
-        UserStats stats = firebaseDB.getData("users/" + uid + "/stats", UserStats.class);
-        if (stats != null) {
-            currentUser.setHighScore(stats.getHighScore());
-            currentUser.setTotalGamesPlayed(stats.getTotalGamesPlayed());
-            currentUser.setTotalWins(stats.getTotalWins());
-            System.out.println("사용자 통계 로드 완료: " + uid);
+        String uid = currentUser.getUid();
+        if (uid == null || uid.isEmpty()) {
+            System.err.println("loadUserDataFromDB: UID가 null이거나 비어있습니다.");
+            return;
+        }
+        
+        System.out.println("DB에서 사용자 데이터 로드 시작: " + uid);
+        
+        try {
+            // 프로필 데이터 로드
+            UserProfile profile = firebaseDB.getData("users/" + uid + "/profile", UserProfile.class);
+            if (profile != null) {
+                currentUser.setUsername(profile.getUsername());
+                currentUser.setLevel(profile.getLevel());
+                currentUser.setCoins(profile.getCoins());
+                currentUser.setGems(profile.getGems());
+                System.out.println("사용자 프로필 로드 완료: " + profile.getUsername() + 
+                                 " (레벨: " + profile.getLevel() + 
+                                 ", 코인: " + profile.getCoins() + 
+                                 ", 젬: " + profile.getGems() + ")");
+            } else {
+                System.out.println("프로필 데이터가 없습니다. 기본값 사용.");
+            }
+            
+            // 통계 데이터 로드
+            UserStats stats = firebaseDB.getData("users/" + uid + "/stats", UserStats.class);
+            if (stats != null) {
+                currentUser.setHighScore(stats.getHighScore());
+                currentUser.setTotalGamesPlayed(stats.getTotalGamesPlayed());
+                currentUser.setTotalWins(stats.getTotalWins());
+                System.out.println("사용자 통계 로드 완료: " + 
+                                 "최고점수: " + stats.getHighScore() + 
+                                 ", 게임수: " + stats.getTotalGamesPlayed() + 
+                                 ", 승리수: " + stats.getTotalWins());
+            } else {
+                System.out.println("통계 데이터가 없습니다. 기본값 사용.");
+            }
+            
+            System.out.println("DB 데이터 로드 완료. 현재 사용자: " + currentUser.getUsername());
+            
+        } catch (Exception e) {
+            System.err.println("DB 데이터 로드 중 오류 발생: " + e.getMessage());
+            e.printStackTrace();
         }
     }
     

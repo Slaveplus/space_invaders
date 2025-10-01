@@ -71,12 +71,23 @@ public class MainMenu {
         "이전메뉴"
     };
     
-    public MainMenu() {
+    public MainMenu(UserManager userManager) {
         loadBackgroundImage();
         initializeFonts();
-        shop = new Shop();
-        this.userManager = new UserManager();
+        shop = new Shop(userManager); // UserManager를 Shop에 전달
+        this.userManager = userManager;
     // currentUser 캐싱은 사용하지 않음 (UserManager에서 직접 조회)
+    }
+    
+    /**
+     * 메인 메뉴 진입 시 인벤토리 새로고침
+     */
+    public void refreshInventory() {
+        if (shop != null && userManager != null && userManager.isLoggedIn()) {
+            System.out.println("MainMenu: 인벤토리 새로고침 시작");
+            shop.getShopManager().loadInventoryFromDB();
+            shop.getShopManager().loadEquipmentFromDB();
+        }
     }
 
     private String[] getMainMenuOptions() {
@@ -90,8 +101,26 @@ public class MainMenu {
             "상점",
             "인벤토리",
             "설정",
-            welcomeMessage  // 환영 메시지
+            welcomeMessage,  // 환영 메시지
+            "게임 종료"
         };
+    }
+    
+    /**
+     * 사용자 정보를 가져옵니다 (디버깅용)
+     */
+    public String getUserInfo() {
+        if (userManager != null && userManager.isLoggedIn()) {
+            User user = userManager.getCurrentUser();
+            if (user != null) {
+                return "사용자: " + user.getUsername() + 
+                       " (레벨: " + user.getLevel() + 
+                       ", 코인: " + user.getCoins() + 
+                       ", 젬: " + user.getGems() + 
+                       ", 최고점수: " + user.getHighScore() + ")";
+            }
+        }
+        return "게스트 사용자";
     }
     
     /**
@@ -189,6 +218,22 @@ public class MainMenu {
             }
             return;
         }
+        
+        // 인벤토리 키 입력 처리
+        if (currentState == MenuState.INVENTORY) {
+            if (keyCode == KeyEvent.VK_ESCAPE) {
+                // ESC 키는 직접 메인 메뉴로 돌아가기
+                currentState = MenuState.MAIN;
+                selectedOption = 3; // 인벤토리 옵션으로 돌아가기
+                System.out.println("MainMenu: 인벤토리에서 메인 메뉴로 돌아가기");
+                return;
+            } else {
+                // 다른 키는 상점의 인벤토리 입력 처리
+                shop.handleInventoryInput(keyCode);
+                return;
+            }
+        }
+        
         switch (keyCode) {
             case KeyEvent.VK_UP:
                 selectedOption = Math.max(0, selectedOption - 1);
@@ -297,6 +342,9 @@ public class MainMenu {
             case 5: // 계정 (사용자 이메일)
                 currentState = MenuState.ACCOUNT;
                 selectedOption = 0;
+                break;
+            case 6: // 게임 종료
+                System.exit(0);
                 break;
         }
     }
@@ -541,8 +589,18 @@ public class MainMenu {
         int startY = 100;
         int lineHeight = 50;
         
+        // 디버깅 정보 표시
+        g2d.setColor(Color.YELLOW);
+        g2d.setFont(new Font("Arial", Font.PLAIN, 12));
+        g2d.drawString("UserManager 상태: " + (userManager != null ? "존재" : "null"), 50, 50);
+        g2d.drawString("로그인 상태: " + (userManager != null ? userManager.isLoggedIn() : "false"), 50, 70);
+        
         if (userManager != null && userManager.isLoggedIn()) {
             User currentUser = userManager.getCurrentUser();
+            g2d.drawString("현재 사용자: " + (currentUser != null ? currentUser.getUsername() : "null"), 50, 90);
+            
+            g2d.setColor(Color.WHITE);
+            g2d.setFont(menuFont);
             
             // 선택된 항목에 따라 다른 정보 표시
             switch (selectedOption) {

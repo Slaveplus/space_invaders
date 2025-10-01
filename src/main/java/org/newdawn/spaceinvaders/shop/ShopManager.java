@@ -20,6 +20,8 @@ public class ShopManager {
     private UserManager userManager;
     private String purchaseMessage = "";
     private int messageTimer = 0;
+    private EquipmentManager equipmentManager;
+    private ShopCategory inventoryCategory = ShopCategory.WEAPONS; // 인벤토리에서 현재 보고 있는 카테고리
     
     public ShopManager() {
         this.shopItems = new ArrayList<>();
@@ -27,6 +29,7 @@ public class ShopManager {
         this.playerCurrency = new HashMap<>();
         this.currentState = ShopState.MAIN;
         this.userManager = null;
+        this.equipmentManager = null;
         initializeCurrency();
     }
     
@@ -36,7 +39,17 @@ public class ShopManager {
         this.playerCurrency = new HashMap<>();
         this.currentState = ShopState.MAIN;
         this.userManager = userManager;
+        this.equipmentManager = new EquipmentManager(userManager);
         initializeCurrency();
+        
+        // 사용자가 로그인되어 있으면 인벤토리 로드
+        if (userManager != null && userManager.isLoggedIn()) {
+            System.out.println("ShopManager: 로그인된 사용자 감지, 인벤토리 로드 시작");
+            loadInventoryFromDB();
+            loadEquipmentFromDB();
+        } else {
+            System.out.println("ShopManager: UserManager가 없거나 로그인되지 않음 - 인벤토리 로드 건너뜀");
+        }
     }
     
     private void initializeCurrency() {
@@ -73,15 +86,20 @@ public class ShopManager {
         
         // UserManager가 있으면 실시간 DB 동기화
         if (userManager != null && userManager.isLoggedIn()) {
+            int currentCoins = userManager.getCurrentUser().getCoins();
+            System.out.println("ShopManager: 구매 시도 - 필요 코인: " + price + ", 보유 코인: " + currentCoins);
+            
             if (userManager.spendCoins(price)) {
                 item.setPurchased(true);
                 playerInventory.add(item);
                 // DB에 인벤토리 저장
                 saveInventoryToDB();
                 setPurchaseMessage(item.getName() + "을(를) 구매했습니다!");
+                System.out.println("ShopManager: 구매 성공 - 남은 코인: " + userManager.getCurrentUser().getCoins());
                 return true;
             } else {
-                setPurchaseMessage("코인이 부족합니다! (필요: " + price + ", 보유: " + userManager.getCurrentUser().getCoins() + ")");
+                setPurchaseMessage("코인이 부족합니다! (필요: " + price + ", 보유: " + currentCoins + ")");
+                System.out.println("ShopManager: 구매 실패 - 코인 부족");
                 return false;
             }
         } else {
@@ -235,11 +253,16 @@ public class ShopManager {
     public void loadInventoryFromDB() {
         if (userManager != null && userManager.isLoggedIn()) {
             try {
+                String uid = userManager.getCurrentUser().getUid();
+                System.out.println("ShopManager: 인벤토리 DB 로드 시작 - UID: " + uid);
+                
                 // Firebase DB에서 인벤토리 로드
                 Object inventoryData = userManager.getFirebaseDB().getData(
-                    "users/" + userManager.getCurrentUser().getUid() + "/inventory", 
+                    "users/" + uid + "/inventory", 
                     Object.class
                 );
+                
+                System.out.println("ShopManager: DB에서 받은 인벤토리 데이터: " + inventoryData);
                 
                 if (inventoryData != null) {
                     // 기존 인벤토리 초기화
@@ -275,11 +298,14 @@ public class ShopManager {
                         }
                     }
                 } else {
-                    System.out.println("인벤토리가 비어있습니다.");
+                    System.out.println("ShopManager: 인벤토리가 비어있습니다.");
                 }
             } catch (Exception e) {
-                System.err.println("인벤토리 DB 로드 중 오류: " + e.getMessage());
+                System.err.println("ShopManager: 인벤토리 DB 로드 중 오류: " + e.getMessage());
+                e.printStackTrace();
             }
+        } else {
+            System.out.println("ShopManager: UserManager가 없거나 로그인되지 않음 - 인벤토리 로드 불가");
         }
     }
     
@@ -307,6 +333,59 @@ public class ShopManager {
     // 메시지 표시 여부 확인
     public boolean hasMessage() {
         return messageTimer > 0;
+    }
+    
+    // 장착 관련 메서드들
+    public EquipmentManager getEquipmentManager() {
+        return equipmentManager;
+    }
+    
+    public ShopCategory getInventoryCategory() {
+        return inventoryCategory;
+    }
+    
+    public void setInventoryCategory(ShopCategory category) {
+        this.inventoryCategory = category;
+    }
+    
+    public List<ShopItem> getInventoryByCategory(ShopCategory category) {
+        return playerInventory.stream()
+                .filter(item -> item.getCategory() == category)
+                .collect(Collectors.toList());
+    }
+    
+    public boolean equipItem(ShopItem item) {
+        if (equipmentManager != null) {
+            return equipmentManager.equipItem(item);
+        }
+        return false;
+    }
+    
+    public boolean unequipItem(ShopCategory category) {
+        if (equipmentManager != null) {
+            return equipmentManager.unequipItem(category);
+        }
+        return false;
+    }
+    
+    public ShopItem getEquippedItem(ShopCategory category) {
+        if (equipmentManager != null) {
+            return equipmentManager.getEquippedItem(category);
+        }
+        return null;
+    }
+    
+    public boolean isItemEquipped(ShopItem item) {
+        if (equipmentManager != null) {
+            return equipmentManager.isItemEquipped(item);
+        }
+        return false;
+    }
+    
+    public void loadEquipmentFromDB() {
+        if (equipmentManager != null) {
+            equipmentManager.loadEquippedItemsFromDB(shopItems);
+        }
     }
     
     // 선택된 아이템 가져오기 (구매 확인용)

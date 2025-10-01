@@ -9,6 +9,7 @@ import java.awt.event.MouseEvent;
 import org.newdawn.spaceinvaders.SpaceInvadersApp;
 import org.newdawn.spaceinvaders.app.Screen;
 import org.newdawn.spaceinvaders.app.ScreenNavigator;
+import org.newdawn.spaceinvaders.login.UserManager;
 
 /**
  * 메인 메뉴 화면용 캔버스 래퍼
@@ -20,10 +21,7 @@ public class MainMenuCanvas extends Canvas implements Screen {
     private final KeyAdapter keyAdapter = new KeyAdapter() {
         @Override
         public void keyPressed(KeyEvent e) {
-            if (e.getKeyCode() == KeyEvent.VK_ESCAPE) {
-                navigator.exitGame();
-                return;
-            }
+            // ESC 키는 메인 메뉴에서 뒤로가기 용도로만 사용 (게임 종료 안함)
             mainMenu.handleKeyInput(e.getKeyCode());
             if (mainMenu.shouldStartGame()) {
                 mainMenu.reset();
@@ -51,9 +49,9 @@ public class MainMenuCanvas extends Canvas implements Screen {
         }
     };
 
-    public MainMenuCanvas(ScreenNavigator navigator) {
+    public MainMenuCanvas(ScreenNavigator navigator, UserManager userManager) {
         this.navigator = navigator;
-        this.mainMenu = new MainMenu();
+        this.mainMenu = new MainMenu(userManager);
         setIgnoreRepaint(true);
         setBackground(Color.black);
         setSize(SpaceInvadersApp.WIDTH, SpaceInvadersApp.HEIGHT);
@@ -65,6 +63,11 @@ public class MainMenuCanvas extends Canvas implements Screen {
         addKeyListener(keyAdapter);
         addMouseListener(mouseAdapter);
         requestFocusInWindow();
+        
+        // 메인 메뉴 진입 시 인벤토리 새로고침 (로그인 후 데이터 보존)
+        if (mainMenu != null) {
+            mainMenu.refreshInventory();
+        }
     }
 
     @Override

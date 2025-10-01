@@ -44,6 +44,7 @@ public class SpriteStore {
 	 * @return A sprite instance containing an accelerate image of the request reference
 	 */
 	public Sprite getSprite(String ref) {
+		System.out.println("SpriteStore: getSprite 호출 - " + ref);
 		// if we've already got the sprite in the cache
 		// then just return the existing version
 		if (sprites.get(ref) != null) {
