@@ -204,15 +204,21 @@ public class EquipmentManager {
      * DB에서 장착 정보 로드
      */
     public void loadEquippedItemsFromDB(List<ShopItem> allShopItems) {
+        System.out.println("EquipmentManager: loadEquippedItemsFromDB 호출");
+        System.out.println("EquipmentManager: allShopItems 크기 = " + (allShopItems != null ? allShopItems.size() : "null"));
+        
         if (userManager != null && userManager.isLoggedIn()) {
             try {
                 String uid = userManager.getCurrentUser().getUid();
+                System.out.println("EquipmentManager: UID = " + uid);
                 
                 // 인벤토리 데이터에서 isEquipped가 true인 아이템들 찾기
                 Object inventoryData = userManager.getFirebaseDB().getData(
                     "users/" + uid + "/inventory", 
                     Object.class
                 );
+                
+                System.out.println("EquipmentManager: DB에서 받은 inventoryData = " + inventoryData);
                 
                 if (inventoryData instanceof java.util.Map) {
                     java.util.Map<String, Object> inventoryMap = (java.util.Map<String, Object>) inventoryData;
@@ -231,6 +237,7 @@ public class EquipmentManager {
                                 Object isEquippedObj = itemMap.get("isEquipped");
                                 
                                 if (isEquippedObj instanceof Boolean && (Boolean) isEquippedObj) {
+                                    System.out.println("EquipmentManager: 장착된 아이템 발견 - " + itemId);
                                     // isEquipped가 true인 아이템 찾기
                                     ShopItem item = allShopItems.stream()
                                             .filter(shopItem -> shopItem.getId().equals(itemId))
@@ -241,12 +248,15 @@ public class EquipmentManager {
                                         ShopCategory category = item.getCategory();
                                         equippedItems.put(category, item);
                                         System.out.println("장착 정보 로드: " + item.getName() + " (" + category.getDisplayName() + ")");
+                                    } else {
+                                        System.out.println("EquipmentManager: 아이템을 찾을 수 없음 - " + itemId);
                                     }
                                 }
                             }
                         }
                         
                         System.out.println("장착 정보 DB 로드 완료 (인벤토리 테이블에서)");
+                        System.out.println("EquipmentManager: 최종 equippedItems = " + equippedItems);
                     }
                 } else {
                     System.out.println("인벤토리 데이터가 없습니다.");
@@ -255,6 +265,8 @@ public class EquipmentManager {
                 System.err.println("장착 정보 DB 로드 중 오류: " + e.getMessage());
                 e.printStackTrace();
             }
+        } else {
+            System.out.println("UserManager가 없거나 로그인되지 않음");
         }
     }
     

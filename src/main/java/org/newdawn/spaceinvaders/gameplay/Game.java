@@ -132,6 +132,15 @@ public class Game extends Canvas implements Screen
 		// 스킬 매니저 초기화
 		skillManager.reset();
 		
+		// ShopManager에 아이템들 추가 및 장착 정보 로드
+		if (userManager != null && userManager.isLoggedIn()) {
+			System.out.println("Game: 게임 시작 시 ShopManager 초기화");
+			// ShopManager의 static 메서드로 아이템 초기화
+			org.newdawn.spaceinvaders.shop.ShopManager.initializeDefaultItems(userManager.getShopManager());
+			userManager.getShopManager().loadInventoryFromDB();
+			userManager.getShopManager().loadEquipmentFromDB();
+		}
+		
 		// 장착된 아이템 적용
 		applyEquippedItems();
 	}
@@ -144,6 +153,8 @@ public class Game extends Canvas implements Screen
 		this.userManager = userManager;
 		// ShopManager의 장착 정보 동기화
 		if (userManager != null && userManager.isLoggedIn()) {
+			// ShopManager에 아이템들 추가 (MainMenu와 동일한 방식)
+			org.newdawn.spaceinvaders.shop.ShopManager.initializeDefaultItems(userManager.getShopManager());
 			userManager.getShopManager().loadInventoryFromDB();
 			userManager.getShopManager().loadEquipmentFromDB();
 			System.out.println("Game: UserManager 설정 완료 - 장착 정보 동기화");
@@ -730,4 +741,5 @@ public class Game extends Canvas implements Screen
 	 * 게임플레이 배경 그리기
 	 */
     // 배경 렌더링은 BackgroundRenderer가 담당
+	
 }

@@ -211,11 +211,13 @@ public class MainMenu {
     public void handleKeyInput(int keyCode) {
         // 상점 키 입력 처리
         if (showingShop) {
-            shop.handleKeyInput(keyCode);
-            if (shop.shouldExitShop()) {
+            // ESC 키로 상점 나가기
+            if (keyCode == KeyEvent.VK_ESCAPE) {
                 showingShop = false;
-                shop.reset(); // exitRequested 플래그 리셋
+                return;
             }
+            // 다른 키는 상점의 입력 핸들러로 전달
+            shop.handleInventoryInput(keyCode);
             return;
         }
         
@@ -450,14 +452,14 @@ public class MainMenu {
         // 상점이 표시중이면 상점을 그리기
         if (showingShop) {
             shop.update(); // 메시지 타이머 업데이트
-            shop.draw(g2d);
+            shop.render(g2d);
             return;
         }
         
         // 인벤토리가 표시중이면 상점의 인벤토리를 그리기
         if (currentState == MenuState.INVENTORY) {
             shop.setCurrentState(org.newdawn.spaceinvaders.shop.ShopState.INVENTORY);
-            shop.draw(g2d);
+            shop.render(g2d);
             return;
         }
         // 배경 이미지 그리기
