@@ -40,6 +40,7 @@ public class MainMenu {
     private Font submenuFont;
     private boolean gameStartRequested = false;
     private boolean musicEnabled = true;
+    private boolean multiplayerJoinRequested = false;
     
     // 싱글플레이 서브메뉴 옵션들
     private String[] singlePlayerOptions = {
@@ -326,6 +327,7 @@ public class MainMenu {
         switch (selectedOption) {
             case 0: // 게임참가
                 System.out.println("멀티플레이 게임에 참가합니다.");
+                multiplayerJoinRequested = true;
                 break;
             case 1: // 리더보드
                 System.out.println("리더보드를 표시합니다.");
@@ -691,6 +693,7 @@ public class MainMenu {
         gameStartRequested = false;
         showingShop = false;
         logoutRequested = false;
+        multiplayerJoinRequested = false;
         if (shop != null) {
             shop.reset();
         }
@@ -728,6 +731,16 @@ public class MainMenu {
     
     public void resetLogoutRequest() {
         logoutRequested = false;
+    }
+
+    /** 멀티플레이 진입 여부 확인 */
+    public boolean shouldEnterMultiplayer() {
+        return multiplayerJoinRequested;
+    }
+
+    /** 멀티플레이 진입 요청 플래그 리셋 */
+    public void resetMultiplayerRequest() {
+        multiplayerJoinRequested = false;
     }
         
 }

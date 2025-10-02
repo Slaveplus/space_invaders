@@ -3,6 +3,11 @@ package org.newdawn.spaceinvaders;
 import org.newdawn.spaceinvaders.app.Screen;
 import org.newdawn.spaceinvaders.app.ScreenNavigator;
 import org.newdawn.spaceinvaders.gameplay.Game;
+import org.newdawn.spaceinvaders.multiplay.ConnectCanvas;
+import org.newdawn.spaceinvaders.multiplay.RoomListCanvas;
+import org.newdawn.spaceinvaders.multiplay.LobbyCanvas;
+import org.newdawn.spaceinvaders.multiplay.MultiplayerClient;
+import org.newdawn.spaceinvaders.multiplay.CoopGameScreen;
 import org.newdawn.spaceinvaders.login.LoginScreenCanvas;
 import org.newdawn.spaceinvaders.mainmenu.MainMenuCanvas;
 
@@ -23,7 +28,14 @@ public class SpaceInvadersApp extends JFrame implements ScreenNavigator {
     // 스크린(캔버스)
     private LoginScreenCanvas loginScreenCanvas;
     private MainMenuCanvas mainMenuCanvas;
-    private Game gameScreen; // Game 자체를 캔버스로 이용
+    private Game gameScreen; // 싱글 게임 화면
+    // 멀티플레이 화면들
+    private Canvas mpConnectCanvas;
+    private Canvas mpRoomListCanvas;
+    private Canvas mpLobbyCanvas;
+    // 멀티 전투 화면(같은 화면에서 여러 플레이어 렌더)
+    private Canvas mpCoopScreen;
+    private final MultiplayerClient multiplayerClient = new MultiplayerClient();
 
     private Screen currentScreen; // update/render 가상화
     private volatile boolean running = true;
@@ -61,14 +73,22 @@ public class SpaceInvadersApp extends JFrame implements ScreenNavigator {
         canvas.createBufferStrategy(2);
         strategy = canvas.getBufferStrategy();
 
-        // 스크린 생성
+    // 스크린 생성
         loginScreenCanvas = new LoginScreenCanvas(this);
         mainMenuCanvas = new MainMenuCanvas(this);
-        gameScreen = new Game(this); // Game을 스크린(캔버스)으로 사용
+        gameScreen = new Game(this); // 싱글 모드
+        // 멀티플레이 화면 생성
+    mpConnectCanvas = new ConnectCanvas(this, multiplayerClient);
+    mpRoomListCanvas = new RoomListCanvas(this, multiplayerClient);
+    mpLobbyCanvas = new LobbyCanvas(this, multiplayerClient);
+    // 멀티플레이 전투(같은 화면에서 여러 플레이어): 서버 스냅샷 기반 캔버스
+    mpCoopScreen = new CoopGameScreen(multiplayerClient);
 
         // 초기 화면
         setScreen(loginScreenCanvas);
     }
+
+    
 
     /** 다음 화면 전환을 요청 (렌더 루프가 EDT에서 안전하게 처리) */
     private void requestSetScreen(Canvas next) {
@@ -198,6 +218,21 @@ public class SpaceInvadersApp extends JFrame implements ScreenNavigator {
     public void startNewGame() {
         if (gameScreen != null) gameScreen.startNewGame();
         requestSetScreen(gameScreen);
+    }
+
+    @Override
+    public void showMultiplayerConnect() { requestSetScreen(mpConnectCanvas); }
+
+    @Override
+    public void showMultiplayerRoomList() { requestSetScreen(mpRoomListCanvas); }
+
+    @Override
+    public void showMultiplayerLobby() { requestSetScreen(mpLobbyCanvas); }
+
+    @Override
+    public void startMultiplayerGame() {
+        // 같은 화면에서 여러 플레이어를 렌더링하는 협동 모드 화면으로 전환
+        requestSetScreen(mpCoopScreen);
     }
 
     @Override

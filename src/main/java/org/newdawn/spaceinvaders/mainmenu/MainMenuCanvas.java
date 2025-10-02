@@ -29,6 +29,10 @@ public class MainMenuCanvas extends Canvas implements Screen {
                 mainMenu.reset();
                 navigator.startNewGame();
             }
+            if (mainMenu.shouldEnterMultiplayer()) {
+                mainMenu.resetMultiplayerRequest();
+                navigator.showMultiplayerConnect();
+            }
             if (mainMenu.isLogoutRequested()) {
                 mainMenu.resetLogoutRequest();
                 navigator.showLogin();
@@ -43,6 +47,10 @@ public class MainMenuCanvas extends Canvas implements Screen {
             if (mainMenu.shouldStartGame()) {
                 mainMenu.reset();
                 navigator.startNewGame();
+            }
+            if (mainMenu.shouldEnterMultiplayer()) {
+                mainMenu.resetMultiplayerRequest();
+                navigator.showMultiplayerConnect();
             }
             if (mainMenu.isLogoutRequested()) {
                 mainMenu.resetLogoutRequest();

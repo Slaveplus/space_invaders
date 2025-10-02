@@ -11,6 +11,11 @@ import org.newdawn.spaceinvaders.gameplay.entity.AlienEntity;
 import org.newdawn.spaceinvaders.gameplay.entity.Entity;
 import org.newdawn.spaceinvaders.gameplay.entity.ShipEntity;
 import org.newdawn.spaceinvaders.gameplay.entity.ShotEntity;
+import org.newdawn.spaceinvaders.gameplay.systems.MovementSystem;
+import org.newdawn.spaceinvaders.gameplay.systems.CollisionSystem;
+import org.newdawn.spaceinvaders.gameplay.systems.AlienFiringSystem;
+import org.newdawn.spaceinvaders.gameplay.core.Rules;
+import org.newdawn.spaceinvaders.gameplay.render.CommonRenderer;
 
 /**
  * The main hook of our game. This class with both act as a manager
@@ -35,7 +40,7 @@ public class Game extends Canvas implements Screen
 	/** The entity representing the player */
 	private Entity ship;
 	/** The speed at which the player's ship should move (pixels/sec) */
-	private double moveSpeed = 300;
+	private double moveSpeed = org.newdawn.spaceinvaders.gameplay.core.Rules.PLAYER_MOVE_SPEED;
 	// lastFire and firingInterval are now managed by GameStateManager
 	/** The number of aliens left on the screen */
 	private int alienCount;
@@ -46,6 +51,9 @@ public class Game extends Canvas implements Screen
 	// 창 제목은 상위 App에서 관리
 	/** navigator for screen transitions */
 	private final ScreenNavigator navigator;
+	// 현재 싱글/멀티의 로직 차이는 제거되었으므로 모드 값은 보관만 합니다.
+	@SuppressWarnings("unused")
+	private final PlayMode mode;
 	
 	/** The game state manager */
 	private GameStateManager gameStateManager;
@@ -55,15 +63,22 @@ public class Game extends Canvas implements Screen
 	private SkillManager skillManager;
 	/** The UI renderer */
 	private UIRenderer uiRenderer;
-	/** Background renderer (cached) */
-	private BackgroundRenderer backgroundRenderer;
+	/** Background renderer (cached) - CommonRenderer가 내장 배경 사용으로 불필요 */
+	// private BackgroundRenderer backgroundRenderer;
+	/** 공통 렌더 파사드 */
+	private CommonRenderer commonRenderer;
 	// gameplay는 mainmenu 패키지에 의존하지 않도록, 오버레이는 UIRenderer에서 처리
 	
 	/**
 	 * Construct our game and set it running.
 	 */
 	public Game(ScreenNavigator navigator) {
+		this(navigator, PlayMode.SINGLE);
+	}
+
+	public Game(ScreenNavigator navigator, PlayMode mode) {
 		this.navigator = navigator;
+		this.mode = mode; // reserved for future branching points
 		setIgnoreRepaint(true);
 		setBounds(0,0,800,600);
 		setFocusable(true);
@@ -78,7 +93,7 @@ public class Game extends Canvas implements Screen
 		uiRenderer = new UIRenderer(this);
 
 		// background & overlays
-		backgroundRenderer = new BackgroundRenderer("sprites/backgrounds/Background-2.jpg");
+		commonRenderer = new CommonRenderer();
 		
 		// initialize the input manager
 		inputManager = new InputManager(gameStateManager, this);
@@ -134,7 +149,6 @@ public class Game extends Canvas implements Screen
 		// Create aliens based on current round with balanced progression
 		alienCount = 0;
 		int rows, cols;
-		
 		switch (gameStateManager.getCurrentRound()) {
 			case 1: rows = 3; cols = 6; break;  // 18 aliens
 			case 2: rows = 3; cols = 7; break;  // 21 aliens
@@ -146,7 +160,9 @@ public class Game extends Canvas implements Screen
 		
 		for (int row=0; row<rows; row++) {
 			for (int x=0; x<cols; x++) {
-				Entity alien = new AlienEntity(this, 120+(x*70), (60)+row*35);
+				int ax = 120+(x*70);
+				int ay = 60+row*35;
+				Entity alien = new AlienEntity(this, ax, ay);
 				gameStateManager.getEntities().add(alien);
 				alienCount++;
 			}
@@ -244,8 +260,7 @@ public class Game extends Canvas implements Screen
 		// Speed up remaining aliens
 		for (Entity entity : entities) {
 			if (entity instanceof AlienEntity) {
-				// speed up by 1.5% + round-based bonus (more gradual increase)
-				double speedMultiplier = 1.015 + (gameStateManager.getCurrentRound() * 0.01);
+				double speedMultiplier = Rules.remainingAlienSpeedMultiplier(gameStateManager.getCurrentRound());
 				entity.setHorizontalMovement(entity.getHorizontalMovement() * speedMultiplier);
 				entity.setVerticalMovement(entity.getVerticalMovement() * speedMultiplier);
 			}
@@ -304,46 +319,14 @@ public class Game extends Canvas implements Screen
 	 */
 	public void addAimedAlienShot(int x, int y, int alienX) {
 		// Add more accurate horizontal adjustment towards player (within 15 pixel range)
-		int playerX = ship.getX() + 10; // Player center
-		int aimOffset = (int)((playerX - alienX) * 0.15); // 15% of distance towards player
-		aimOffset = Math.max(-15, Math.min(15, aimOffset)); // Clamp to player-sized range
+	int playerX = ship.getX() + 10; // Player center
+	int aimOffset = (int) Rules.aimedOffsetX(alienX, playerX);
 		
 		ShotEntity shot = new ShotEntity(this, "sprites/alien2.gif", x + aimOffset, y, true);
 		gameStateManager.getEntities().add(shot);
 	}
 	
-	/**
-	 * Try to fire shots from aliens (only those close to player)
-	 */
-	private void tryAlienFire() {
-		// check that we have waited long enough to fire
-		if (System.currentTimeMillis() - gameStateManager.getLastAlienFire() < gameStateManager.getAlienFiringInterval()) {
-			return;
-		}
-		
-		// find aliens that are close enough to the player to fire
-		ArrayList<AlienEntity> aliens = new ArrayList<>();
-		ArrayList<Entity> entities = gameStateManager.getEntities();
-		
-		for (Entity entity : entities) {
-			if (entity instanceof AlienEntity) {
-				// Only aliens that are close to the player can fire (within 200 pixels vertically)
-				if (Math.abs(entity.getY() - ship.getY()) < 200) {
-					aliens.add((AlienEntity) entity);
-				}
-			}
-		}
-		
-		if (aliens.size() > 0) {
-			// pick a random alien from those close enough
-			int randomIndex = (int) (Math.random() * aliens.size());
-			AlienEntity alien = aliens.get(randomIndex);
-			
-			// fire from this alien
-			alien.tryToFire();
-			gameStateManager.setLastAlienFire(System.currentTimeMillis());
-		}
-	}
+	// 에일리언 사격 로직은 AlienFiringSystem으로 이동
 	
 	/**
 	 * Get the player's current attack power
@@ -404,66 +387,28 @@ public class Game extends Canvas implements Screen
 	 */
 	public void update(long delta) {
 		// 게임플레이 업데이트 (Game 화면은 항상 게임플레이)
-		if (!gameStateManager.isWaitingForKeyPress() &&
-			!gameStateManager.isShowingPauseMenu() &&
-			!gameStateManager.isShowingSkillMenu()) {
-			// Update skill effects
-			skillManager.updateSkillEffects();
-			ArrayList<Entity> entities = gameStateManager.getEntities();
-			for (Entity entity : entities) {
-				entity.move(delta);
-			}
-			tryAlienFire();
-		}
-
-		// Ship movement & fire
-		if (ship != null && !gameStateManager.isShowingPauseMenu() && !gameStateManager.isShowingSkillMenu()) {
-			ship.setHorizontalMovement(0);
-			if (inputManager.isLeftPressed() && !inputManager.isRightPressed()) {
-				ship.setHorizontalMovement(-moveSpeed);
-			} else if (inputManager.isRightPressed() && !inputManager.isLeftPressed()) {
-				ship.setHorizontalMovement(moveSpeed);
-			}
-			if (inputManager.isFirePressed()) {
-				tryToFire();
-			}
-		}
-
-		// collisions
-		ArrayList<Entity> entities = gameStateManager.getEntities();
+		// 스킬 효과 갱신
 		if (!gameStateManager.isShowingPauseMenu() && !gameStateManager.isShowingSkillMenu()) {
-			for (int i=0;i<entities.size();i++) {
-				Entity e1 = entities.get(i);
-				for (int j=i+1;j<entities.size();j++) {
-					Entity e2 = entities.get(j);
-					if (e1.collidesWith(e2)) {
-						e1.collidedWith(e2);
-						e2.collidedWith(e1);
-					}
-				}
-			}
-			entities.removeAll(gameStateManager.getRemoveList());
-			gameStateManager.getRemoveList().clear();
-			if (gameStateManager.isLogicRequiredThisLoop()) {
-				for (Entity e : entities) e.doLogic();
-				gameStateManager.setLogicRequiredThisLoop(false);
-			}
+			skillManager.updateSkillEffects();
 		}
+
+		// 이동/입력/에일리언 사격/충돌을 시스템으로 위임
+		MovementSystem.update(gameStateManager, this, inputManager, delta);
+		AlienFiringSystem.update(gameStateManager, alien -> alien.tryToFire(), ship);
+		CollisionSystem.update(gameStateManager);
 	}
 
 	public void render(Graphics2D g) {
-		// 배경 (cached)
-		backgroundRenderer.draw(g);
-		// entities
 		ArrayList<Entity> entities = gameStateManager.getEntities();
-		for (Entity entity : entities) entity.draw(g);
-		// UI & overlays
-		uiRenderer.drawGameUI(g, gameStateManager, skillManager);
-		if (gameStateManager.isShowingPauseMenu()) { drawPauseMenu(g); }
-		if (gameStateManager.isShowingSkillMenu()) { drawSkillMenu(g); }
-		if (gameStateManager.isWaitingForKeyPress()) {
-			uiRenderer.drawMessage(g, gameStateManager.getMessage());
-		}
+		commonRenderer.renderEntities(g, entities, uiRenderer, () -> {
+			// UI & overlays (싱글 공통)
+			uiRenderer.drawGameUI(g, gameStateManager, skillManager);
+			if (gameStateManager.isShowingPauseMenu()) { drawPauseMenu(g); }
+			if (gameStateManager.isShowingSkillMenu()) { drawSkillMenu(g); }
+			if (gameStateManager.isWaitingForKeyPress()) {
+				uiRenderer.drawMessage(g, gameStateManager.getMessage());
+			}
+		});
 	}
 	
 	

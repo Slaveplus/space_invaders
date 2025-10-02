@@ -5,6 +5,7 @@ import java.awt.Graphics;
 import java.awt.Graphics2D;
 
 import org.newdawn.spaceinvaders.gameplay.Game;
+import org.newdawn.spaceinvaders.gameplay.core.Rules;
 
 /**
  * The entity that represents the players ship
@@ -38,12 +39,12 @@ public class ShipEntity extends Entity {
 	public void move(long delta) {
 		// if we're moving left and have reached the left hand side
 		// of the screen, don't move
-		if ((dx < 0) && (x < 10)) {
+		if ((dx < 0) && (x < Rules.ALIEN_MIN_X)) { // 좌측 경계는 Alien과 동일 기준 사용
 			return;
 		}
 		// if we're moving right and have reached the right hand side
 		// of the screen, don't move
-		if ((dx > 0) && (x > 750)) {
+		if ((dx > 0) && (x > Rules.ALIEN_MAX_X)) { // 우측 경계는 Alien과 동일 기준 사용
 			return;
 		}
 		

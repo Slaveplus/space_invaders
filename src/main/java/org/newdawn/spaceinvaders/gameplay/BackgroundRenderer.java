@@ -4,13 +4,14 @@ import javax.imageio.ImageIO;
 import java.awt.*;
 import java.awt.image.BufferedImage;
 import java.io.InputStream;
+import org.newdawn.spaceinvaders.gameplay.util.GameViewport;
 
 /**
  * 게임플레이 배경 렌더러: 배경 이미지를 한 번만 로드/가속화하고 매 프레임 재사용합니다.
  */
 public class BackgroundRenderer {
-    private static final int WIDTH = 800;
-    private static final int HEIGHT = 600;
+    private static final int WIDTH = GameViewport.WIDTH;
+    private static final int HEIGHT = GameViewport.HEIGHT;
 
     private volatile Image cachedBackground; // 가속화된 이미지
     private String resourcePath = "sprites/backgrounds/Background-2.jpg";

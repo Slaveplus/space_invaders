@@ -7,5 +7,10 @@ public interface ScreenNavigator {
     void showLogin();
     void showMainMenu();
     void startNewGame();
+    // 멀티플레이 관련 전환
+    void showMultiplayerConnect();
+    void showMultiplayerRoomList();
+    void showMultiplayerLobby();
+    void startMultiplayerGame();
     void exitGame();
 }

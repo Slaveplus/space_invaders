@@ -2,6 +2,8 @@
 package org.newdawn.spaceinvaders.gameplay;
 
 import java.awt.*;
+import org.newdawn.spaceinvaders.gameplay.util.GraphicsUtils;
+import org.newdawn.spaceinvaders.gameplay.util.GameViewport;
 
 /**
  * UI 렌더링을 담당하는 클래스
@@ -27,12 +29,12 @@ public class UIRenderer {
         // Round display
         g.setColor(Color.CYAN);
         g.setFont(FONT_TITLE_18_B);
-        g.drawString("라운드: " + gameStateManager.getCurrentRound() + "/" + gameStateManager.getMaxRound(), 20, 25);
+    g.drawString("라운드: " + gameStateManager.getCurrentRound() + "/" + gameStateManager.getMaxRound(), 20, 25);
 
         // HP display
         g.setColor(Color.WHITE);
         g.setFont(FONT_TEXT_16_B);
-        g.drawString("HP: " + gameStateManager.getCurrentHP() + "/" + gameStateManager.getMaxHP(), 20, 50);
+    g.drawString("HP: " + gameStateManager.getCurrentHP() + "/" + gameStateManager.getMaxHP(), 20, 50);
 
         // HP bar
         drawHPBar(g, gameStateManager);
@@ -145,15 +147,9 @@ public class UIRenderer {
         if (message != null && !message.isEmpty()) {
             g.setColor(Color.white);
             g.setFont(FONT_TITLE_18_B);
-            FontMetrics fm = g.getFontMetrics();
-            int messageX = (800 - fm.stringWidth(message)) / 2;
-            g.drawString(message, messageX, 250);
-
+            GraphicsUtils.drawCenteredString(g, message, 250);
             g.setFont(FONT_TEXT_14_P);
-            fm = g.getFontMetrics();
-            String pressKey = "Press any key";
-            int pressKeyX = (800 - fm.stringWidth(pressKey)) / 2;
-            g.drawString(pressKey, pressKeyX, 300);
+            GraphicsUtils.drawCenteredString(g, "Press any key", 300);
         }
     }
 
@@ -168,14 +164,14 @@ public class UIRenderer {
     public void drawPauseOverlay(Graphics2D g, int selectedIndex) {
         // 반투명 배경
         g.setColor(new Color(0, 0, 0, 120));
-        g.fillRect(0, 0, 800, 600);
+    g.fillRect(0, 0, GameViewport.WIDTH, GameViewport.HEIGHT);
 
         // 제목
         g.setFont(new Font("Arial", Font.BOLD, 36));
         g.setColor(Color.WHITE);
         String title = "일시정지";
         FontMetrics fm = g.getFontMetrics();
-        int titleX = (800 - fm.stringWidth(title)) / 2;
+    int titleX = (GameViewport.WIDTH - fm.stringWidth(title)) / 2;
         g.drawString(title, titleX, 180);
 
         // 메뉴 항목
@@ -190,9 +186,8 @@ public class UIRenderer {
         // 안내
         g.setFont(FONT_TEXT_14_P);
         g.setColor(Color.YELLOW);
-        String hint = "ESC: 메뉴 닫기";
-        int hintX = (800 - g.getFontMetrics().stringWidth(hint)) / 2;
-        g.drawString(hint, hintX, 520);
+    String hint = "ESC: 메뉴 닫기";
+    GraphicsUtils.drawCenteredString(g, hint, 520);
     }
 
     public void drawSkillOverlay(Graphics2D g,
@@ -206,14 +201,14 @@ public class UIRenderer {
                                  int selectedSkill) {
         // 반투명 배경
         g.setColor(new Color(0, 0, 0, 160));
-        g.fillRect(0, 0, 800, 600);
+    g.fillRect(0, 0, GameViewport.WIDTH, GameViewport.HEIGHT);
 
         // 제목
         g.setFont(new Font("Arial", Font.BOLD, 32));
         g.setColor(Color.WHITE);
         String title = "스킬 업그레이드";
         FontMetrics fm = g.getFontMetrics();
-        int titleX = (800 - fm.stringWidth(title)) / 2;
+    int titleX = (GameViewport.WIDTH - fm.stringWidth(title)) / 2;
         g.drawString(title, titleX, 140);
 
         // 포인트
@@ -234,9 +229,8 @@ public class UIRenderer {
         // 힌트
         g.setFont(FONT_TEXT_12_P);
         g.setColor(Color.CYAN);
-        String hint = "좌/우로 이동, Enter/Space 선택, Q 닫기";
-        int hintX = (800 - g.getFontMetrics().stringWidth(hint)) / 2;
-        g.drawString(hint, hintX, 410);
+    String hint = "좌/우로 이동, Enter/Space 선택, Q 닫기";
+    GraphicsUtils.drawCenteredString(g, hint, 410);
     }
 
     private void drawMenuButton(Graphics2D g, String text, int x, int y, int w, int h, boolean selected) {

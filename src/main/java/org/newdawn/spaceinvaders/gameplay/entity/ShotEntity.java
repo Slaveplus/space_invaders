@@ -1,11 +1,11 @@
 package org.newdawn.spaceinvaders.gameplay.entity;
 
-import java.awt.Color;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
-import java.awt.BasicStroke;
 
 import org.newdawn.spaceinvaders.gameplay.Game;
+import org.newdawn.spaceinvaders.gameplay.core.Rules;
+import org.newdawn.spaceinvaders.gameplay.render.BulletRenderer;
 
 /**
  * An entity representing a shot fired by the player's ship
@@ -14,7 +14,7 @@ import org.newdawn.spaceinvaders.gameplay.Game;
  */
 public class ShotEntity extends Entity {
 	/** The vertical speed at which the players shot moves */
-	private double moveSpeed = -300;
+	private double moveSpeed = Rules.BULLET_PLAYER_SPEED_Y;
 	/** The game in which this entity exists */
 	private Game game;
 	/** True if this shot has been "used", i.e. its hit something */
@@ -29,7 +29,8 @@ public class ShotEntity extends Entity {
 	private int skillValue = 0;
 
 	// Reusable strokes to avoid per-frame allocations
-	private static final BasicStroke STROKE_2PX = new BasicStroke(2);
+	// kept for backward compatibility; BulletRenderer uses its own strokes
+	// private static final BasicStroke STROKE_2PX = new BasicStroke(2);
 	
 	/**
 	 * Create a new shot from the player
@@ -63,7 +64,7 @@ public class ShotEntity extends Entity {
 		this.isAlienShot = isAlienShot;
 		
 		if (isAlienShot) {
-			dy = 300; // Move downward for alien shots
+			dy = Rules.BULLET_ENEMY_SPEED_Y; // Move downward for alien shots
 		} else {
 			dy = moveSpeed; // Move upward for player shots
 		}
@@ -93,7 +94,7 @@ public class ShotEntity extends Entity {
 			isSkillDrop = true;
 			dy = 150; // Skill drops move downward toward player
 		} else if (isAlienShot) {
-			dy = 300; // Alien shots move downward
+			dy = Rules.BULLET_ENEMY_SPEED_Y; // Alien shots move downward
 		} else {
 			dy = moveSpeed; // Player shots move upward (negative speed)
 		}
@@ -134,109 +135,15 @@ public class ShotEntity extends Entity {
 	 */
 	public void draw(Graphics g) {
 		if (isSkillDrop) {
-			// Draw skill drop
 			Graphics2D g2d = (Graphics2D) g;
-			
-			if (skillType == 0) { // Invincible skill
-				// Golden shield-like appearance
-				g2d.setColor(new Color(255, 215, 0, 200)); // Gold with transparency
-				g2d.fillOval((int)x - 8, (int)y - 8, 16, 16);
-				
-				// Inner circle
-				g2d.setColor(new Color(255, 255, 0, 150));
-				g2d.fillOval((int)x - 6, (int)y - 6, 12, 12);
-				
-				// Border
-				g2d.setColor(new Color(255, 140, 0));
-				g2d.setStroke(STROKE_2PX);
-				g2d.drawOval((int)x - 8, (int)y - 8, 16, 16);
-				
-				// Cross symbol for invincibility
-				g2d.setColor(Color.WHITE);
-				g2d.setStroke(STROKE_2PX);
-				g2d.drawLine((int)x - 3, (int)y, (int)x + 3, (int)y);
-				g2d.drawLine((int)x, (int)y - 3, (int)x, (int)y + 3);
-				
-			} else if (skillType == 1) { // Piercing skill
-				// Red piercing arrow-like appearance
-				g2d.setColor(new Color(255, 0, 0, 200)); // Red with transparency
-				g2d.fillOval((int)x - 8, (int)y - 8, 16, 16);
-				
-				// Inner circle
-				g2d.setColor(new Color(255, 100, 100, 150));
-				g2d.fillOval((int)x - 6, (int)y - 6, 12, 12);
-				
-				// Border
-				g2d.setColor(new Color(180, 0, 0));
-				g2d.setStroke(STROKE_2PX);
-				g2d.drawOval((int)x - 8, (int)y - 8, 16, 16);
-				
-				// Arrow symbol for piercing
-				g2d.setColor(Color.WHITE);
-				g2d.setStroke(STROKE_2PX);
-				// Arrow pointing down
-				g2d.drawLine((int)x, (int)y - 4, (int)x, (int)y + 2);
-				g2d.drawLine((int)x - 2, (int)y, (int)x, (int)y + 2);
-				g2d.drawLine((int)x + 2, (int)y, (int)x, (int)y + 2);
-				
-			} else if (skillType == 2) { // Triple shot skill
-				// Blue triple shot appearance
-				g2d.setColor(new Color(0, 100, 255, 200)); // Blue with transparency
-				g2d.fillOval((int)x - 8, (int)y - 8, 16, 16);
-				
-				// Inner circle
-				g2d.setColor(new Color(100, 150, 255, 150));
-				g2d.fillOval((int)x - 6, (int)y - 6, 12, 12);
-				
-				// Border
-				g2d.setColor(new Color(0, 50, 150));
-				g2d.setStroke(STROKE_2PX);
-				g2d.drawOval((int)x - 8, (int)y - 8, 16, 16);
-				
-				// Three dots symbol for triple shot
-				g2d.setColor(Color.WHITE);
-				g2d.setStroke(STROKE_2PX);
-				g2d.fillOval((int)x - 4, (int)y - 2, 3, 3);
-				g2d.fillOval((int)x - 1, (int)y - 2, 3, 3);
-				g2d.fillOval((int)x + 2, (int)y - 2, 3, 3);
-			}
-			
-			// Add a subtle glow effect
-			g2d.setColor(new Color(255, 255, 255, 50));
-			g2d.fillOval((int)x - 10, (int)y - 10, 20, 20);
-			
+			BulletRenderer.drawSkillDrop(g2d, (int) x, (int) y, skillType < 0 ? 0 : skillType);
 		} else if (isAlienShot) {
-			// Draw circular alien energy projectile
 			Graphics2D g2d = (Graphics2D) g;
-			
-			// Calculate center position for perfect circle
 			int w = (sprite != null ? sprite.getWidth() : 16);
 			int h = (sprite != null ? sprite.getHeight() : 16);
 			int centerX = (int) x + w / 2;
 			int centerY = (int) y + h / 2;
-			int radius = 8; // Fixed radius for perfect circle
-			
-			// Outer glow effect (larger circle)
-			g2d.setColor(new Color(255, 100, 100, 60)); // Red glow
-			g2d.fillOval(centerX - radius - 3, centerY - radius - 3, (radius + 3) * 2, (radius + 3) * 2);
-			
-			// Main projectile body (perfect circle)
-			g2d.setColor(new Color(255, 50, 50, 220)); // Bright red core
-			g2d.fillOval(centerX - radius, centerY - radius, radius * 2, radius * 2);
-			
-			// Inner bright core (smaller circle)
-			g2d.setColor(new Color(255, 200, 200, 180)); // Light red center
-			g2d.fillOval(centerX - radius + 2, centerY - radius + 2, (radius - 2) * 2, (radius - 2) * 2);
-			
-			// Bright white center (smallest circle)
-			g2d.setColor(new Color(255, 255, 255, 200)); // White hot center
-			g2d.fillOval(centerX - radius + 4, centerY - radius + 4, (radius - 4) * 2, (radius - 4) * 2);
-			
-			// Add subtle energy trail effect (smaller circles behind)
-			g2d.setColor(new Color(255, 100, 100, 80));
-			g2d.fillOval(centerX - radius + 1, centerY - radius + 6, (radius - 1) * 2, (radius - 1) * 2);
-			g2d.setColor(new Color(255, 100, 100, 40));
-			g2d.fillOval(centerX - radius + 2, centerY - radius + 10, (radius - 2) * 2, (radius - 2) * 2);
+			BulletRenderer.drawAlienBullet(g2d, centerX, centerY);
 		} else {
 			// Draw normal player shot
 			super.draw(g);

@@ -1,6 +1,7 @@
 package org.newdawn.spaceinvaders.gameplay.entity;
 
 import org.newdawn.spaceinvaders.gameplay.Game;
+import org.newdawn.spaceinvaders.gameplay.core.Rules;
 import org.newdawn.spaceinvaders.gameplay.sprite.Sprite;
 import org.newdawn.spaceinvaders.gameplay.sprite.SpriteStore;
 
@@ -11,7 +12,7 @@ import org.newdawn.spaceinvaders.gameplay.sprite.SpriteStore;
  */
 public class AlienEntity extends Entity {
 	/** The speed at which the alient moves horizontally */
-	private double moveSpeed = 75;
+	private double moveSpeed = Rules.alienMoveSpeedForRound(1);
 	/** The game in which the entity exists */
 	private Game game;
 	/** The animation frames */
@@ -58,28 +59,18 @@ public class AlienEntity extends Entity {
 		this.game = game;
 		
 		// Apply round-based difficulty scaling with balanced progression
-		int round = game.getCurrentRound();
+	int round = game.getCurrentRound();
 		
 		// HP scaling: 2, 3, 4, 6, 8 for rounds 1-5 (increased to balance player attack power)
-		maxHP = 2 + round + (round > 3 ? round - 3 : 0); // Extra HP for later rounds
+	maxHP = Rules.alienHpForRound(round);
 		currentHP = maxHP;
 		
 		// Speed scaling: 75, 85, 95, 105, 115 for rounds 1-5 (more gradual increase)
-		moveSpeed = 75 + (round * 10);
+	moveSpeed = Rules.alienMoveSpeedForRound(round);
 		
 		// Firing interval scaling: 2500, 2000, 1500, 1000, 700, 500, 400 for rounds 1-7+
 		// More aggressive progression with exponential decrease
-		if (round <= 3) {
-			firingInterval = 2500 - (round * 500); // 2500, 2000, 1500
-		} else if (round <= 6) {
-			firingInterval = 1000 - ((round - 3) * 100); // 1000, 900, 700
-		} else {
-			firingInterval = Math.max(300, 700 - ((round - 6) * 100)); // 600, 500, 400, 300...
-		}
-		
-		// Add some randomness to firing intervals (±20% variation)
-		double randomFactor = 0.8 + (Math.random() * 0.4); // 0.8 to 1.2
-		firingInterval = (long)(firingInterval * randomFactor);
+		firingInterval = Rules.alienIndividualFiringIntervalMs(round);
 		
 		// Set random initial movement direction
 		if (movingRight) {
@@ -125,20 +116,20 @@ public class AlienEntity extends Entity {
 		lastDirectionChange += delta;
 		
 		// Check screen boundaries and change direction
-		if (x < 10) {
+		if (x < Rules.ALIEN_MIN_X) {
 			changeDirection();
-			x = 10; // Keep alien on screen
-		} else if (x > 750) {
+			x = Rules.ALIEN_MIN_X; // Keep alien on screen
+		} else if (x > Rules.ALIEN_MAX_X) {
 			changeDirection();
-			x = 750;
+			x = Rules.ALIEN_MAX_X;
 		}
-		
-		if (y < 50) {
+        
+		if (y < Rules.ALIEN_MIN_Y) {
 			changeVerticalDirection();
-			y = 50;
-		} else if (y > 450) {
+			y = Rules.ALIEN_MIN_Y;
+		} else if (y > Rules.ALIEN_MAX_Y) {
 			changeVerticalDirection();
-			y = 450;
+			y = Rules.ALIEN_MAX_Y;
 		}
 		
 		// Random direction changes for more chaotic movement

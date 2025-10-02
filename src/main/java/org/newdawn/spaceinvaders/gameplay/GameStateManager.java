@@ -1,5 +1,7 @@
 package org.newdawn.spaceinvaders.gameplay;
 
+import org.newdawn.spaceinvaders.gameplay.core.Rules;
+
 import org.newdawn.spaceinvaders.gameplay.entity.Entity;
 
 import java.util.ArrayList;
@@ -40,7 +42,7 @@ public class GameStateManager {
     private long lastAlienFire = 0;
     private long alienFiringInterval = 1500;
     private final long baseAlienFiringInterval = 1500;
-    private final long firingInterval = 500;
+    private final long firingInterval = Rules.PLAYER_BASE_FIRING_INTERVAL_MS;
 
     // FPS 카운터 (필요 시 외부에서 사용 가능하도록 유지)
     private long lastFpsTime;
@@ -160,8 +162,8 @@ public class GameStateManager {
             message = "라운드 " + currentRound + " 시작! 준비하세요!";
             waitingForKeyPress = true;
             
-            // Update alien firing interval for new round
-            alienFiringInterval = Math.max(300, baseAlienFiringInterval - (currentRound * 300));
+            // Update alien firing interval for new round (공통 규칙 사용)
+            alienFiringInterval = Rules.globalAlienFiringIntervalMs(currentRound, baseAlienFiringInterval);
             
             return true; // Round advanced
         } else {
