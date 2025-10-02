@@ -20,6 +20,10 @@ public class ShopManager {
     private UserManager userManager;
     private String purchaseMessage = "";
     private int messageTimer = 0;
+    
+    // 경고창 관련 변수들
+    private String warningMessage = "";
+    private int warningTimer = 0;
     private EquipmentManager equipmentManager;
     private ShopCategory inventoryCategory = ShopCategory.WEAPONS; // 인벤토리에서 현재 보고 있는 카테고리
     
@@ -44,11 +48,8 @@ public class ShopManager {
         
         // 사용자가 로그인되어 있으면 인벤토리 로드
         if (userManager != null && userManager.isLoggedIn()) {
-            System.out.println("ShopManager: 로그인된 사용자 감지, 인벤토리 로드 시작");
             loadInventoryFromDB();
             loadEquipmentFromDB();
-        } else {
-            System.out.println("ShopManager: UserManager가 없거나 로그인되지 않음 - 인벤토리 로드 건너뜀");
         }
     }
     
@@ -85,6 +86,19 @@ public class ShopManager {
                                        ShopCategory.WEAPONS, ItemRarity.LEGENDARY);
         report.setIconPath("sprites/weapons/report.jpg");
         shopManager.addItem(report);
+
+        ShopItem school_logo = new ShopItem("school_logo", "전북대의 상징", "총장님 전용 무기", 6000, 
+                                       ShopCategory.WEAPONS, ItemRarity.LEGENDARY);
+        school_logo.setIconPath("sprites/weapons/school_logo.png");
+        school_logo.setRequiredSpaceshipId("king"); // 총장님 전용
+        shopManager.addItem(school_logo);
+
+        ShopItem kimbap_code = new ShopItem("kimbap_code", "김밥 코드", "교수님이 극혐하신다", 3000, 
+                                       ShopCategory.WEAPONS, ItemRarity.LEGENDARY);
+        kimbap_code.setIconPath("sprites/weapons/kimbap_code.png");
+        kimbap_code.setRequiredSpaceshipId("destroyer"); // 평생지도교수님 전용
+        shopManager.addItem(kimbap_code);
+
         
         // 우주선 아이템들
         ShopItem fighterShip = new ShopItem("fighter_ship", "Green SpaceShip", "기깔나는 초록색 전투기", 200, 
@@ -101,6 +115,16 @@ public class ShopManager {
                                        ShopCategory.SPACESHIPS, ItemRarity.LEGENDARY);
         destroyer.setIconPath("sprites/ships/professor.png");
         shopManager.addItem(destroyer);
+
+        ShopItem king = new ShopItem("king", "총장님", "천원의 아침밥", 5000, 
+                                       ShopCategory.SPACESHIPS, ItemRarity.LEGENDARY);
+        king.setIconPath("sprites/ships/king.png");
+        shopManager.addItem(king);
+
+        ShopItem software_king = new ShopItem("software_king", "학과장님", "꿀성대 보유", 2000, 
+                                       ShopCategory.SPACESHIPS, ItemRarity.LEGENDARY);
+        software_king.setIconPath("sprites/ships/software_king.png");
+        shopManager.addItem(software_king);
         
         // 파워업 아이템들
         ShopItem healthBoost = new ShopItem("health_boost", "체력 부스트", "체력을 50% 증가", 150, 
@@ -165,8 +189,14 @@ public class ShopManager {
     // 구매 시스템
     public boolean purchaseItem(String itemId) {
         ShopItem item = getItemById(itemId);
-        if (item == null || item.isPurchased() || !item.isAvailable()) {
+        if (item == null || !item.isAvailable()) {
             setPurchaseMessage("구매할 수 없는 아이템입니다.");
+            return false;
+        }
+        
+        // 이미 구매된 아이템인지 확인
+        if (item.isPurchased()) {
+            setPurchaseMessage("이미 구매한 아이템입니다.");
             return false;
         }
         
@@ -175,7 +205,6 @@ public class ShopManager {
         // UserManager가 있으면 실시간 DB 동기화
         if (userManager != null && userManager.isLoggedIn()) {
             int currentCoins = userManager.getCurrentUser().getCoins();
-            System.out.println("ShopManager: 구매 시도 - 필요 코인: " + price + ", 보유 코인: " + currentCoins);
             
             if (userManager.spendCoins(price)) {
                 item.setPurchased(true);
@@ -183,11 +212,9 @@ public class ShopManager {
                 // DB에 인벤토리 저장
                 saveInventoryToDB();
                 setPurchaseMessage(item.getName() + "을(를) 구매했습니다!");
-                System.out.println("ShopManager: 구매 성공 - 남은 코인: " + userManager.getCurrentUser().getCoins());
                 return true;
             } else {
                 setPurchaseMessage("코인이 부족합니다! (필요: " + price + ", 보유: " + currentCoins + ")");
-                System.out.println("ShopManager: 구매 실패 - 코인 부족");
                 return false;
             }
         } else {
@@ -264,6 +291,17 @@ public class ShopManager {
         // currentCategory는 유지
     }
     
+    // InputHandler 접근자 (MainMenu에서 종료 요청 확인용)
+    private ShopInputHandler inputHandler;
+    
+    public void setInputHandler(ShopInputHandler inputHandler) {
+        this.inputHandler = inputHandler;
+    }
+    
+    public ShopInputHandler getInputHandler() {
+        return this.inputHandler;
+    }
+    
     // UserManager 설정
     public void setUserManager(UserManager userManager) {
         this.userManager = userManager;
@@ -286,7 +324,6 @@ public class ShopManager {
             if (currentUser != null) {
                 playerCurrency.put("COINS", currentUser.getCoins());
                 playerCurrency.put("GEMS", currentUser.getGems());
-                System.out.println("상점 데이터를 사용자 데이터로 동기화 완료");
             }
         }
     }
@@ -327,7 +364,7 @@ public class ShopManager {
                 );
                 
                 if (success) {
-                    System.out.println("인벤토리 DB 저장 완료: " + items.size() + "개 아이템 (확장 형식)");
+                    // 인벤토리 DB 저장 완료
                 } else {
                     System.err.println("인벤토리 DB 저장 실패");
                 }
@@ -342,7 +379,6 @@ public class ShopManager {
         if (userManager != null && userManager.isLoggedIn()) {
             try {
                 String uid = userManager.getCurrentUser().getUid();
-                System.out.println("ShopManager: 인벤토리 DB 로드 시작 - UID: " + uid);
                 
                 // Firebase DB에서 인벤토리 로드
                 Object inventoryData = userManager.getFirebaseDB().getData(
@@ -350,7 +386,6 @@ public class ShopManager {
                     Object.class
                 );
                 
-                System.out.println("ShopManager: DB에서 받은 인벤토리 데이터: " + inventoryData);
                 
                 if (inventoryData != null) {
                     // 기존 인벤토리 초기화
@@ -366,7 +401,6 @@ public class ShopManager {
                                 playerInventory.add(item);
                             }
                         }
-                        System.out.println("인벤토리 DB 로드 완료 (기존 형식): " + inventoryIds.size() + "개 아이템");
                     } else if (inventoryData instanceof java.util.Map) {
                         // 새로운 형식 (객체) 지원
                         java.util.Map<String, Object> inventoryMap = (java.util.Map<String, Object>) inventoryData;
@@ -382,18 +416,13 @@ public class ShopManager {
                                     playerInventory.add(item);
                                 }
                             }
-                            System.out.println("인벤토리 DB 로드 완료 (확장 형식): " + items.size() + "개 아이템");
                         }
                     }
-                } else {
-                    System.out.println("ShopManager: 인벤토리가 비어있습니다.");
                 }
             } catch (Exception e) {
                 System.err.println("ShopManager: 인벤토리 DB 로드 중 오류: " + e.getMessage());
                 e.printStackTrace();
             }
-        } else {
-            System.out.println("ShopManager: UserManager가 없거나 로그인되지 않음 - 인벤토리 로드 불가");
         }
     }
     
@@ -423,10 +452,42 @@ public class ShopManager {
         return messageTimer > 0;
     }
     
-    // 장착 관련 메서드들
-    public EquipmentManager getEquipmentManager() {
-        return equipmentManager;
+    // 경고창 설정 (7초간 표시)
+    public void setWarningMessage(String message) {
+        this.warningMessage = message;
+        this.warningTimer = 600; 
+        System.out.println("경고창 설정: " + message + " (타이머: " + warningTimer + ")");
     }
+    
+    // 경고창 메시지 가져오기
+    public String getWarningMessage() {
+        return warningMessage;
+    }
+    
+    // 경고창 표시 여부 확인
+    public boolean hasWarningDialog() {
+        return warningTimer > 0;
+    }
+    
+    // 경고창 타이머 업데이트
+    public void updateWarningTimer() {
+        if (warningTimer > 0) {
+            warningTimer--;
+            if (warningTimer == 0) {
+                System.out.println("경고창 자동 닫기 (타이머 만료)");
+                warningMessage = "";
+            }
+        }
+    }
+    
+    // 경고창 강제 초기화
+    public void clearWarningDialog() {
+        System.out.println("경고창 강제 초기화");
+        this.warningMessage = "";
+        this.warningTimer = 0;
+    }
+    
+    // 장착 관련 메서드들
     
     public ShopCategory getInventoryCategory() {
         return inventoryCategory;
@@ -474,6 +535,13 @@ public class ShopManager {
         if (equipmentManager != null) {
             equipmentManager.loadEquippedItemsFromDB(shopItems);
         }
+    }
+    
+    /**
+     * EquipmentManager 접근자
+     */
+    public EquipmentManager getEquipmentManager() {
+        return equipmentManager;
     }
     
     // 선택된 아이템 가져오기 (구매 확인용)

@@ -76,6 +76,7 @@ public class Game extends Canvas implements Screen
 		this.navigator = navigator;
 		this.userManager = null;
 		setIgnoreRepaint(true);
+		// 창 크기는 상위 App에서 관리하므로 기본값으로 설정
 		setBounds(0,0,800,600);
 		setFocusable(true);
 		
@@ -134,7 +135,6 @@ public class Game extends Canvas implements Screen
 		
 		// ShopManager에 아이템들 추가 및 장착 정보 로드
 		if (userManager != null && userManager.isLoggedIn()) {
-			System.out.println("Game: 게임 시작 시 ShopManager 초기화");
 			// ShopManager의 static 메서드로 아이템 초기화
 			org.newdawn.spaceinvaders.shop.ShopManager.initializeDefaultItems(userManager.getShopManager());
 			userManager.getShopManager().loadInventoryFromDB();
@@ -157,7 +157,6 @@ public class Game extends Canvas implements Screen
 			org.newdawn.spaceinvaders.shop.ShopManager.initializeDefaultItems(userManager.getShopManager());
 			userManager.getShopManager().loadInventoryFromDB();
 			userManager.getShopManager().loadEquipmentFromDB();
-			System.out.println("Game: UserManager 설정 완료 - 장착 정보 동기화");
 		}
 		this.userManager = userManager;
 	}
@@ -182,16 +181,13 @@ public class Game extends Canvas implements Screen
 	 */
 	private void applyEquippedItems() {
 		if (userManager == null || !userManager.isLoggedIn()) {
-			System.out.println("Game: UserManager가 없거나 로그인되지 않음 - 기본 설정 사용");
 			return;
 	}
 		
-		System.out.println("Game: 장착된 아이템 적용 시작");
 		
 		// 장착된 우주선 적용
 		ShopItem equippedSpaceship = getEquippedItem(ShopCategory.SPACESHIPS);
 		if (equippedSpaceship != null) {
-			System.out.println("Game: 우주선 적용 - " + equippedSpaceship.getName());
 			// 우주선 스킨 변경
 			applySpaceshipSkin(equippedSpaceship);
 		} else {
@@ -202,7 +198,6 @@ public class Game extends Canvas implements Screen
 		// 장착된 무기 적용
 		ShopItem equippedWeapon = getEquippedItem(ShopCategory.WEAPONS);
 		if (equippedWeapon != null) {
-			System.out.println("Game: 무기 적용 - " + equippedWeapon.getName());
 			// 무기 스킨 및 효과 적용
 			applyWeaponSkin(equippedWeapon);
 			applyWeaponEffects(equippedWeapon);
@@ -214,7 +209,6 @@ public class Game extends Canvas implements Screen
 		// 장착된 파워업 적용
 		ShopItem equippedPowerup = getEquippedItem(ShopCategory.POWERUPS);
 		if (equippedPowerup != null) {
-			System.out.println("Game: 파워업 적용 - " + equippedPowerup.getName());
 			// 파워업 효과 적용
 			applyPowerupEffects(equippedPowerup);
 		}
@@ -224,18 +218,12 @@ public class Game extends Canvas implements Screen
 	 * 특정 카테고리의 장착된 아이템 가져오기
 	 */
 	private ShopItem getEquippedItem(ShopCategory category) {
-		System.out.println("Game: getEquippedItem 호출 - category: " + category);
-		System.out.println("Game: userManager = " + (userManager != null ? "존재" : "null"));
-		if (userManager != null) {
-			System.out.println("Game: isLoggedIn = " + userManager.isLoggedIn());
-		}
 		if (userManager == null || !userManager.isLoggedIn()) {
 			return null;
 		}
 		
 		// UserManager에서 ShopManager를 통해 장착된 아이템 가져오기
 		ShopItem result = userManager.getShopManager().getEquippedItem(category);
-		System.out.println("Game: getEquippedItem 결과 = " + (result != null ? result.getName() : "null"));
 		return result;
 	}
 	
@@ -243,8 +231,6 @@ public class Game extends Canvas implements Screen
 	 * 우주선 스킨 적용
 	 */
 	private void applySpaceshipSkin(ShopItem spaceship) {
-		System.out.println("Game: applySpaceshipSkin 호출 - " + spaceship.getName());
-		System.out.println("Game: spaceship.getIconPath() = " + spaceship.getIconPath());
 		// ShopItem의 getIconPath()를 사용하여 스킨 파일 경로 가져오기
 		String newSkinPath = spaceship.getIconPath();
 		
@@ -252,7 +238,6 @@ public class Game extends Canvas implements Screen
 		if (!newSkinPath.equals(currentSpaceshipSkin)) {
 			currentSpaceshipSkin = newSkinPath;
 			updateShipSkin();
-			System.out.println("Game: 우주선 스킨 변경 - " + currentSpaceshipSkin);
 		}
 	}
 	
@@ -260,8 +245,6 @@ public class Game extends Canvas implements Screen
 	 * 우주선 스킨 업데이트
 	 */
 	private void updateShipSkin() {
-		System.out.println("Game: updateShipSkin 호출 - " + currentSpaceshipSkin);
-		System.out.println("Game: ship = " + (ship != null ? "존재" : "null"));
 		if (ship != null) {
 			ship.changeSkin(currentSpaceshipSkin);
 		}
@@ -273,8 +256,6 @@ public class Game extends Canvas implements Screen
 	private void applyWeaponSkin(ShopItem weapon) {
 		// ShopItem의 getIconPath()를 사용하여 스킨 파일 경로 가져오기
 		currentWeaponSkin = weapon.getIconPath();
-		
-		System.out.println("Game: 무기 스킨 변경 - " + currentWeaponSkin);
 	}
 	
 	/**
@@ -285,11 +266,9 @@ public class Game extends Canvas implements Screen
 		String weaponName = weapon.getName();
 		if (weaponName.contains("강화")) {
 			gameStateManager.setAttackPower(gameStateManager.getAttackPower() + 1);
-			System.out.println("Game: 공격력 +1 증가");
 		}
 		if (weaponName.contains("빠른")) {
 			gameStateManager.setAttackSpeed(gameStateManager.getAttackSpeed() * 1.2);
-			System.out.println("Game: 공격속도 20% 증가");
 		}
 	}
 	
@@ -302,7 +281,6 @@ public class Game extends Canvas implements Screen
 		if (powerupName.contains("체력")) {
 			gameStateManager.setMaxHP(gameStateManager.getMaxHP() + 1);
 			gameStateManager.setCurrentHP(gameStateManager.getCurrentHP() + 1);
-			System.out.println("Game: 최대 체력 +1 증가");
 		}
 	}
 	

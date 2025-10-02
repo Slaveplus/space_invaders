@@ -289,30 +289,10 @@ public class ShopRenderer {
                 g2d.drawString("다양한 색상의 전투기, 평생지도교수님 등", startX, startY + lineHeight * 3);
                 g2d.drawString("Enter를 눌러 우주선 상점에 입장하세요.", startX, startY + lineHeight * 4);
                 break;
-            // case 2: // 파워업 상점
-            //     g2d.drawString("게임을 도와주는 파워업을 구매할 수 있습니다.", startX, startY + lineHeight * 2);
-            //     g2d.drawString("속도 증가, 방어막, 추가 생명 등", startX, startY + lineHeight * 3);
-            //     g2d.drawString("Enter를 눌러 파워업 상점에 입장하세요.", startX, startY + lineHeight * 4);
-            //     break;
-            // case 3: // 장식품 상점
-            //     g2d.drawString("우주선을 꾸밀 수 있는 장식품을 구매할 수 있습니다.", startX, startY + lineHeight * 2);
-            //     g2d.drawString("도색, 이펙트, 테마 등", startX, startY + lineHeight * 3);
-            //     g2d.drawString("Enter를 눌러 장식품 상점에 입장하세요.", startX, startY + lineHeight * 4);
-            //     break;
-            // case 4: // 업그레이드 상점
-            //     g2d.drawString("기존 아이템을 강화할 수 있습니다.", startX, startY + lineHeight * 2);
-            //     g2d.drawString("무기 강화, 우주선 개조 등", startX, startY + lineHeight * 3);
-            //     g2d.drawString("Enter를 눌러 업그레이드 상점에 입장하세요.", startX, startY + lineHeight * 4);
-            //     break;
-            // case 5: // 인벤토리
-            //     g2d.drawString("보유한 아이템을 확인할 수 있습니다.", startX, startY + lineHeight * 2);
-            //     g2d.drawString("구매한 무기, 우주선, 파워업 등", startX, startY + lineHeight * 3);
-            //     g2d.drawString("Enter를 눌러 인벤토리를 확인하세요.", startX, startY + lineHeight * 4);
-            //     break;
-            // case 6: // 뒤로가기
-            //     g2d.drawString("메인 메뉴로 돌아갑니다.", startX, startY + lineHeight * 2);
-            //     g2d.drawString("확인하려면 Enter를 누르세요.", startX, startY + lineHeight * 3);
-            //     break;
+            case 2: // 뒤로가기
+                g2d.drawString("메인화면으로 이동합니다.", startX, startY + lineHeight * 2);
+                g2d.drawString("확인하려면 Enter를 누르세요.", startX, startY + lineHeight * 3);
+                break;
         }
         
         // 구매 메시지 표시
@@ -407,22 +387,33 @@ public class ShopRenderer {
             int x = startX + col * (itemWidth + spacingX);
             int y = startY + row * (itemHeight + spacingY);
             
-            // 아이템 박스 그리기
+            // 아이템 박스 그리기 (구매 상태에 따라 다른 색상)
+            boolean isPurchased = item.isPurchased();
+            boolean isSelected = (i == inputHandler.getSelectedItem());
+            
             if (itemBoxImage != null) {
                 // 선택된 아이템 강조 (노란색 테두리)
-                if (i == inputHandler.getSelectedItem()) {
+                if (isSelected) {
                     g2d.setColor(Color.YELLOW);
                     g2d.drawRect(x - 2, y - 2, itemWidth + 4, itemHeight + 4);
                 }
                 
                 // 아이템 박스 이미지 그리기
                 g2d.drawImage(itemBoxImage, x, y, itemWidth, itemHeight, null);
+                
+                // 구매된 아이템은 반투명 오버레이 추가
+                if (isPurchased) {
+                    g2d.setColor(new Color(0, 255, 0, 100)); // 초록색 반투명
+                    g2d.fillRect(x, y, itemWidth, itemHeight);
+                }
             } else {
                 // 아이템 박스 이미지가 없으면 기본 박스 그리기
-                if (i == inputHandler.getSelectedItem()) {
+                if (isSelected) {
                     g2d.setColor(Color.YELLOW);
+                } else if (isPurchased) {
+                    g2d.setColor(new Color(0, 150, 0)); // 구매된 아이템은 초록색
                 } else {
-                    g2d.setColor(new Color(0, 100, 200));
+                    g2d.setColor(new Color(0, 100, 200)); // 구매 가능한 아이템은 파란색
                 }
                 g2d.fillRect(x, y, itemWidth, itemHeight);
                 g2d.setColor(Color.WHITE);
@@ -453,18 +444,28 @@ public class ShopRenderer {
             int nameY = (itemImage != null) ? y + 100 : y + 45; // 이미지가 있으면 아래쪽에 표시
             g2d.drawString(itemName, nameX, nameY);
             
-            // 아이템 가격
-            g2d.setColor(Color.YELLOW);
+            // 아이템 가격 또는 상태 표시
             g2d.setFont(descriptionFont);
-            String priceText = item.getPrice() + "";
-            FontMetrics priceMetrics = g2d.getFontMetrics();
-            int priceX = x + (itemWidth - priceMetrics.stringWidth(priceText)) / 2;
-            int priceY = nameY + 20;
-            g2d.drawString(priceText, priceX, priceY);
+            String statusText;
+            Color statusColor;
             
-            // 코인 이미지 (가격 옆에)
-            if (coinImage != null) {
-                g2d.drawImage(coinImage, priceX + priceMetrics.stringWidth(priceText) + 5, priceY - 15, 16, 16, null);
+            if (isPurchased) {
+                statusText = "보유중";
+                statusColor = Color.GREEN;
+            } else {
+                statusText = item.getPrice() + " 코인";
+                statusColor = Color.YELLOW;
+            }
+            
+            g2d.setColor(statusColor);
+            FontMetrics statusMetrics = g2d.getFontMetrics();
+            int statusX = x + (itemWidth - statusMetrics.stringWidth(statusText)) / 2;
+            int statusY = nameY + 20;
+            g2d.drawString(statusText, statusX, statusY);
+            
+            // 코인 이미지 (구매 가능한 아이템에만)
+            if (!isPurchased && coinImage != null) {
+                g2d.drawImage(coinImage, statusX + statusMetrics.stringWidth(statusText) + 5, statusY - 15, 16, 16, null);
             }
         }
         
@@ -490,7 +491,101 @@ public class ShopRenderer {
     //         case UPGRADES: return "업그레이드 상점";
     //         default: return "카테고리 상점";
     //     }
-    // }
+    //     }
+    
+    /**
+     * 텍스트를 지정된 길이로 줄바꿈
+     */
+    private String[] wrapText(String text, int maxLength) {
+        if (text == null || text.length() <= maxLength) {
+            return new String[]{text};
+        }
+        
+        java.util.List<String> lines = new java.util.ArrayList<>();
+        String[] words = text.split(" ");
+        StringBuilder currentLine = new StringBuilder();
+        
+        for (String word : words) {
+            if (currentLine.length() + word.length() + 1 <= maxLength) {
+                if (currentLine.length() > 0) {
+                    currentLine.append(" ");
+                }
+                currentLine.append(word);
+            } else {
+                if (currentLine.length() > 0) {
+                    lines.add(currentLine.toString());
+                    currentLine = new StringBuilder(word);
+                } else {
+                    // 단어가 너무 긴 경우 강제로 자르기
+                    lines.add(word.substring(0, Math.min(word.length(), maxLength)));
+                    if (word.length() > maxLength) {
+                        currentLine = new StringBuilder(word.substring(maxLength));
+                    }
+                }
+            }
+        }
+        
+        if (currentLine.length() > 0) {
+            lines.add(currentLine.toString());
+        }
+        
+        return lines.toArray(new String[0]);
+    }
+    
+    /**
+     * 텍스트를 픽셀 너비 기준으로 줄바꿈합니다
+     */
+    private String[] wrapTextByWidth(String text, int maxWidth, FontMetrics fontMetrics) {
+        if (text == null || fontMetrics.stringWidth(text) <= maxWidth) {
+            return new String[]{text};
+        }
+        
+        java.util.List<String> lines = new java.util.ArrayList<>();
+        String[] words = text.split(" ");
+        StringBuilder currentLine = new StringBuilder();
+        
+        for (String word : words) {
+            String testLine = currentLine.length() > 0 ? currentLine + " " + word : word;
+            if (fontMetrics.stringWidth(testLine) <= maxWidth) {
+                if (currentLine.length() > 0) {
+                    currentLine.append(" ");
+                }
+                currentLine.append(word);
+            } else {
+                if (currentLine.length() > 0) {
+                    lines.add(currentLine.toString());
+                    currentLine = new StringBuilder(word);
+                } else {
+                    // 단어가 너무 긴 경우 강제로 자르기
+                    lines.add(word);
+                }
+            }
+        }
+        
+        if (currentLine.length() > 0) {
+            lines.add(currentLine.toString());
+        }
+        
+        return lines.toArray(new String[0]);
+    }
+    
+    /**
+     * 희귀도에 따른 색상 반환
+     */
+    private Color getRarityColor(ItemRarity rarity) {
+        switch (rarity) {
+            case COMMON:
+                return new Color(200, 200, 200); // 회색
+            case RARE:
+                return new Color(0, 150, 255); // 파란색
+            case EPIC:
+                return new Color(150, 0, 255); // 보라색
+            case LEGENDARY:
+                return new Color(255, 150, 0); // 주황색
+            default:
+                return Color.WHITE;
+        }
+    }
     
     private void drawItemDetail(Graphics2D g2d, ShopManager shopManager, ShopInputHandler inputHandler) {
         // 아이템 상세 화면 구현
@@ -507,9 +602,9 @@ public class ShopRenderer {
         g2d.setColor(new Color(0, 0, 0, 200));
         g2d.fillRect(0, 0, 800, 600);
         
-        // 구매 확인 창 (흰색 테두리)
-        int dialogWidth = 400;
-        int dialogHeight = 250;
+        // 구매 확인 창 (더 큰 크기로 변경)
+        int dialogWidth = 600;
+        int dialogHeight = 450;
         int dialogX = (800 - dialogWidth) / 2;
         int dialogY = (600 - dialogHeight) / 2;
         
@@ -522,39 +617,80 @@ public class ShopRenderer {
         // 아이템 정보
         ShopItem selectedItem = shopManager.getSelectedItem(inputHandler.getSelectedItem());
         if (selectedItem != null) {
-            // 아이템 이름
-            g2d.setColor(Color.WHITE);
-            g2d.setFont(titleFont);
-            String itemName = selectedItem.getName();
-            FontMetrics nameMetrics = g2d.getFontMetrics();
-            int nameX = dialogX + (dialogWidth - nameMetrics.stringWidth(itemName)) / 2;
-            g2d.drawString(itemName, nameX, dialogY + 60);
+            // 아이템 이미지 (왼쪽에 큰 이미지)
+            int imageSize = 180;
+            int imageX = dialogX + 20;
+            int imageY = dialogY + 40;
             
-            // 가격 정보
-            g2d.setFont(menuFont);
-            String priceText = "가격: " + selectedItem.getPrice() + " 코인";
-            FontMetrics priceMetrics = g2d.getFontMetrics();
-            int priceX = dialogX + (dialogWidth - priceMetrics.stringWidth(priceText)) / 2;
-            g2d.drawString(priceText, priceX, dialogY + 100);
-            
-            // 코인 이미지
-            if (coinImage != null) {
-                g2d.drawImage(coinImage, priceX + priceMetrics.stringWidth(priceText) + 5, dialogY + 85, 20, 20, null);
+            try {
+                // 아이템 이미지 로드 및 표시
+                java.awt.image.BufferedImage itemImage = javax.imageio.ImageIO.read(
+                    getClass().getClassLoader().getResourceAsStream(selectedItem.getIconPath())
+                );
+                if (itemImage != null) {
+                    g2d.drawImage(itemImage, imageX, imageY, imageSize, imageSize, null);
+                }
+            } catch (Exception e) {
+                // 이미지 로드 실패 시 기본 사각형 표시
+                g2d.setColor(new Color(100, 100, 100, 150));
+                g2d.fillRect(imageX, imageY, imageSize, imageSize);
+                g2d.setColor(Color.WHITE);
+                g2d.drawRect(imageX, imageY, imageSize, imageSize);
+                g2d.setFont(new Font("Arial", Font.PLAIN, 12));
+                g2d.drawString("이미지 없음", imageX + 10, imageY + imageSize/2);
             }
             
-            // 구매 확인 질문
-            g2d.setFont(descriptionFont);
+            // 아이템 정보 (오른쪽에 배치)
+            int infoX = dialogX + 220;
+            int infoY = dialogY + 50;
+            
+            // 아이템 이름 (더 큰 폰트)
+            g2d.setColor(Color.WHITE);
+            g2d.setFont(titleFont.deriveFont(32f));
+            String itemName = selectedItem.getName();
+            g2d.drawString(itemName, infoX, infoY + 40);
+            
+            // 아이템 설명 (여러 줄로 표시)
+            g2d.setFont(descriptionFont.deriveFont(16f));
+            String description = selectedItem.getDescription();
+            String[] descriptionLines = wrapText(description, 25); // 25자씩 줄바꿈
+            int lineHeight = 25;
+            for (int i = 0; i < descriptionLines.length && i < 3; i++) {
+                g2d.setColor(new Color(200, 200, 200));
+                g2d.drawString(descriptionLines[i], infoX, infoY + 80 + (i * lineHeight));
+            }
+            
+            // 희귀도 표시
+            g2d.setFont(menuFont.deriveFont(18f));
+            g2d.setColor(getRarityColor(selectedItem.getRarity()));
+            g2d.drawString(selectedItem.getRarity().getDisplayName(), infoX, infoY + 160);
+            
+            // 가격 정보 (더 크게)
+            g2d.setColor(Color.YELLOW);
+            g2d.setFont(menuFont.deriveFont(20f));
+            String priceText = "가격: " + selectedItem.getPrice() + " 코인";
+            FontMetrics priceMetrics = g2d.getFontMetrics();
+            g2d.drawString(priceText, infoX, infoY + 190);
+            
+            // 코인 이미지 (더 크게)
+            if (coinImage != null) {
+                g2d.drawImage(coinImage, infoX + priceMetrics.stringWidth(priceText) + 10, infoY + 175, 30, 30, null);
+            }
+            
+            // 구매 확인 질문 (중앙 하단)
+            g2d.setColor(Color.WHITE);
+            g2d.setFont(menuFont.deriveFont(18f));
             String questionText = "이 아이템을 구매하시겠습니까?";
             FontMetrics questionMetrics = g2d.getFontMetrics();
             int questionX = dialogX + (dialogWidth - questionMetrics.stringWidth(questionText)) / 2;
-            g2d.drawString(questionText, questionX, dialogY + 140);
+            g2d.drawString(questionText, questionX, dialogY + 350);
             
-            // 예/아니요 버튼
-            int buttonWidth = 80;
-            int buttonHeight = 30;
-            int buttonY = dialogY + 170;
-            int yesX = dialogX + (dialogWidth / 2) - buttonWidth - 10;
-            int noX = dialogX + (dialogWidth / 2) + 10;
+            // 예/아니요 버튼 (더 크게)
+            int buttonWidth = 100;
+            int buttonHeight = 40;
+            int buttonY = dialogY + 380;
+            int yesX = dialogX + (dialogWidth / 2) - buttonWidth - 15;
+            int noX = dialogX + (dialogWidth / 2) + 15;
             
             // 예 버튼
             if (inputHandler.getSelectedOption() == 0) {
@@ -628,6 +764,89 @@ public class ShopRenderer {
         g2d.setColor(Color.YELLOW);
         String instructions = "Q: 카테고리 변경  ↑↓←→: 아이템 이동  Enter: 장착/해제  ESC: 뒤로가기";
         g2d.drawString(instructions, 50 + (700 - g2d.getFontMetrics().stringWidth(instructions)) / 2, 520);
+        
+        // 저장 중 표시
+        if (shopManager.getEquipmentManager().isSaving()) {
+            // 저장 중 오버레이
+            g2d.setColor(new Color(0, 0, 0, 180));
+            g2d.fillRect(200, 250, 400, 100);
+            g2d.setColor(Color.WHITE);
+            g2d.drawRect(200, 250, 400, 100);
+            
+            // "아이템 적용중..." 메시지
+            g2d.setFont(titleFont);
+            FontMetrics metrics = g2d.getFontMetrics();
+            String message = "아이템 적용중...";
+            int messageX = 200 + (400 - metrics.stringWidth(message)) / 2;
+            g2d.drawString(message, messageX, 310);
+        }
+        
+        // 경고창 표시
+        if (shopManager.hasWarningDialog()) {
+            drawWarningDialog(g2d, shopManager);
+        }
+    }
+    
+    /**
+     * 경고창 그리기 (3초 후 자동 사라짐)
+     */
+    private void drawWarningDialog(Graphics2D g2d, ShopManager shopManager) {
+        String message = shopManager.getWarningMessage();
+        
+        // 경고창 크기 계산
+        g2d.setFont(menuFont);
+        FontMetrics messageMetrics = g2d.getFontMetrics();
+        
+        int dialogWidth = Math.max(400, messageMetrics.stringWidth(message) + 80);
+        int dialogHeight = 120;
+        int dialogX = (800 - dialogWidth) / 2;
+        int dialogY = (600 - dialogHeight) / 2;
+        
+        // 전체 화면 어둡게 처리
+        g2d.setColor(new Color(0, 0, 0, 120));
+        g2d.fillRect(0, 0, 800, 600);
+        
+        // 경고창 배경
+        g2d.setColor(new Color(220, 50, 50, 240));
+        g2d.fillRect(dialogX, dialogY, dialogWidth, dialogHeight);
+        
+        // 경고창 테두리
+        g2d.setColor(Color.WHITE);
+        g2d.setStroke(new java.awt.BasicStroke(3));
+        g2d.drawRect(dialogX, dialogY, dialogWidth, dialogHeight);
+        g2d.setStroke(new java.awt.BasicStroke(1)); // 기본 스트로크로 복원
+        
+        // 경고 아이콘 (삼각형 + 느낌표)
+        int iconX = dialogX + 30;
+        int iconY = dialogY + 30;
+        int iconSize = 30;
+        
+        // 삼각형 경고 아이콘
+        g2d.setColor(Color.YELLOW);
+        int[] triangleX = {iconX + iconSize/2, iconX, iconX + iconSize};
+        int[] triangleY = {iconY, iconY + iconSize, iconY + iconSize};
+        g2d.fillPolygon(triangleX, triangleY, 3);
+        
+        // 느낌표
+        g2d.setColor(Color.RED);
+        g2d.setFont(new Font("Arial", Font.BOLD, 20));
+        g2d.drawString("!", iconX + iconSize/2 - 4, iconY + iconSize - 5);
+        
+        // 경고 메시지
+        g2d.setColor(Color.WHITE);
+        g2d.setFont(menuFont);
+        int messageX = iconX + iconSize + 20;
+        int messageY = dialogY + 50;
+        g2d.drawString(message, messageX, messageY);
+        
+        // 자동 닫힘 안내
+        g2d.setFont(new Font("Arial", Font.PLAIN, 12));
+        g2d.setColor(Color.LIGHT_GRAY);
+        String autoCloseText = "이 경고창은 자동으로 닫힙니다";
+        FontMetrics autoMetrics = g2d.getFontMetrics();
+        int autoX = dialogX + (dialogWidth - autoMetrics.stringWidth(autoCloseText)) / 2;
+        int autoY = dialogY + dialogHeight - 15;
+        g2d.drawString(autoCloseText, autoX, autoY);
     }
     
     private void drawInventoryCategoryTabs(Graphics2D g2d, ShopManager shopManager, ShopInputHandler inputHandler) {
@@ -733,15 +952,25 @@ public class ShopRenderer {
             g2d.setColor(Color.WHITE);
             g2d.setFont(itemFont);
             
-            // 아이템 이름 (더 길게 표시 가능)
+            // 아이템 이름 (줄바꿈 처리)
             String itemName = item.getName();
-            if (itemName.length() > 15) {
-                itemName = itemName.substring(0, 15) + "...";
-            }
             FontMetrics nameMetrics = g2d.getFontMetrics();
             int nameX = rightX + 5; // 오른쪽 영역 시작점에서 5px 여백
-            int nameY = y + 60; // 상단에서 25px 아래
-            g2d.drawString(itemName, nameX, nameY);
+            int nameY = y + 50; // 상단에서 30px 아래
+            
+            // 오른쪽 영역 너비에서 여백을 뺀 실제 사용 가능한 너비
+            int availableWidth = rightWidth - 10; // 양쪽 여백 5px씩
+            
+            // 텍스트가 너비를 초과하는지 확인
+            if (nameMetrics.stringWidth(itemName) > availableWidth) {
+                // 단어 단위로 줄바꿈 처리
+                String[] nameLines = wrapTextByWidth(itemName, availableWidth, nameMetrics);
+                for (int lineIndex = 0; lineIndex < nameLines.length && lineIndex < 2; lineIndex++) { // 최대 2줄
+                    g2d.drawString(nameLines[lineIndex], nameX, nameY + (lineIndex * 15));
+                }
+            } else {
+                g2d.drawString(itemName, nameX, nameY);
+            }
             
             // 장착 상태 표시
             boolean isEquipped = shopManager.isItemEquipped(item);
@@ -749,9 +978,8 @@ public class ShopRenderer {
             String statusText = isEquipped ? "장착중" : "보유중";
             g2d.setColor(isEquipped ? Color.YELLOW : Color.GREEN);
             
-            FontMetrics statusMetrics = g2d.getFontMetrics();
             int statusX = rightX + 5; // 오른쪽 영역 시작점에서 5px 여백
-            int statusY = nameY + 20; // 이름 아래 20px
+            int statusY = nameY + 35; // 이름 아래 35px (줄바꿈을 고려하여 더 아래로)
             g2d.drawString(statusText, statusX, statusY);
             
             // 장착된 아이템은 테두리를 노란색으로

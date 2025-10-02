@@ -51,10 +51,10 @@ public class MainMenuCanvas extends Canvas implements Screen {
 
     public MainMenuCanvas(ScreenNavigator navigator, UserManager userManager) {
         this.navigator = navigator;
-        this.mainMenu = new MainMenu(userManager);
+        this.mainMenu = new MainMenu(userManager, navigator);
         setIgnoreRepaint(true);
         setBackground(Color.black);
-        setSize(SpaceInvadersApp.WIDTH, SpaceInvadersApp.HEIGHT);
+        setSize(SpaceInvadersApp.DEFAULT_WIDTH, SpaceInvadersApp.DEFAULT_HEIGHT);
         setFocusable(true);
     }
 

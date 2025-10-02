@@ -20,6 +20,7 @@ public class Shop {
         this.shopManager = new ShopManager();
         this.shopRenderer = new ShopRenderer();
         this.inputHandler = new ShopInputHandler(shopManager);
+        this.shopManager.setInputHandler(inputHandler); // ShopManager에 InputHandler 설정
         loadBackgroundImage();
         initializeShopItems();
     }
@@ -29,6 +30,7 @@ public class Shop {
         this.shopRenderer = new ShopRenderer();
         this.shopRenderer.setUserManager(userManager); // ShopRenderer에도 UserManager 설정
         this.inputHandler = new ShopInputHandler(shopManager);
+        this.shopManager.setInputHandler(inputHandler); // ShopManager에 InputHandler 설정
         loadBackgroundImage();
         initializeShopItems();
     }
@@ -83,6 +85,7 @@ public class Shop {
     public void update() {
         // 상점 업데이트 로직
         shopManager.updateMessageTimer();
+        shopManager.updateWarningTimer();
     }
     
     public void reset() {

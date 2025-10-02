@@ -8,4 +8,5 @@ public interface ScreenNavigator {
     void showMainMenu();
     void startNewGame();
     void exitGame();
+    void setResolution(int width, int height);
 }

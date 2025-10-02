@@ -9,6 +9,7 @@ import javax.imageio.ImageIO;
 import org.newdawn.spaceinvaders.shop.Shop;
 import org.newdawn.spaceinvaders.login.UserManager;
 import org.newdawn.spaceinvaders.login.User;
+import org.newdawn.spaceinvaders.app.ScreenNavigator;
 
 /**
  * 우주 배경을 사용한 메인 메뉴 시스템
@@ -20,6 +21,7 @@ public class MainMenu {
     private UserManager userManager;
     // private User currentUser; // 직접 사용하지 않으므로 제거
     private boolean logoutRequested = false;
+    private ScreenNavigator navigator;
 
     /** 현재 메뉴 상태 */
     public enum MenuState {
@@ -28,7 +30,8 @@ public class MainMenu {
         MULTI_PLAYER,   // 멀티플레이 서브메뉴
         SHOP,           // 상점 메뉴
         INVENTORY,      // 인벤토리 메뉴
-        SETTINGS,        // 설정 메뉴
+        SETTINGS,       // 설정 메뉴
+        RESOLUTION,     // 해상도 변경 메뉴
         ACCOUNT         // 계정 메뉴
     }
     
@@ -48,17 +51,40 @@ public class MainMenu {
         "이전메뉴"
     };
     
+    // 설정 메뉴 옵션들 (동적 생성)
+    private String[] getSettingsOptions() {
+        return new String[] {
+            "배경음악 " + (musicEnabled ? "ON" : "OFF"),
+            "해상도 변경",
+            "제작자",
+            "이전메뉴"
+        };
+    }
+    
+    // 해상도 옵션들
+    private String[] resolutionOptions = {
+        "800x600 (기본)",
+        "1024x768 (일반)",
+        "1280x720 (HD)",
+        "1366x768 (노트북)",
+        "1920x1080 (Full HD)",
+        "이전메뉴"
+    };
+    
+    // 해상도 값들 (resolutionOptions와 매칭)
+    private int[][] resolutionValues = {
+        {800, 600},
+        {1024, 768},
+        {1280, 720},
+        {1366, 768},
+        {1920, 1080},
+        {0, 0} // 이전메뉴는 무시
+    };
+    
     // 멀티플레이 서브메뉴 옵션들
     private String[] multiPlayerOptions = {
         "게임참가",
         "리더보드",
-        "이전메뉴"
-    };
-    
-    // 설정 메뉴 옵션들
-    private String[] settingsOptions = {
-        "음악: " + (musicEnabled ? "ON" : "OFF"),
-        "제작자",
         "이전메뉴"
     };
 
@@ -71,11 +97,12 @@ public class MainMenu {
         "이전메뉴"
     };
     
-    public MainMenu(UserManager userManager) {
+    public MainMenu(UserManager userManager, ScreenNavigator navigator) {
         loadBackgroundImage();
         initializeFonts();
         shop = new Shop(userManager); // UserManager를 Shop에 전달
         this.userManager = userManager;
+        this.navigator = navigator;
     // currentUser 캐싱은 사용하지 않음 (UserManager에서 직접 조회)
     }
     
@@ -176,7 +203,10 @@ public class MainMenu {
      * 메뉴 업데이트 (현재는 별도 업데이트 불필요)
      */
     public void update() {
-        // 메뉴는 별도 업데이트 불필요
+        // 인벤토리 상태일 때도 상점 타이머 업데이트
+        if (currentState == MenuState.INVENTORY && shop != null) {
+            shop.update();
+        }
     }
     
     /**
@@ -211,23 +241,22 @@ public class MainMenu {
     public void handleKeyInput(int keyCode) {
         // 상점 키 입력 처리
         if (showingShop) {
-            // ESC 키로 상점 나가기
-            if (keyCode == KeyEvent.VK_ESCAPE) {
-                showingShop = false;
-                return;
-            }
-            // 다른 키는 상점의 입력 핸들러로 전달
+            // 상점의 입력 핸들러로 전달
             shop.handleInventoryInput(keyCode);
+            
+            // 상점에서 종료 요청이 있으면 상점 종료
+            if (shop.getShopManager().getInputHandler().isExitRequested()) {
+                showingShop = false;
+                shop.getShopManager().getInputHandler().resetExitRequest();
+            }
             return;
         }
         
         // 인벤토리 키 입력 처리
         if (currentState == MenuState.INVENTORY) {
             if (keyCode == KeyEvent.VK_ESCAPE) {
-                // ESC 키는 직접 메인 메뉴로 돌아가기
-                currentState = MenuState.MAIN;
-                selectedOption = 3; // 인벤토리 옵션으로 돌아가기
-                System.out.println("MainMenu: 인벤토리에서 메인 메뉴로 돌아가기");
+                // 변경사항이 있는지 확인하고 저장 처리
+                handleInventoryExit();
                 return;
             } else {
                 // 다른 키는 상점의 인벤토리 입력 처리
@@ -251,6 +280,9 @@ public class MainMenu {
                 if (currentState == MenuState.INVENTORY) {
                     currentState = MenuState.MAIN;
                     selectedOption = 3; // 인벤토리 옵션으로 돌아가기
+                } else if (currentState == MenuState.RESOLUTION) {
+                    currentState = MenuState.SETTINGS;
+                    selectedOption = 0;
                 } else if (currentState != MenuState.MAIN) {
                     currentState = MenuState.MAIN;
                     selectedOption = 0;
@@ -269,7 +301,9 @@ public class MainMenu {
             case MULTI_PLAYER:
                 return multiPlayerOptions;
             case SETTINGS:
-                return settingsOptions;
+                return getSettingsOptions();
+            case RESOLUTION:
+                return resolutionOptions;
             case ACCOUNT:
                 return accountOptions;
             case INVENTORY:
@@ -301,6 +335,9 @@ public class MainMenu {
                 break;
             case SETTINGS:
                 handleSettingsSelection();
+                break;
+            case RESOLUTION:
+                handleResolutionSelection();
                 break;
             case ACCOUNT:
                 handleAccountSelection();
@@ -336,6 +373,10 @@ public class MainMenu {
             case 3: // 인벤토리
                 currentState = MenuState.INVENTORY;
                 selectedOption = 0;
+                // 인벤토리 진입 시 경고창 초기화
+                if (shop != null && shop.getShopManager() != null) {
+                    shop.getShopManager().clearWarningDialog();
+                }
                 break;
             case 4: // 설정
                 currentState = MenuState.SETTINGS;
@@ -393,17 +434,40 @@ public class MainMenu {
      */
     private void handleSettingsSelection() {
         switch (selectedOption) {
-            case 0: // 음악 on/off
+            case 0: // 배경음악 ON/OFF
                 musicEnabled = !musicEnabled;
-                settingsOptions[0] = "음악: " + (musicEnabled ? "ON" : "OFF");
                 System.out.println("음악이 " + (musicEnabled ? "켜졌습니다" : "꺼졌습니다"));
                 break;
-            case 1: // 제작자 정보
-                System.out.println("제작자: 권지민(팀장), 김승현, 장진우");
-                break;
-            case 2: // 이전메뉴
-                currentState = MenuState.MAIN;
+            case 1: // 해상도 변경
+                currentState = MenuState.RESOLUTION;
                 selectedOption = 0;
+                break;
+            case 2: // 제작자
+                System.out.println("제작자 정보를 표시합니다.");
+                break;
+            case 3: // 이전메뉴
+                currentState = MenuState.MAIN;
+                selectedOption = 4; // 설정 옵션으로 돌아가기
+                break;
+        }
+    }
+    
+    private void handleResolutionSelection() {
+        switch (selectedOption) {
+            case 0: // 800x600
+            case 1: // 1024x768
+            case 2: // 1280x720
+            case 3: // 1366x768
+            case 4: // 1920x1080
+                int[] resolution = resolutionValues[selectedOption];
+                if (resolution[0] > 0 && resolution[1] > 0) {
+                    navigator.setResolution(resolution[0], resolution[1]);
+                    System.out.println("해상도가 " + resolution[0] + "x" + resolution[1] + "로 변경되었습니다.");
+                }
+                break;
+            case 5: // 이전메뉴
+                currentState = MenuState.SETTINGS;
+                selectedOption = 1; // 해상도 변경 옵션으로 돌아가기
                 break;
         }
     }
@@ -439,10 +503,33 @@ public class MainMenu {
     private void handleInventorySelection() {
         switch (selectedOption) {
             case 0: // 뒤로가기
-                currentState = MenuState.MAIN;
-                selectedOption = 3; // 인벤토리 옵션으로 돌아가기
+                handleInventoryExit();
                 break;
         }
+    }
+    
+    /**
+     * 인벤토리 나가기 처리
+     */
+    private void handleInventoryExit() {
+        // 장착 변경사항이 있는지 확인
+        if (shop.getShopManager().getEquipmentManager().hasLocalChanges()) {
+            // 저장 중이 아닐 때만 저장 시작
+            if (!shop.getShopManager().getEquipmentManager().isSaving()) {
+                // 변경사항을 DB에 저장
+                boolean saveSuccess = shop.getShopManager().getEquipmentManager().saveChangesToDB();
+                if (saveSuccess) {
+                    System.out.println("MainMenu: 인벤토리 변경사항 저장 완료");
+                } else {
+                    System.out.println("MainMenu: 인벤토리 변경사항 저장 실패");
+                }
+            }
+        }
+        
+        // 메인 메뉴로 돌아가기
+        currentState = MenuState.MAIN;
+        selectedOption = 3; // 인벤토리 옵션으로 돌아가기
+        System.out.println("MainMenu: 인벤토리에서 메인 메뉴로 돌아가기");
     }
     
     /**
@@ -458,6 +545,7 @@ public class MainMenu {
         
         // 인벤토리가 표시중이면 상점의 인벤토리를 그리기
         if (currentState == MenuState.INVENTORY) {
+            shop.update(); // 경고창 타이머 업데이트
             shop.setCurrentState(org.newdawn.spaceinvaders.shop.ShopState.INVENTORY);
             shop.render(g2d);
             return;
@@ -670,7 +758,7 @@ public class MainMenu {
         g2d.drawString(title, titleX, 80);
         
         // 메뉴 옵션들 (왼쪽 패널)
-        String[] options = settingsOptions;
+        String[] options = getSettingsOptions();
         g2d.setFont(menuFont);
         
         int startY = 120;
@@ -708,18 +796,23 @@ public class MainMenu {
         
         // 선택된 항목에 따라 다른 정보 표시
         switch (selectedOption) {
-            case 0: // 음악 on/off
+            case 0: // 배경음악 ON/OFF
                 g2d.drawString("게임 배경음악을 켜거나 끌 수 있습니다.", startX, startY);
                 g2d.drawString("현재 상태: " + (musicEnabled ? "ON" : "OFF"), startX, startY + lineHeight);
-                g2d.drawString("Enter를 눌러 상태를 변경하세요.", startX, startY + lineHeight * 2);
+                g2d.drawString("Enter를 눌러 " + (musicEnabled ? "OFF" : "ON") + "로 변경하세요.", startX, startY + lineHeight * 2);
                 break;
-            case 1: // 제작자 정보
+            case 1: // 해상도 변경
+                g2d.drawString("게임 화면의 해상도를 변경할 수 있습니다.", startX, startY);
+                g2d.drawString("다양한 해상도 옵션을 제공합니다.", startX, startY + lineHeight);
+                g2d.drawString("Enter를 눌러 해상도 설정으로 이동하세요.", startX, startY + lineHeight * 2);
+                break;
+            case 2: // 제작자 정보
                 g2d.drawString("게임 제작자 정보", startX, startY);
                 g2d.drawString("권지민 - 프로그래밍", startX, startY + lineHeight);
                 g2d.drawString("김승현 - 디자인", startX, startY + lineHeight * 2);
                 g2d.drawString("장진우 - 기획", startX, startY + lineHeight * 3);
                 break;
-            case 2: // 이전메뉴
+            case 3: // 이전메뉴
                 g2d.drawString("메인 메뉴로 돌아갑니다.", startX, startY);
                 g2d.drawString("확인하려면 Enter를 누르세요.", startX, startY + lineHeight);
                 break;
@@ -789,5 +882,6 @@ public class MainMenu {
     public void resetLogoutRequest() {
         logoutRequested = false;
     }
+    
         
 }
