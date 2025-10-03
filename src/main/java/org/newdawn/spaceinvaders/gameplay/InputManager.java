@@ -5,8 +5,6 @@ import java.awt.event.KeyEvent;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 
-import org.newdawn.spaceinvaders.Game;
-
 /**
  * 입력 관리 클래스
  * 키보드와 마우스 입력을 통합 관리합니다

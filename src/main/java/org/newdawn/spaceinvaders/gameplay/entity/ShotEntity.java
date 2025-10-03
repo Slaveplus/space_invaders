@@ -1,13 +1,14 @@
-package org.newdawn.spaceinvaders.entity;
+package org.newdawn.spaceinvaders.gameplay.entity;
 
 import java.awt.Color;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
 import java.awt.image.BufferedImage;
 import javax.imageio.ImageIO;
-import java.io.InputStream;
 
-import org.newdawn.spaceinvaders.Game;
+import org.newdawn.spaceinvaders.gameplay.Game;
+
+import java.io.InputStream;
 
 /**
  * An entity representing a shot fired by the player's ship

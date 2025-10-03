@@ -1,4 +1,4 @@
-package org.newdawn.spaceinvaders;
+package org.newdawn.spaceinvaders.gameplay;
 
 import java.awt.Canvas;
 import java.awt.Color;
@@ -16,19 +16,15 @@ import java.util.ArrayList;
 import javax.swing.JFrame;
 import javax.swing.JPanel;
 
-import org.newdawn.spaceinvaders.entity.AlienEntity;
-import org.newdawn.spaceinvaders.entity.Entity;
-import org.newdawn.spaceinvaders.entity.ShipEntity;
-import org.newdawn.spaceinvaders.entity.ShotEntity;
-import org.newdawn.spaceinvaders.entity.Skill;
-import org.newdawn.spaceinvaders.entity.MissileEntity;
-import org.newdawn.spaceinvaders.entity.ExplosionEntity;
-import org.newdawn.spaceinvaders.entity.BossEntity;
-import org.newdawn.spaceinvaders.gameplay.GameStateManager;
-import org.newdawn.spaceinvaders.gameplay.InputManager;
-import org.newdawn.spaceinvaders.gameplay.SkillManager;
-import org.newdawn.spaceinvaders.gameplay.UIRenderer;
 import org.newdawn.spaceinvaders.SystemTimer;
+import org.newdawn.spaceinvaders.gameplay.entity.AlienEntity;
+import org.newdawn.spaceinvaders.gameplay.entity.BossEntity;
+import org.newdawn.spaceinvaders.gameplay.entity.Entity;
+import org.newdawn.spaceinvaders.gameplay.entity.ExplosionEntity;
+import org.newdawn.spaceinvaders.gameplay.entity.MissileEntity;
+import org.newdawn.spaceinvaders.gameplay.entity.ShipEntity;
+import org.newdawn.spaceinvaders.gameplay.entity.ShotEntity;
+import org.newdawn.spaceinvaders.gameplay.entity.Skill;
 
 /**
  * The main hook of our game. This class with both act as a manager

@@ -1,10 +1,10 @@
-package org.newdawn.spaceinvaders.entity;
+package org.newdawn.spaceinvaders.gameplay.entity;
 
 import java.awt.Graphics;
 import java.awt.Graphics2D;
 import java.awt.RenderingHints;
 
-import org.newdawn.spaceinvaders.Game;
+import org.newdawn.spaceinvaders.gameplay.Game;
 
 /**
  * An entity representing a missile fired by the player

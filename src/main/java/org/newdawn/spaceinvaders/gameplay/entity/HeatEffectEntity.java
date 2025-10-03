@@ -1,9 +1,11 @@
-package org.newdawn.spaceinvaders.entity;
+package org.newdawn.spaceinvaders.gameplay.entity;
 
-import org.newdawn.spaceinvaders.Game;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
 import javax.imageio.ImageIO;
+
+import org.newdawn.spaceinvaders.gameplay.Game;
+
 import java.awt.image.BufferedImage;
 import java.io.IOException;
 import java.net.URL;
