@@ -2,20 +2,15 @@ package org.newdawn.spaceinvaders.gameplay;
 
 import java.awt.Canvas;
 import java.awt.Graphics2D;
-// no direct AWT listeners here; handled via InputManager
-import java.util.ArrayList;
+import java.awt.event.KeyAdapter;
+import java.awt.event.KeyEvent;
 
 import org.newdawn.spaceinvaders.app.Screen;
 import org.newdawn.spaceinvaders.app.ScreenNavigator;
-import org.newdawn.spaceinvaders.gameplay.entity.AlienEntity;
-import org.newdawn.spaceinvaders.gameplay.entity.Entity;
-import org.newdawn.spaceinvaders.gameplay.entity.ShipEntity;
-import org.newdawn.spaceinvaders.gameplay.entity.ShotEntity;
-import org.newdawn.spaceinvaders.gameplay.systems.MovementSystem;
-import org.newdawn.spaceinvaders.gameplay.systems.CollisionSystem;
-import org.newdawn.spaceinvaders.gameplay.systems.AlienFiringSystem;
-import org.newdawn.spaceinvaders.gameplay.core.Rules;
 import org.newdawn.spaceinvaders.gameplay.render.CommonRenderer;
+import org.newdawn.spaceinvaders.multiplay.MultiplayerClient;
+import org.newdawn.spaceinvaders.net.Snapshot;
+import org.newdawn.spaceinvaders.net.Snapshot.PlayerState;
 
 /**
  * The main hook of our game. This class with both act as a manager
@@ -32,80 +27,79 @@ import org.newdawn.spaceinvaders.gameplay.render.CommonRenderer;
  * 
  * @author Kevin Glass
  */
-public class Game extends Canvas implements Screen
-{
-	/** The stragey that allows us to use accelerate page flipping */
-	// BufferStrategy는 상위 App에서 관리
-	// entities and removeList are now managed by GameStateManager
-	/** The entity representing the player */
-	private Entity ship;
-	/** The speed at which the player's ship should move (pixels/sec) */
-	private double moveSpeed = org.newdawn.spaceinvaders.gameplay.core.Rules.PLAYER_MOVE_SPEED;
-	// lastFire and firingInterval are now managed by GameStateManager
-	/** The number of aliens left on the screen */
-	private int alienCount;
-
-	/** The current number of frames recorded */
-	// FPS 표시 기능은 상위에서 처리 가능, 내부적으로는 카운트만 유지하지 않음
-	/** The normal title of the game window */
-	// 창 제목은 상위 App에서 관리
-	/** navigator for screen transitions */
+public class Game extends Canvas implements Screen {
+	// 네트워크 전용 화면: 상위 App이 BufferStrategy 관리
 	private final ScreenNavigator navigator;
-	// 현재 싱글/멀티의 로직 차이는 제거되었으므로 모드 값은 보관만 합니다.
-	@SuppressWarnings("unused")
-	private final PlayMode mode;
-	
-	/** The game state manager */
-	private GameStateManager gameStateManager;
-	/** The input manager */
-	private InputManager inputManager;
-	/** The skill manager */
-	private SkillManager skillManager;
-	/** The UI renderer */
-	private UIRenderer uiRenderer;
-	/** Background renderer (cached) - CommonRenderer가 내장 배경 사용으로 불필요 */
-	// private BackgroundRenderer backgroundRenderer;
-	/** 공통 렌더 파사드 */
-	private CommonRenderer commonRenderer;
-	// gameplay는 mainmenu 패키지에 의존하지 않도록, 오버레이는 UIRenderer에서 처리
-	
-	/**
-	 * Construct our game and set it running.
-	 */
-	public Game(ScreenNavigator navigator) {
-		this(navigator, PlayMode.SINGLE);
-	}
+	private final CommonRenderer commonRenderer = new CommonRenderer();
+	private final UIRenderer uiRenderer = new UIRenderer(this);
 
-	public Game(ScreenNavigator navigator, PlayMode mode) {
+	private MultiplayerClient client; // 네트워크 클라이언트(로컬 임베디드/원격 공용)
+	private volatile String statusText = ""; // 상태 텍스트
+
+	// 입력 상태 (동시 키 처리)
+	private boolean leftDown = false;
+	private boolean rightDown = false;
+	private int dx = 0; // -1,0,1
+	// 스킬 오버레이 상태
+	private boolean showingSkillMenuMulti = false;
+	private int selectedSkillMulti = 0; // 0: 공격력, 1: 공속, 2: HP
+	
+	/** 외부 MultiplayerClient를 받아 화면을 구성 */
+	public Game(ScreenNavigator navigator, MultiplayerClient externalClient, boolean isNetwork) {
 		this.navigator = navigator;
-		this.mode = mode; // reserved for future branching points
+		this.client = externalClient;
 		setIgnoreRepaint(true);
 		setBounds(0,0,800,600);
 		setFocusable(true);
-		
-		// initialize the game state manager
-		gameStateManager = new GameStateManager();
-		
-		// initialize the skill manager
-		skillManager = new SkillManager(this);
-		
-		// initialize the UI renderer
-		uiRenderer = new UIRenderer(this);
 
-		// background & overlays
-		commonRenderer = new CommonRenderer();
-		
-		// initialize the input manager
-		inputManager = new InputManager(gameStateManager, this);
-		
-		// add input handlers (after inputManager is initialized)
-		addKeyListener(inputManager.new KeyInputHandler());
-		addMouseListener(inputManager.new MouseInputHandler());
-		
-		// initialise the entities in our game so there's something
-		// to see at startup
-		initEntities();
+		// 입력 리스너 등록
+		addKeyListener(keyAdapter);
 	}
+
+	// 동시 키 입력 처리 -> 서버로 전송
+	private void recomputeDxAndSend() {
+		int ndx;
+		if (leftDown && !rightDown) ndx = -1;
+		else if (rightDown && !leftDown) ndx = 1;
+		else ndx = 0;
+		if (ndx != dx) { dx = ndx; if (client != null) client.inputDx(dx); }
+	}
+
+	private final KeyAdapter keyAdapter = new KeyAdapter() {
+		@Override public void keyPressed(KeyEvent e) {
+			if (e.getKeyCode() == KeyEvent.VK_ESCAPE) {
+				// 간단 일시정지 오버레이 토글은 UI에서 처리 가능 (필요 시 확장)
+				return;
+			}
+			switch (e.getKeyCode()) {
+				case KeyEvent.VK_LEFT:
+					if (client != null && showingSkillMenuMulti) { selectedSkillMulti = (selectedSkillMulti + 2) % 3; break; }
+					leftDown = true; recomputeDxAndSend(); if (client != null) client.keyDownLeft(); break;
+				case KeyEvent.VK_RIGHT:
+					if (client != null && showingSkillMenuMulti) { selectedSkillMulti = (selectedSkillMulti + 1) % 3; break; }
+					rightDown = true; recomputeDxAndSend(); if (client != null) client.keyDownRight(); break;
+				case KeyEvent.VK_SPACE:
+					if (client != null) {
+						if (showingSkillMenuMulti) { client.upgrade(selectedSkillMulti); }
+						else { client.inputShoot(); client.keyDownFire(); }
+					}
+					break;
+				case KeyEvent.VK_ENTER:
+					if (client != null && showingSkillMenuMulti) { client.upgrade(selectedSkillMulti); }
+					break;
+				case KeyEvent.VK_Q:
+					if (client != null) { showingSkillMenuMulti = !showingSkillMenuMulti; }
+					break;
+			}
+		}
+		@Override public void keyReleased(KeyEvent e) {
+			switch (e.getKeyCode()) {
+				case KeyEvent.VK_LEFT: leftDown = false; recomputeDxAndSend(); if (client != null) client.keyUpLeft(); break;
+				case KeyEvent.VK_RIGHT: rightDown = false; recomputeDxAndSend(); if (client != null) client.keyUpRight(); break;
+				case KeyEvent.VK_SPACE: if (client != null) client.keyUpFire(); break;
+			}
+		}
+	};
 
 	@Override
 	public void onShow() {
@@ -123,62 +117,20 @@ public class Game extends Canvas implements Screen
 	 * Start a fresh game, this should clear out any old data and
 	 * create a new set.
 	 */
-	public void startGame() {
-		// 게임플레이 상태 초기화 (entities.clear() 포함)
-		gameStateManager.startNewGame();
-		
-		// 엔티티 초기화 (startNewGame() 후에 호출)
-		initEntities();
-		
-		// 입력 상태 초기화
-		inputManager.reset();
-		
-		// 스킬 매니저 초기화
-		skillManager.reset();
-	}
+	public void startGame() { leftDown = rightDown = false; dx = 0; if (client != null) client.inputDx(0); statusText = ""; }
 	
 	/**
 	 * Initialise the starting state of the entities (ship and aliens). Each
 	 * entitiy will be added to the overall list of entities in the game.
 	 */
-	private void initEntities() {
-		// create the player ship and place it roughly in the center of the screen
-		ship = new ShipEntity(this,"sprites/ship.gif",370,550);
-		gameStateManager.getEntities().add(ship);
-		
-		// Create aliens based on current round with balanced progression
-		alienCount = 0;
-		int rows, cols;
-		switch (gameStateManager.getCurrentRound()) {
-			case 1: rows = 3; cols = 6; break;  // 18 aliens
-			case 2: rows = 3; cols = 7; break;  // 21 aliens
-			case 3: rows = 4; cols = 7; break;  // 28 aliens
-			case 4: rows = 4; cols = 8; break;  // 32 aliens
-			case 5: rows = 5; cols = 8; break;  // 40 aliens
-			default: rows = 3; cols = 6; break;
-		}
-		
-		for (int row=0; row<rows; row++) {
-			for (int x=0; x<cols; x++) {
-				int ax = 120+(x*70);
-				int ay = 60+row*35;
-				Entity alien = new AlienEntity(this, ax, ay);
-				gameStateManager.getEntities().add(alien);
-				alienCount++;
-			}
-		}
-		
-		gameStateManager.setAlienCount(alienCount);
-	}
+	// 로컬 시뮬레이션 제거: 엔티티 초기화 불필요
 	
 	/**
 	 * Notification from a game entity that the logic of the game
 	 * should be run at the next opportunity (normally as a result of some
 	 * game event)
 	 */
-	public void updateLogic() {
-		gameStateManager.setLogicRequiredThisLoop(true);
-	}
+	public void updateLogic() { /* no-op in network mode */ }
 	
 	/**
 	 * Remove an entity from the game. The entity removed will
@@ -186,118 +138,30 @@ public class Game extends Canvas implements Screen
 	 * 
 	 * @param entity The entity that should be removed
 	 */
-	public void removeEntity(Entity entity) {
-		gameStateManager.getRemoveList().add(entity);
-	}
+	// 로컬 시뮬 제거: 엔티티 제거 불필요
 	
 	/**
 	 * Notification that the player has died. 
 	 */
-	public void notifyDeath() {
-		// Check if player is invincible
-		if (skillManager.isInvincible()) {
-			return; // No damage taken when invincible
-		}
-		
-		gameStateManager.takeDamage();
-		if (gameStateManager.getCurrentHP() <= 0) {
-			gameStateManager.setMessage("Oh no! They got you, try again?");
-			gameStateManager.setWaitingForKeyPress(true);
-			// 게임 오버 후 메뉴로 돌아가기
-			if (navigator != null) navigator.showMainMenu();
-		}
-	}
+	public void notifyDeath() { /* handled by server in network mode */ }
 	
 	/**
 	 * Notification that the player has won since all the aliens
 	 * are dead.
 	 */
-	public void notifyWin() {
-		boolean roundAdvanced = gameStateManager.advanceRound();
-		
-		if (roundAdvanced) {
-			// Clear current entities and initialize next round
-			gameStateManager.getEntities().clear();
-			initEntities();
-		} else {
-			// Game completed
-			gameStateManager.setMessage("Well done! You Win!");
-			gameStateManager.setWaitingForKeyPress(true);
-			// 게임 승리 후 메뉴로 돌아가기
-			if (navigator != null) navigator.showMainMenu();
-		}
-	}
+	public void notifyWin() { /* handled by server in network mode */ }
 	
 	/**
 	 * Notification that an alien has been killed
 	 */
-	public void notifyAlienKilled() {
-		// Give random skill points for killing aliens
-		int earnedPoints = skillManager.getRandomSkillPoints(gameStateManager.getCurrentRound());
-		gameStateManager.addSkillPoints(earnedPoints);
-		
-		// Random chance to drop a skill
-		double dropChance = skillManager.getSkillDropChance(gameStateManager.getCurrentRound());
-		if (Math.random() < dropChance) {
-			skillManager.dropSkill(gameStateManager.getCurrentRound());
-		}
-		
-		// Count remaining aliens dynamically (excluding those marked for removal)
-		int remainingAliens = 0;
-		ArrayList<Entity> entities = gameStateManager.getEntities();
-		ArrayList<Entity> removeList = gameStateManager.getRemoveList();
-		
-		for (Entity entity : entities) {
-			if (entity instanceof AlienEntity && !removeList.contains(entity)) {
-				remainingAliens++;
-			}
-		}
-		
-		if (remainingAliens == 0) {
-			notifyWin();
-		}
-		
-		// Speed up remaining aliens
-		for (Entity entity : entities) {
-			if (entity instanceof AlienEntity) {
-				double speedMultiplier = Rules.remainingAlienSpeedMultiplier(gameStateManager.getCurrentRound());
-				entity.setHorizontalMovement(entity.getHorizontalMovement() * speedMultiplier);
-				entity.setVerticalMovement(entity.getVerticalMovement() * speedMultiplier);
-			}
-		}
-	}
+	public void notifyAlienKilled() { /* handled by server in network mode */ }
 	
 	/**
 	 * Attempt to fire a shot from the player. Its called "try"
 	 * since we must first check that the player can fire at this 
 	 * point, i.e. has he/she waited long enough between shots
 	 */
-	public void tryToFire() {
-		// Calculate firing interval based on attack speed skill
-		long currentFiringInterval = (long) (gameStateManager.getFiringInterval() / gameStateManager.getAttackSpeed());
-		
-		// check that we have waiting long enough to fire
-		if (System.currentTimeMillis() - gameStateManager.getLastFire() < currentFiringInterval) {
-			return;
-		}
-		
-		// if we waited long enough, create the shot entity, and record the time.
-		gameStateManager.setLastFire(System.currentTimeMillis());
-		
-		if (skillManager.hasTripleShot()) {
-			// Fire three shots in a wider spread pattern
-			ShotEntity shot1 = new ShotEntity(this,"sprites/shot.gif",ship.getX()-5,ship.getY()-30);
-			ShotEntity shot2 = new ShotEntity(this,"sprites/shot.gif",ship.getX()+10,ship.getY()-30);
-			ShotEntity shot3 = new ShotEntity(this,"sprites/shot.gif",ship.getX()+25,ship.getY()-30);
-			gameStateManager.getEntities().add(shot1);
-			gameStateManager.getEntities().add(shot2);
-			gameStateManager.getEntities().add(shot3);
-		} else {
-			// Fire single shot
-			ShotEntity shot = new ShotEntity(this,"sprites/shot.gif",ship.getX()+10,ship.getY()-30);
-			gameStateManager.getEntities().add(shot);
-		}
-	}
+	public void tryToFire() { if (client != null) client.inputShoot(); }
 	
 	/**
 	 * Add an alien shot to the game
@@ -305,10 +169,7 @@ public class Game extends Canvas implements Screen
 	 * @param x The x location of the shot
 	 * @param y The y location of the shot
 	 */
-	public void addAlienShot(int x, int y) {
-		ShotEntity shot = new ShotEntity(this, "sprites/alien2.gif", x, y, true);
-		gameStateManager.getEntities().add(shot);
-	}
+	public void addAlienShot(int x, int y) { /* server authoritative */ }
 	
 	/**
 	 * Add an alien shot with slight aim adjustment towards player
@@ -317,14 +178,7 @@ public class Game extends Canvas implements Screen
 	 * @param y The y location of the shot
 	 * @param alienX The x location of the alien firing
 	 */
-	public void addAimedAlienShot(int x, int y, int alienX) {
-		// Add more accurate horizontal adjustment towards player (within 15 pixel range)
-	int playerX = ship.getX() + 10; // Player center
-	int aimOffset = (int) Rules.aimedOffsetX(alienX, playerX);
-		
-		ShotEntity shot = new ShotEntity(this, "sprites/alien2.gif", x + aimOffset, y, true);
-		gameStateManager.getEntities().add(shot);
-	}
+	public void addAimedAlienShot(int x, int y, int alienX) { /* server authoritative */ }
 	
 	// 에일리언 사격 로직은 AlienFiringSystem으로 이동
 	
@@ -333,46 +187,34 @@ public class Game extends Canvas implements Screen
 	 * 
 	 * @return The player's attack power
 	 */
-	public int getPlayerAttackPower() {
-		return gameStateManager.getAttackPower();
-	}
+	public int getPlayerAttackPower() { return 0; }
 	
 	/**
 	 * Get the current round number
 	 * 
 	 * @return The current round
 	 */
-	public int getCurrentRound() {
-		return gameStateManager.getCurrentRound();
-	}
+	public int getCurrentRound() { return 1; }
 	
 	/**
 	 * Check if player is currently invincible
 	 */
-	public boolean isPlayerInvincible() {
-		return skillManager.isInvincible();
-	}
+	public boolean isPlayerInvincible() { return false; }
 	
 	/**
 	 * Check if player has piercing shots
 	 */
-	public boolean hasPiercingShots() {
-		return skillManager.hasPiercing();
-	}
+	public boolean hasPiercingShots() { return false; }
 	
 	/**
 	 * Check if player has triple shot
 	 */
-	public boolean hasTripleShot() {
-		return skillManager.hasTripleShot();
-	}
+	public boolean hasTripleShot() { return false; }
 	
 	/**
 	 * Add skill to inventory
 	 */
-	public void addSkillToInventory(int skillType, int skillValue) {
-		skillManager.addSkillToInventory(skillType, skillValue);
-	}
+	public void addSkillToInventory(int skillType, int skillValue) { /* client-side inventory removed */ }
 	
 	/**
 	 * The main game loop. This loop is running during all game
@@ -385,121 +227,60 @@ public class Game extends Canvas implements Screen
 	 * - Checking Input
 	 * <p>
 	 */
-	public void update(long delta) {
-		// 게임플레이 업데이트 (Game 화면은 항상 게임플레이)
-		// 스킬 효과 갱신
-		if (!gameStateManager.isShowingPauseMenu() && !gameStateManager.isShowingSkillMenu()) {
-			skillManager.updateSkillEffects();
-		}
-
-		// 이동/입력/에일리언 사격/충돌을 시스템으로 위임
-		MovementSystem.update(gameStateManager, this, inputManager, delta);
-		AlienFiringSystem.update(gameStateManager, alien -> alien.tryToFire(), ship);
-		CollisionSystem.update(gameStateManager);
-	}
+	public void update(long delta) { /* 스냅샷 기반: 입력은 키 이벤트에서 처리 */ }
 
 	public void render(Graphics2D g) {
-		ArrayList<Entity> entities = gameStateManager.getEntities();
-		commonRenderer.renderEntities(g, entities, uiRenderer, () -> {
-			// UI & overlays (싱글 공통)
-			uiRenderer.drawGameUI(g, gameStateManager, skillManager);
-			if (gameStateManager.isShowingPauseMenu()) { drawPauseMenu(g); }
-			if (gameStateManager.isShowingSkillMenu()) { drawSkillMenu(g); }
-			if (gameStateManager.isWaitingForKeyPress()) {
-				uiRenderer.drawMessage(g, gameStateManager.getMessage());
+		Snapshot snap = client != null ? client.getLatestSnapshot() : null;
+		commonRenderer.renderSnapshot(g, snap, () -> {
+			// HUD: 라운드/HP/스킬 포인트/스탯
+			g.setColor(java.awt.Color.LIGHT_GRAY);
+			int wave = (snap != null ? snap.wave : 0);
+			g.drawString("라운드: " + wave, 20, 25);
+
+			PlayerState me = null;
+			String myId = (client != null ? client.getPlayerId() : null);
+			if (snap != null && myId != null && snap.players != null) {
+				for (PlayerState ps : snap.players) if (myId.equals(ps.id)) { me = ps; break; }
+			}
+			if (me != null) {
+				// HP 텍스트
+				g.setColor(java.awt.Color.WHITE);
+				g.drawString("HP: " + me.hp + "/" + me.maxHp, 20, 50);
+				// HP 바(간단 구현)
+				int barX = 20, barY = 60, barW = 200, barH = 20;
+				g.setColor(new java.awt.Color(50,50,50)); g.fillRect(barX, barY, barW, barH);
+				int hpw = (int)(Math.max(0, Math.min(1.0, me.maxHp > 0 ? (double)me.hp/me.maxHp : 0)) * barW);
+				g.setColor(new java.awt.Color(255,0,0)); g.fillRect(barX, barY, hpw, barH);
+				g.setColor(java.awt.Color.WHITE); g.drawRect(barX, barY, barW, barH);
+
+				// 스킬 포인트 및 스탯
+				g.setColor(java.awt.Color.YELLOW); g.drawString("스킬 포인트: " + me.skillPoints, 20, 100);
+				g.setColor(java.awt.Color.WHITE); g.drawString("공격력: " + me.attackPower, 20, 120);
+				g.drawString("공격속도: " + String.format("%.1f", me.attackSpeed) + "x", 20, 135);
+				g.setColor(java.awt.Color.CYAN); g.drawString("Q: 스킬 메뉴", 20, 155);
+			}
+			if (statusText != null && !statusText.isEmpty()) g.drawString(statusText, 10, 180);
+
+			if (showingSkillMenuMulti) {
+				int sp = me != null ? me.skillPoints : 0;
+				int atk = me != null ? me.attackPower : 1;
+				double aspd = me != null ? me.attackSpeed : 1.0;
+				int hpmax = me != null ? me.maxHp : 3;
+				int cAtk = me != null ? me.costAtk : 2;
+				int cAspd = me != null ? me.costAspd : 2;
+				int cHp = me != null ? me.costHp : 8;
+				uiRenderer.drawSkillOverlay(g, sp, atk, aspd, hpmax, cAtk, cAspd, cHp, selectedSkillMulti);
 			}
 		});
 	}
-	
-	
-	/**
-	 * Getter methods for InputManager
-	 */
-	public Entity getShip() {
-		return ship;
-	}
-	
-	public double getMoveSpeed() {
-		return moveSpeed;
-	}
-	
-	public boolean isWaitingForKeyPress() {
-		return gameStateManager.isWaitingForKeyPress();
-	}
-	
-	public void setWaitingForKeyPress(boolean waiting) {
-		gameStateManager.setWaitingForKeyPress(waiting);
-	}
-	
-	/**
-	 * 게임 상태 반환 (gameplay 패키지용)
-	 */
-	// 게임 상태 텍스트 반환은 더 이상 필요하지 않음 (화면 전환은 App에서 관리)
-	
-	/**
-	 * 새 게임 시작 (gameplay 패키지용)
-	 */
-	public void startNewGame() { startGame(); }
-	
-	/**
-	 * 엔티티 리스트 반환 (gameplay 패키지용)
-	 */
-	public ArrayList<Entity> getEntities() {
-		return gameStateManager.getEntities();
-	}
-	
-	/**
-	 * 게임플레이 상태 반환
-	 */
-	public GameStateManager getGameplayState() {
-		return gameStateManager;
-	}
-	
-	/**
-	 * 스킬 매니저 반환
-	 */
-	public SkillManager getSkillManager() {
-		return skillManager;
-	}
-	
-	/**
-	 * UI 렌더러 반환
-	 */
-	public UIRenderer getUIRenderer() {
-		return uiRenderer;
-	}
-	
-	/**
-	 * 스킬 메뉴 그리기
-	 */
-	public void drawSkillMenu(java.awt.Graphics2D g2d) {
-		uiRenderer.drawSkillOverlay(
-			g2d,
-			gameStateManager.getSkillPoints(),
-			gameStateManager.getAttackPower(),
-			gameStateManager.getAttackSpeed(),
-			gameStateManager.getMaxHP(),
-			skillManager.getAttackPowerCost(),
-			skillManager.getAttackSpeedCost(),
-			skillManager.getHpUpCost(),
-			gameStateManager.getSelectedSkill()
-		);
-	}
-	
-	/**
-	 * 일시정지 메뉴 그리기
-	 */
-	public void drawPauseMenu(java.awt.Graphics2D g2d) {
-		uiRenderer.drawPauseOverlay(g2d, gameStateManager.getSelectedPauseMenuItem());
-	}
+    
+	// 간단 도우미: 네비게이션 사용 가능하게 유지
+	void goToMainMenu() { if (navigator != null) navigator.showMainMenu(); }
 
-	// 메인메뉴로 이동 (InputManager가 호출)
-	void goToMainMenu() {
-		if (navigator != null) navigator.showMainMenu();
-	}
-	
-	/**
-	 * 게임플레이 배경 그리기
-	 */
-    // 배경 렌더링은 BackgroundRenderer가 담당
+	// ===== Stubs for legacy classes (compile-only, not used in network mode) =====
+	public org.newdawn.spaceinvaders.gameplay.entity.Entity getShip() { return null; }
+	public double getMoveSpeed() { return org.newdawn.spaceinvaders.gameplay.core.Rules.PLAYER_MOVE_SPEED; }
+	public void removeEntity(org.newdawn.spaceinvaders.gameplay.entity.Entity entity) { /* no-op */ }
+	public java.util.ArrayList<org.newdawn.spaceinvaders.gameplay.entity.Entity> getEntities() { return new java.util.ArrayList<>(); }
+	public SkillManager getSkillManager() { return null; }
 }

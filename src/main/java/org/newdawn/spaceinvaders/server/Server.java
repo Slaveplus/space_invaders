@@ -87,6 +87,7 @@ public class Server {
     final String playerId = UUID.randomUUID().toString();
     float inputDx = 0; // 좌우 입력만 간소화 (-1,0,1)
     long lastShootAt = 0;
+    boolean fireHeld = false;
     // 일시적 버프(파워업) 비활성화에 따라 관련 타이머 제거
 
         Client(Socket socket) throws IOException {
@@ -194,8 +195,9 @@ public class Server {
                         } else if ("RIGHT".equals(key)) {
                             inputDx = down ? 1 : (inputDx == 1 ? 0 : inputDx);
                         } else if ("FIRE".equals(key)) {
-                            // 키다운 시 즉시 SHOOT 트리거(싱글은 키홀드 연사 X)
-                            if (down) handleCommand("SHOOT");
+                            // 싱글처럼 키홀드 동안 연사가 되도록 상태 유지
+                            fireHeld = down;
+                            if (down) handleCommand("SHOOT"); // 탭 반응성 유지
                         }
                     }
                 }
@@ -288,6 +290,18 @@ public class Server {
                     float minX = Rules.PLAYER_HALF_WIDTH;
                     float maxX = Rules.WIDTH - Rules.PLAYER_HALF_WIDTH;
                     if (ps.x < minX) ps.x = minX; if (ps.x > maxX) ps.x = maxX;
+                    // FIRE 키 홀드 시 연사 처리(쿨다운 반영)
+                    if (c.fireHeld) {
+                        long cd = (long)(Rules.PLAYER_BASE_FIRING_INTERVAL_MS / Math.max(0.1, ps.attackSpeed));
+                        if (now - c.lastShootAt >= cd) {
+                            c.lastShootAt = now;
+                            Entity b = new Entity();
+                            b.type = "bullet";
+                            b.x = ps.x; b.y = ps.y - 15; b.vx = 0; b.vy = Rules.BULLET_PLAYER_SPEED_Y;
+                            b.ownerId = c.playerId; b.pierce = 0;
+                            r.bullets.add(b);
+                        }
+                    }
                 }
             }
             // 외계인 개별 이동/방향 전환(싱글 규칙 유사)
@@ -306,6 +320,29 @@ public class Server {
                     if (a.lastDirectionChange > a.directionChangeInterval) {
                         if (Math.random() < 0.1) { a.vx = -a.vx; }
                         a.lastDirectionChange = 0L;
+                    }
+                }
+                // 싱글처럼 에일리언끼리 겹치지 않게 간단 충돌 해소
+                float minD = 24f; // 대략적인 반경(스프라이트 크기 근사)
+                float minD2 = minD * minD;
+                for (int i = 0; i < r.aliens.size(); i++) {
+                    Entity a = r.aliens.get(i);
+                    for (int j = i + 1; j < r.aliens.size(); j++) {
+                        Entity b = r.aliens.get(j);
+                        float dx = b.x - a.x, dy = b.y - a.y;
+                        float d2 = dx*dx + dy*dy;
+                        if (d2 < minD2) {
+                            // 방향 반전(싱글 AlienEntity.collideWithAlien 유사)
+                            a.vx = -a.vx; b.vx = -b.vx;
+                            if (Math.random() < 0.3) { a.vy = -a.vy; }
+                            if (Math.random() < 0.3) { b.vy = -b.vy; }
+                            // 살짝 밀어내기
+                            float d = (float)Math.max(1e-3, Math.sqrt(d2));
+                            float nx = dx / d, ny = dy / d;
+                            float push = (minD - d) * 0.5f;
+                            a.x -= nx * push; a.y -= ny * push;
+                            b.x += nx * push; b.y += ny * push;
+                        }
                     }
                 }
             }

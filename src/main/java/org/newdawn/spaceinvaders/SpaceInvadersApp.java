@@ -7,7 +7,7 @@ import org.newdawn.spaceinvaders.multiplay.ConnectCanvas;
 import org.newdawn.spaceinvaders.multiplay.RoomListCanvas;
 import org.newdawn.spaceinvaders.multiplay.LobbyCanvas;
 import org.newdawn.spaceinvaders.multiplay.MultiplayerClient;
-import org.newdawn.spaceinvaders.multiplay.CoopGameScreen;
+// CoopGameScreen 제거: Game을 네트 클라이언트 화면으로 공용 사용
 import org.newdawn.spaceinvaders.login.LoginScreenCanvas;
 import org.newdawn.spaceinvaders.mainmenu.MainMenuCanvas;
 
@@ -28,14 +28,16 @@ public class SpaceInvadersApp extends JFrame implements ScreenNavigator {
     // 스크린(캔버스)
     private LoginScreenCanvas loginScreenCanvas;
     private MainMenuCanvas mainMenuCanvas;
-    private Game gameScreen; // 싱글 게임 화면
+    // 레거시 싱글 게임 화면 제거: 싱글도 네트워크 파이프라인 사용
     // 멀티플레이 화면들
     private Canvas mpConnectCanvas;
     private Canvas mpRoomListCanvas;
     private Canvas mpLobbyCanvas;
     // 멀티 전투 화면(같은 화면에서 여러 플레이어 렌더)
-    private Canvas mpCoopScreen;
+    // 멀티 전투 화면은 Game을 네트 모드로 재사용
     private final MultiplayerClient multiplayerClient = new MultiplayerClient();
+    // 싱글도 동일 파이프라인 사용을 위한 로컬 임베디드 클라이언트
+    private MultiplayerClient localClient = new MultiplayerClient();
 
     private Screen currentScreen; // update/render 가상화
     private volatile boolean running = true;
@@ -76,13 +78,13 @@ public class SpaceInvadersApp extends JFrame implements ScreenNavigator {
     // 스크린 생성
         loginScreenCanvas = new LoginScreenCanvas(this);
         mainMenuCanvas = new MainMenuCanvas(this);
-        gameScreen = new Game(this); // 싱글 모드
+    // 레거시 싱글 화면 생성 제거
         // 멀티플레이 화면 생성
     mpConnectCanvas = new ConnectCanvas(this, multiplayerClient);
     mpRoomListCanvas = new RoomListCanvas(this, multiplayerClient);
     mpLobbyCanvas = new LobbyCanvas(this, multiplayerClient);
     // 멀티플레이 전투(같은 화면에서 여러 플레이어): 서버 스냅샷 기반 캔버스
-    mpCoopScreen = new CoopGameScreen(multiplayerClient);
+    // 멀티 전투 화면은 Game을 MultiplayerClient로 감싼 인스턴스로 사용
 
         // 초기 화면
         setScreen(loginScreenCanvas);
@@ -216,8 +218,18 @@ public class SpaceInvadersApp extends JFrame implements ScreenNavigator {
 
     @Override
     public void startNewGame() {
-        if (gameScreen != null) gameScreen.startNewGame();
-        requestSetScreen(gameScreen);
+        // 이전 로컬 세션 종료
+        if (localClient != null) {
+            try { localClient.disconnect(); } catch (Exception ignored) {}
+        }
+        // 로컬 임베디드 모드로 '서버를 띄운 척' 하고, 같은 네트 파이프라인으로 플레이
+        localClient = new MultiplayerClient();
+        localClient.enableLocalMode();
+        localClient.createRoom("single");
+        localClient.joinRoom("local-room");
+        localClient.ready();
+        localClient.start();
+        requestSetScreen(new Game(this, localClient, true));
     }
 
     @Override
@@ -231,8 +243,9 @@ public class SpaceInvadersApp extends JFrame implements ScreenNavigator {
 
     @Override
     public void startMultiplayerGame() {
-        // 같은 화면에서 여러 플레이어를 렌더링하는 협동 모드 화면으로 전환
-        requestSetScreen(mpCoopScreen);
+        // 같은 화면에서 여러 플레이어를 렌더링: Game을 네트 모드로 생성해 전환
+        Canvas netGame = new Game(this, multiplayerClient, true);
+        requestSetScreen(netGame);
     }
 
     @Override

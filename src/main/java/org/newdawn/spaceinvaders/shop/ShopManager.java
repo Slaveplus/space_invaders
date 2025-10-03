@@ -247,6 +247,7 @@ public class ShopManager {
                     
                     if (inventoryData instanceof List) {
                         // 기존 형식 (문자열 배열) 지원
+                        @SuppressWarnings("unchecked")
                         List<String> inventoryIds = (List<String>) inventoryData;
                         for (String itemId : inventoryIds) {
                             ShopItem item = getItemById(itemId);
@@ -258,10 +259,12 @@ public class ShopManager {
                         System.out.println("인벤토리 DB 로드 완료 (기존 형식): " + inventoryIds.size() + "개 아이템");
                     } else if (inventoryData instanceof java.util.Map) {
                         // 새로운 형식 (객체) 지원
+                        @SuppressWarnings("unchecked")
                         java.util.Map<String, Object> inventoryMap = (java.util.Map<String, Object>) inventoryData;
                         Object itemsObj = inventoryMap.get("items");
                         
                         if (itemsObj instanceof java.util.Map) {
+                            @SuppressWarnings("unchecked")
                             java.util.Map<String, Object> items = (java.util.Map<String, Object>) itemsObj;
                             
                             for (String itemId : items.keySet()) {
