@@ -5,15 +5,18 @@ import java.awt.Graphics2D;
 // no direct AWT listeners here; handled via InputManager
 import java.util.ArrayList;
 
-import org.newdawn.spaceinvaders.app.Screen;
-import org.newdawn.spaceinvaders.app.ScreenNavigator;
-import org.newdawn.spaceinvaders.login.UserManager;
-import org.newdawn.spaceinvaders.shop.ShopCategory;
-import org.newdawn.spaceinvaders.shop.ShopItem;
+import javax.swing.JFrame;
+import javax.swing.JPanel;
+
+import org.newdawn.spaceinvaders.SystemTimer;
 import org.newdawn.spaceinvaders.gameplay.entity.AlienEntity;
+import org.newdawn.spaceinvaders.gameplay.entity.BossEntity;
 import org.newdawn.spaceinvaders.gameplay.entity.Entity;
+import org.newdawn.spaceinvaders.gameplay.entity.ExplosionEntity;
+import org.newdawn.spaceinvaders.gameplay.entity.MissileEntity;
 import org.newdawn.spaceinvaders.gameplay.entity.ShipEntity;
 import org.newdawn.spaceinvaders.gameplay.entity.ShotEntity;
+import org.newdawn.spaceinvaders.gameplay.entity.Skill;
 
 /**
  * The main hook of our game. This class with both act as a manager
@@ -53,9 +56,11 @@ public class Game extends Canvas implements Screen
 	/** The current number of frames recorded */
 	// FPS 표시 기능은 상위에서 처리 가능, 내부적으로는 카운트만 유지하지 않음
 	/** The normal title of the game window */
-	// 창 제목은 상위 App에서 관리
-	/** navigator for screen transitions */
-	private final ScreenNavigator navigator;
+	private String windowTitle = "Space Invaders 102";
+	/** The game window that we'll update with the frame count */
+	private JFrame container;
+	/** Cached background image for better performance */
+	private java.awt.image.BufferedImage cachedBackgroundImage;
 	
 	/** The game state manager */
 	private GameStateManager gameStateManager;
@@ -72,11 +77,8 @@ public class Game extends Canvas implements Screen
 	/**
 	 * Construct our game and set it running.
 	 */
-	public Game(ScreenNavigator navigator) {
-		this.navigator = navigator;
-		this.userManager = null;
+	public Game() {
 		setIgnoreRepaint(true);
-		// 창 크기는 상위 App에서 관리하므로 기본값으로 설정
 		setBounds(0,0,800,600);
 		setFocusable(true);
 		
@@ -104,17 +106,6 @@ public class Game extends Canvas implements Screen
 		initEntities();
 	}
 
-	@Override
-	public void onShow() {
-		// 게임 화면이 표시될 때 포커스 보장
-		requestFocusInWindow();
-	}
-
-	@Override
-	public void onHide() {
-		// 현재는 리스너를 생성자에서 등록했으므로 별도 해제는 없음.
-		// 필요 시 입력 리셋 등 처리 가능
-	}
 	
 	/**
 	 * Start a fresh game, this should clear out any old data and
@@ -132,157 +123,8 @@ public class Game extends Canvas implements Screen
 		
 		// 스킬 매니저 초기화
 		skillManager.reset();
-		
-		// ShopManager에 아이템들 추가 및 장착 정보 로드
-		if (userManager != null && userManager.isLoggedIn()) {
-			// ShopManager의 static 메서드로 아이템 초기화
-			org.newdawn.spaceinvaders.shop.ShopManager.initializeDefaultItems(userManager.getShopManager());
-			userManager.getShopManager().loadInventoryFromDB();
-			userManager.getShopManager().loadEquipmentFromDB();
-		}
-		
-		// 장착된 아이템 적용
-		applyEquippedItems();
 	}
 	
-	
-	/**
-	 * UserManager 설정
-	 */
-	public void setUserManager(UserManager userManager) {
-		this.userManager = userManager;
-		// ShopManager의 장착 정보 동기화
-		if (userManager != null && userManager.isLoggedIn()) {
-			// ShopManager에 아이템들 추가 (MainMenu와 동일한 방식)
-			org.newdawn.spaceinvaders.shop.ShopManager.initializeDefaultItems(userManager.getShopManager());
-			userManager.getShopManager().loadInventoryFromDB();
-			userManager.getShopManager().loadEquipmentFromDB();
-		}
-		this.userManager = userManager;
-	}
-
-	
-	/**
-	 * 현재 우주선 스킨 경로 반환
-	 */
-	public String getCurrentSpaceshipSkin() {
-		return currentSpaceshipSkin;
-	}
-	
-	/**
-	 * 현재 무기 스킨 경로 반환
-	 */
-	public String getCurrentWeaponSkin() {
-		return currentWeaponSkin;
-	}
-	
-	/**
-	 * 장착된 아이템을 게임에 적용
-	 */
-	private void applyEquippedItems() {
-		if (userManager == null || !userManager.isLoggedIn()) {
-			return;
-	}
-		
-		
-		// 장착된 우주선 적용
-		ShopItem equippedSpaceship = getEquippedItem(ShopCategory.SPACESHIPS);
-		if (equippedSpaceship != null) {
-			// 우주선 스킨 변경
-			applySpaceshipSkin(equippedSpaceship);
-		} else {
-			// 기본 우주선 스킨 사용
-			currentSpaceshipSkin = "sprites/ship.gif";
-		}
-		
-		// 장착된 무기 적용
-		ShopItem equippedWeapon = getEquippedItem(ShopCategory.WEAPONS);
-		if (equippedWeapon != null) {
-			// 무기 스킨 및 효과 적용
-			applyWeaponSkin(equippedWeapon);
-			applyWeaponEffects(equippedWeapon);
-		} else {
-			// 기본 무기 스킨 사용
-			currentWeaponSkin = "sprites/shot.gif";
-		}
-		
-		// 장착된 파워업 적용
-		ShopItem equippedPowerup = getEquippedItem(ShopCategory.POWERUPS);
-		if (equippedPowerup != null) {
-			// 파워업 효과 적용
-			applyPowerupEffects(equippedPowerup);
-		}
-	}
-	
-	/**
-	 * 특정 카테고리의 장착된 아이템 가져오기
-	 */
-	private ShopItem getEquippedItem(ShopCategory category) {
-		if (userManager == null || !userManager.isLoggedIn()) {
-			return null;
-		}
-		
-		// UserManager에서 ShopManager를 통해 장착된 아이템 가져오기
-		ShopItem result = userManager.getShopManager().getEquippedItem(category);
-		return result;
-	}
-	
-	/**
-	 * 우주선 스킨 적용
-	 */
-	private void applySpaceshipSkin(ShopItem spaceship) {
-		// ShopItem의 getIconPath()를 사용하여 스킨 파일 경로 가져오기
-		String newSkinPath = spaceship.getIconPath();
-		
-		// 스킨이 변경된 경우에만 업데이트
-		if (!newSkinPath.equals(currentSpaceshipSkin)) {
-			currentSpaceshipSkin = newSkinPath;
-			updateShipSkin();
-		}
-	}
-	
-	/**
-	 * 우주선 스킨 업데이트
-	 */
-	private void updateShipSkin() {
-		if (ship != null) {
-			ship.changeSkin(currentSpaceshipSkin);
-		}
-	}
-	
-	/**
-	 * 무기 스킨 적용
-	 */
-	private void applyWeaponSkin(ShopItem weapon) {
-		// ShopItem의 getIconPath()를 사용하여 스킨 파일 경로 가져오기
-		currentWeaponSkin = weapon.getIconPath();
-	}
-	
-	/**
-	 * 무기 효과 적용
-	 */
-	private void applyWeaponEffects(ShopItem weapon) {
-		// 무기별 효과 적용
-		String weaponName = weapon.getName();
-		if (weaponName.contains("강화")) {
-			gameStateManager.setAttackPower(gameStateManager.getAttackPower() + 1);
-		}
-		if (weaponName.contains("빠른")) {
-			gameStateManager.setAttackSpeed(gameStateManager.getAttackSpeed() * 1.2);
-		}
-	}
-	
-	/**
-	 * 파워업 효과 적용 (일단 쓰지마셈)
-	 */
-	private void applyPowerupEffects(ShopItem powerup) {
-		// 파워업별 효과 적용
-		String powerupName = powerup.getName();
-		if (powerupName.contains("체력")) {
-			gameStateManager.setMaxHP(gameStateManager.getMaxHP() + 1);
-			gameStateManager.setCurrentHP(gameStateManager.getCurrentHP() + 1);
-		}
-	}
 	
 	/**
 	 * Initialise the starting state of the entities (ship and aliens). Each
@@ -298,17 +140,27 @@ public class Game extends Canvas implements Screen
 		int rows, cols;
 		
 		switch (gameStateManager.getCurrentRound()) {
-			case 1: rows = 3; cols = 6; break;  // 18 aliens
-			case 2: rows = 3; cols = 7; break;  // 21 aliens
-			case 3: rows = 4; cols = 7; break;  // 28 aliens
-			case 4: rows = 4; cols = 8; break;  // 32 aliens
-			case 5: rows = 5; cols = 8; break;  // 40 aliens
-			default: rows = 3; cols = 6; break;
+			case 1: rows = 2; cols = 5; break;  // 10 aliens (이전: 18)
+			case 2: rows = 3; cols = 5; break;  // 15 aliens (이전: 21)
+			case 3: rows = 3; cols = 6; break;  // 18 aliens (이전: 28)
+			case 4: rows = 3; cols = 7; break;  // 21 aliens (이전: 32)
+			case 5: rows = 4; cols = 7; break;  // 28 aliens (이전: 40)
+			default: rows = 2; cols = 5; break;
 		}
+		
+		// 화면 너비에 맞춰서 적들을 균등하게 배치
+		int screenWidth = 800;
+		int margin = 50; // 양쪽 여백
+		int usableWidth = screenWidth - (2 * margin);
+		int spacingX = usableWidth / (cols + 1); // 적들 사이 간격
+		int spacingY = 80; // 세로 간격
 		
 		for (int row=0; row<rows; row++) {
 			for (int x=0; x<cols; x++) {
-				Entity alien = new AlienEntity(this, 120+(x*70), (60)+row*35);
+				// 적들을 화면에 균등하게 배치
+				int posX = margin + spacingX * (x + 1);
+				int posY = 80 + (row * spacingY);
+				Entity alien = new AlienEntity(this, posX, posY);
 				gameStateManager.getEntities().add(alien);
 				alienCount++;
 			}
@@ -349,8 +201,6 @@ public class Game extends Canvas implements Screen
 		if (gameStateManager.getCurrentHP() <= 0) {
 			gameStateManager.setMessage("Oh no! They got you, try again?");
 			gameStateManager.setWaitingForKeyPress(true);
-			// 게임 오버 후 메뉴로 돌아가기
-			if (navigator != null) navigator.showMainMenu();
 		}
 	}
 	
@@ -362,15 +212,21 @@ public class Game extends Canvas implements Screen
 		boolean roundAdvanced = gameStateManager.advanceRound();
 		
 		if (roundAdvanced) {
-			// Clear current entities and initialize next round
-			gameStateManager.getEntities().clear();
-			initEntities();
+			// Check if this is a boss round (after round 1, 3, 5, etc.)
+			if (gameStateManager.getCurrentRound() == 2 || 
+				gameStateManager.getCurrentRound() == 4 || 
+				gameStateManager.getCurrentRound() == 6) {
+				// Boss round - spawn boss instead of regular aliens
+				spawnBoss();
+			} else {
+				// Regular round - clear current entities and initialize next round
+				gameStateManager.getEntities().clear();
+				initEntities();
+			}
 		} else {
 			// Game completed
 			gameStateManager.setMessage("Well done! You Win!");
 			gameStateManager.setWaitingForKeyPress(true);
-			// 게임 승리 후 메뉴로 돌아가기
-			if (navigator != null) navigator.showMainMenu();
 		}
 	}
 	
@@ -453,7 +309,7 @@ public class Game extends Canvas implements Screen
 	 * @param y The y location of the shot
 	 */
 	public void addAlienShot(int x, int y) {
-		ShotEntity shot = new ShotEntity(this, "sprites/alien2.gif", x, y, true);
+		ShotEntity shot = new ShotEntity(this, "sprites/shot.gif", x, y, true);
 		gameStateManager.getEntities().add(shot);
 	}
 	
@@ -470,8 +326,22 @@ public class Game extends Canvas implements Screen
 		int aimOffset = (int)((playerX - alienX) * 0.15); // 15% of distance towards player
 		aimOffset = Math.max(-15, Math.min(15, aimOffset)); // Clamp to player-sized range
 		
-		ShotEntity shot = new ShotEntity(this, "sprites/alien2.gif", x + aimOffset, y, true);
+		ShotEntity shot = new ShotEntity(this, "sprites/shot.gif", x + aimOffset, y, true);
 		gameStateManager.getEntities().add(shot);
+	}
+	
+	/**
+	 * Create a skill drop that moves downward in a straight line
+	 * 
+	 * @param x The x location where the skill drop is created
+	 * @param y The y location where the skill drop is created
+	 * @param skillType The type of skill (0: Invincible, 1: Piercing, 2: Triple Shot)
+	 * @param skillValue The value/duration of the skill
+	 */
+	public void createSkillDrop(int x, int y, int skillType, int skillValue) {
+		// Create skill drop using ShotEntity with skill drop functionality
+		ShotEntity skillDrop = new ShotEntity(this, "sprites/shot.gif", x, y, false, skillType, skillValue);
+		gameStateManager.getEntities().add(skillDrop);
 	}
 	
 	/**
@@ -483,16 +353,14 @@ public class Game extends Canvas implements Screen
 			return;
 		}
 		
-		// find aliens that are close enough to the player to fire
+		// find all aliens (no distance restriction)
 		ArrayList<AlienEntity> aliens = new ArrayList<>();
 		ArrayList<Entity> entities = gameStateManager.getEntities();
 		
 		for (Entity entity : entities) {
 			if (entity instanceof AlienEntity) {
-				// Only aliens that are close to the player can fire (within 200 pixels vertically)
-				if (Math.abs(entity.getY() - ship.getY()) < 200) {
-					aliens.add((AlienEntity) entity);
-				}
+				// 모든 적이 공격 가능 (거리 제한 없음)
+				aliens.add((AlienEntity) entity);
 			}
 		}
 		
@@ -554,6 +422,33 @@ public class Game extends Canvas implements Screen
 	}
 	
 	/**
+	 * Fire missile at a target location
+	 * 
+	 * @param targetX The target x location
+	 * @param targetY The target y location
+	 */
+	public void fireMissile(double targetX, double targetY) {
+		try {
+			// Fire missile from player position
+			MissileEntity missile = new MissileEntity(this, "sprites/Skill/Missile.png", 
+					(int)ship.getX() + 15, (int)ship.getY(), targetX, targetY);
+			gameStateManager.getEntities().add(missile);
+		} catch (Exception e) {
+			System.err.println("Error firing missile: " + e.getMessage());
+			e.printStackTrace();
+		}
+	}
+	
+	/**
+	 * Add entity to the game
+	 * 
+	 * @param entity The entity to add
+	 */
+	public void addEntity(Entity entity) {
+		gameStateManager.getEntities().add(entity);
+	}
+	
+	/**
 	 * The main game loop. This loop is running during all game
 	 * play as is responsible for the following activities:
 	 * <p>
@@ -586,6 +481,7 @@ public class Game extends Canvas implements Screen
 			} else if (inputManager.isRightPressed() && !inputManager.isLeftPressed()) {
 				ship.setHorizontalMovement(moveSpeed);
 			}
+<<<<<<< HEAD
 			if (inputManager.isFirePressed()) {
 				tryToFire();
 			}
@@ -634,6 +530,14 @@ public class Game extends Canvas implements Screen
 	 */
 	public Entity getShip() {
 		return ship;
+	}
+	
+	public int getShipX() {
+		return ship != null ? (int)ship.getX() : 370;
+	}
+	
+	public int getShipY() {
+		return ship != null ? (int)ship.getY() : 550;
 	}
 	
 	public double getMoveSpeed() {
@@ -710,14 +614,171 @@ public class Game extends Canvas implements Screen
 		uiRenderer.drawPauseOverlay(g2d, gameStateManager.getSelectedPauseMenuItem());
 	}
 
-	// 메인메뉴로 이동 (InputManager가 호출)
-	void goToMainMenu() {
-		if (navigator != null) navigator.showMainMenu();
-	}
-	
 	/**
 	 * 게임플레이 배경 그리기
 	 */
-    // 배경 렌더링은 BackgroundRenderer가 담당
+	private void drawGameplayBackground(java.awt.Graphics2D g) {
+		try {
+			// Load background image only once (cache it)
+			if (cachedBackgroundImage == null) {
+				cachedBackgroundImage = javax.imageio.ImageIO.read(
+					getClass().getResourceAsStream("/sprites/backgrounds/Background-3.jpg")
+				);
+			}
+			
+			// Draw cached background image scaled to fit screen
+			g.drawImage(cachedBackgroundImage, 0, 0, 800, 600, null);
+		} catch (Exception e) {
+			// Fallback to black background if image loading fails
+			g.setColor(java.awt.Color.black);
+			g.fillRect(0, 0, 800, 600);
+		}
+	}
+	
+	/**
+	 * Create explosion effect
+	 * 
+	 * @param x X coordinate
+	 * @param y Y coordinate
+	 * @param radius Explosion radius
+	 */
+	public void createExplosion(int x, int y, double radius) {
+		try {
+			ExplosionEntity explosion = new ExplosionEntity(this, "sprites/Skill/Explosion.png", x, y, radius);
+			gameStateManager.getEntities().add(explosion);
+		} catch (Exception e) {
+			System.err.println("Error creating explosion: " + e.getMessage());
+			e.printStackTrace();
+		}
+	}
+	
+	/**
+	 * Add score points
+	 * 
+	 * @param points Points to add
+	 */
+	public void addScore(int points) {
+		System.out.println("Score added: " + points);
+	}
+	
+	/**
+	 * Add skill points
+	 * 
+	 * @param points Skill points to add
+	 */
+	public void addSkillPoints(int points) {
+		int currentPoints = gameStateManager.getSkillPoints();
+		gameStateManager.setSkillPoints(currentPoints + points);
+		System.out.println("Skill points added: " + points + " (Total: " + (currentPoints + points) + ")");
+	}
+	
+	/**
+	 * Spawn a boss for the current round
+	 */
+	public void spawnBoss() {
+		try {
+			int round = gameStateManager.getCurrentRound();
+			BossEntity boss = new BossEntity(this, 400, 120, round); // Center, slightly lower
+			gameStateManager.getEntities().add(boss);
+			
+			// 보스 좌우에 1round_small.png 몬스터 추가 (조금 띄어서 배치)
+			AlienEntity leftAlien = new AlienEntity(this, 200, 120); // 보스 왼쪽 (더 멀리)
+			AlienEntity rightAlien = new AlienEntity(this, 600, 120); // 보스 오른쪽 (더 멀리)
+			gameStateManager.getEntities().add(leftAlien);
+			gameStateManager.getEntities().add(rightAlien);
+			
+			System.out.println("BOSS SPAWNED! Round " + round + " Boss with " + boss.getMaxHP() + " HP!");
+			System.out.println("Side aliens added to boss fight!");
+			
+			gameStateManager.setMessage("⚠️ BOSS APPEARED! ⚠️");
+			gameStateManager.setWaitingForKeyPress(true);
+		} catch (Exception e) {
+			System.err.println("Error spawning boss: " + e.getMessage());
+			e.printStackTrace();
+		}
+	}
+	
+	/**
+	 * Check if there's currently a boss in the game
+	 * 
+	 * @return True if boss exists
+	 */
+	public boolean hasBoss() {
+		for (Object obj : gameStateManager.getEntities()) {
+			if (obj instanceof BossEntity) {
+				return true;
+			}
+		}
+		return false;
+	}
+	
+	/**
+	 * Get the current boss entity
+	 * 
+	 * @return BossEntity or null if no boss exists
+	 */
+	public BossEntity getBoss() {
+		for (Object obj : gameStateManager.getEntities()) {
+			if (obj instanceof BossEntity) {
+				return (BossEntity) obj;
+			}
+		}
+		return null;
+	}
+	
+	/**
+	 * Handle boss defeat
+	 */
+	public void notifyBossDefeated() {
+		System.out.println("BOSS DEFEATED! Round " + gameStateManager.getCurrentRound() + " completed!");
+		
+		gameStateManager.setMessage("🎉 BOSS DEFEATED! 🎉 Round " + gameStateManager.getCurrentRound() + " Complete!");
+		gameStateManager.setWaitingForKeyPress(true);
+		
+		// Advance to next round after boss defeat
+		boolean roundAdvanced = gameStateManager.advanceRound();
+		if (roundAdvanced) {
+			// Clear entities and start next round
+			gameStateManager.getEntities().clear();
+			initEntities();
+		} else {
+			// Game completed
+			gameStateManager.setMessage("🏆 GAME COMPLETED! 🏆 Congratulations!");
+			gameStateManager.setWaitingForKeyPress(true);
+			gameStateManager.handleGameEnd();
+		}
+	}
+	
+	/**
+	 * Add a boss shot to the game
+	 * 
+	 * @param x X coordinate
+	 * @param y Y coordinate
+	 */
+	public void addBossShot(int x, int y) {
+		try {
+			ShotEntity shot = new ShotEntity(this, "sprites/shot.gif", x, y, true); // true = alien shot
+			gameStateManager.getEntities().add(shot);
+		} catch (Exception e) {
+			System.err.println("Error adding boss shot: " + e.getMessage());
+			e.printStackTrace();
+		}
+	}
+	
+	/**
+	 * The entry point into the game. We'll simply create an
+	 * instance of class which will start the display and game
+	 * loop.
+	 * 
+	 * @param argv The arguments that are passed into our game
+	 */
+	public static void main(String argv[]) {
+		Game g = new Game();
+
+		// Start the main game loop, note: this method will not
+		// return until the game has finished running. Hence we are
+		// using the actual main thread to run the game.
+		g.gameLoop();
+	}
 	
 }

@@ -5,7 +5,6 @@ import java.awt.event.KeyEvent;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 
-
 /**
  * 입력 관리 클래스
  * 키보드와 마우스 입력을 통합 관리합니다
@@ -48,13 +47,33 @@ public class InputManager {
          */
         public void keyTyped(KeyEvent e) {
             // 게임플레이 중 "any key" 대기 상태일 때
-            if (gameStateManager.isWaitingForKeyPress()) {
+            if (gameStateManager.isGameplay() && gameStateManager.isWaitingForKeyPress()) {
+                // 스킬 메뉴가 열려있고 waitingForKeyPress가 true인 경우 (스킬 포인트 부족 메시지)
+                if (gameStateManager.isShowingSkillMenu()) {
+                    gameStateManager.setWaitingForKeyPress(false);
+                    // 스킬 메뉴는 그대로 유지
+                    return;
+                }
+                
+                // 일시정지 메뉴가 열려있으면 무시
+                if (gameStateManager.isShowingPauseMenu()) {
+                    return;
+                }
+                
                 if (pressCount == 1) {
                     // since we've now recieved our key typed
                     // event we can mark it as such and start 
                     // our new game
                     gameStateManager.setWaitingForKeyPress(false);
-                    game.startGame();
+                    
+                    // 라운드 전환 중이면 게임을 초기화하지 않고 플래그만 해제
+                    if (gameStateManager.isRoundTransition()) {
+                        gameStateManager.setRoundTransition(false);
+                        // 라운드 전환 완료
+                    } else {
+                        // 새로운 게임 시작 (게임 오버 후 재시작 등)
+                        game.startGame();
+                    }
                     pressCount = 0;
                 } else {
                     pressCount++;
@@ -66,8 +85,8 @@ public class InputManager {
          * 게임플레이 중 키 눌림 처리
          */
         private void handleGameplayKeyPressed(KeyEvent e) {
-            // "any key" 대기 중이면 키 입력 무시
-            if (gameStateManager.isWaitingForKeyPress()) {
+            // "any key" 대기 중이면 키 입력 무시 (스킬 메뉴에서 메시지 대기 중이 아닌 경우)
+            if (gameStateManager.isWaitingForKeyPress() && !gameStateManager.isShowingSkillMenu()) {
                 return;
             }
             
@@ -86,6 +105,7 @@ public class InputManager {
             if (e.getKeyCode() == KeyEvent.VK_Q) {
                 if (gameStateManager.isShowingSkillMenu()) {
                     gameStateManager.hideSkillMenu();
+                    gameStateManager.setWaitingForKeyPress(false); // 메시지 대기 상태도 해제
                 } else if (!gameStateManager.isShowingPauseMenu()) {
                     // Only open skill menu if pause menu is not open
                     gameStateManager.showSkillMenu();
@@ -121,6 +141,11 @@ public class InputManager {
                 return;
             }
             
+            if (e.getKeyCode() == KeyEvent.VK_4) {
+                skillManager.activateSkill(3, 1); // Activate missile skill
+                return;
+            }
+            
             if (e.getKeyCode() == KeyEvent.VK_LEFT) {
                 leftPressed = true;
             }
@@ -136,8 +161,10 @@ public class InputManager {
          * 게임플레이 중 키 릴리즈 처리
          */
         private void handleGameplayKeyReleased(KeyEvent e) {
-            // "any key" 대기 중이면 키 입력 무시
-            if (gameStateManager.isWaitingForKeyPress()) { return; }
+            // "any key" 대기 중이면 키 입력 무시 (스킬 메뉴에서 메시지 대기 중이 아닌 경우)
+            if (gameStateManager.isWaitingForKeyPress() && !gameStateManager.isShowingSkillMenu()) {
+                return;
+            }
             
             if (e.getKeyCode() == KeyEvent.VK_LEFT) {
                 leftPressed = false;
@@ -253,6 +280,7 @@ public class InputManager {
         } else if (e.getKeyCode() == KeyEvent.VK_Q) {
             // 스킬 메뉴 닫기
             gameStateManager.hideSkillMenu();
+            gameStateManager.setWaitingForKeyPress(false); // 메시지 대기 상태도 해제
         }
     }
     
@@ -271,7 +299,8 @@ public class InputManager {
                 if (skillPoints >= skillManager.getAttackPowerCost()) {
                     gameStateManager.setAttackPower(gameStateManager.getAttackPower() + 1);
                     gameStateManager.setSkillPoints(skillPoints - skillManager.getAttackPowerCost());
-                    result = "공격력이 증가했습니다! (현재: " + gameStateManager.getAttackPower() + ")";
+                    skillManager.increaseAttackPowerLevel(); // 강화 레벨 증가
+                    result = "공격력이 증가했습니다! (현재: " + gameStateManager.getAttackPower() + ", 레벨: " + skillManager.getAttackPowerLevel() + ")";
                     success = true;
                 } else {
                     result = "스킬 포인트가 부족합니다! (필요: " + skillManager.getAttackPowerCost() + ", 보유: " + skillPoints + ")";
@@ -282,7 +311,8 @@ public class InputManager {
                 if (skillPoints >= skillManager.getAttackSpeedCost()) {
                     gameStateManager.setAttackSpeed(gameStateManager.getAttackSpeed() + 0.2);
                     gameStateManager.setSkillPoints(skillPoints - skillManager.getAttackSpeedCost());
-                    result = "공격 속도가 증가했습니다! (현재: " + String.format("%.1f", gameStateManager.getAttackSpeed()) + ")";
+                    skillManager.increaseAttackSpeedLevel(); // 강화 레벨 증가
+                    result = "공격 속도가 증가했습니다! (현재: " + String.format("%.1f", gameStateManager.getAttackSpeed()) + ", 레벨: " + skillManager.getAttackSpeedLevel() + ")";
                     success = true;
                 } else {
                     result = "스킬 포인트가 부족합니다! (필요: " + skillManager.getAttackSpeedCost() + ", 보유: " + skillPoints + ")";
@@ -294,7 +324,8 @@ public class InputManager {
                     gameStateManager.setMaxHP(gameStateManager.getMaxHP() + 3);
                     gameStateManager.setCurrentHP(gameStateManager.getMaxHP()); // Also heal to full
                     gameStateManager.setSkillPoints(skillPoints - skillManager.getHpUpCost());
-                    result = "최대 체력이 증가하고 체력이 회복되었습니다! (현재: " + gameStateManager.getMaxHP() + ")";
+                    skillManager.increaseHpUpLevel(); // 강화 레벨 증가
+                    result = "최대 체력이 증가하고 체력이 회복되었습니다! (현재: " + gameStateManager.getMaxHP() + ", 레벨: " + skillManager.getHpUpLevel() + ")";
                     success = true;
                 } else {
                     result = "스킬 포인트가 부족합니다! (필요: " + skillManager.getHpUpCost() + ", 보유: " + skillPoints + ")";
@@ -305,11 +336,16 @@ public class InputManager {
         // 메시지 설정
         gameStateManager.setMessage(result);
         
-        // 성공했으면 스킬 메뉴 닫기, 실패했으면 메시지 표시 후 대기
+        // 성공했든 실패했든 스킬 메뉴는 유지하고 메시지만 표시
         if (success) {
-            gameStateManager.hideSkillMenu();
-        } else {
+            // 스킬 강화 성공 시 메시지 표시 후 대기
             gameStateManager.setWaitingForKeyPress(true);
+            gameStateManager.setRoundTransition(false);
+        } else {
+            // 스킬 포인트 부족 시 waitingForKeyPress를 설정하여 메시지 표시
+            // keyTyped에서 스킬 메뉴 상태일 때 처리하도록 개선됨
+            gameStateManager.setWaitingForKeyPress(true);
+            gameStateManager.setRoundTransition(false); // 스킬 선택 실패 시 라운드 전환 플래그 해제
         }
     }
     
