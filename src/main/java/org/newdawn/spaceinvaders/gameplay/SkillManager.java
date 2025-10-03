@@ -4,7 +4,6 @@ import org.newdawn.spaceinvaders.Game;
 
 import java.util.ArrayList;
 import org.newdawn.spaceinvaders.entity.Entity;
-import org.newdawn.spaceinvaders.entity.ShotEntity;
 import org.newdawn.spaceinvaders.entity.AlienEntity;
 
 /**
@@ -18,8 +17,8 @@ public class SkillManager {
     private int hpUpLevel = 0;
     
     // 기본 스킬 비용 (밸런스 조정)
-    private final int baseAttackPowerCost = 5;   // 공격력: 5, 6, 7, 8...
-    private final int baseAttackSpeedCost = 4;   // 공격속도: 4, 5, 6, 7...
+    private final int baseAttackPowerCost = 2;   // 공격력: 2, 4, 6, 8, 10...
+    private final int baseAttackSpeedCost = 2;   // 공격속도: 2, 4, 6, 8, 10...
     private final int baseHpUpCost = 15;         // 체력: 15, 23, 31, 39...
     
     // 스킬 효과 상태
@@ -178,20 +177,23 @@ public class SkillManager {
             }
         }
         
-        // Random skill type (0: Invincible, 1: Piercing, 2: Triple Shot)
+        // Random skill type (0: Attack Power, 1: Attack Speed, 2: HP Recovery, 3: Missile)
         double random = Math.random();
         int skillType;
         int skillValue;
         
-        if (random < 0.33) {
-            skillType = 0; // Invincible
+        if (random < 0.25) {
+            skillType = 0; // Attack Power
             skillValue = 5; // 5 seconds
-        } else if (random < 0.66) {
-            skillType = 1; // Piercing
+        } else if (random < 0.5) {
+            skillType = 1; // Attack Speed
             skillValue = 10; // 10 seconds
-        } else {
-            skillType = 2; // Triple Shot
+        } else if (random < 0.75) {
+            skillType = 2; // HP Recovery
             skillValue = 8; // 8 seconds
+        } else {
+            skillType = 3; // Missile
+            skillValue = 1; // 1 missile
         }
         
         // Create skill entity
@@ -202,9 +204,8 @@ public class SkillManager {
      * 스킬 드롭 엔티티 추가
      */
     private void addSkillDrop(int x, int y, int skillType, int skillValue) {
-        // ShotEntity는 기본 생성자만 지원하므로 일반 ShotEntity로 생성
-        ShotEntity skillDrop = new ShotEntity(game, "sprites/shot.gif", x, y);
-        // TODO: 스킬 드롭 기능은 별도 엔티티로 구현 필요
+        // Game의 createSkillDrop 메서드를 사용하여 스킬 드롭 생성
+        game.createSkillDrop(x, y, skillType, skillValue);
     }
     
     
@@ -258,16 +259,16 @@ public class SkillManager {
      * 스킬 드롭 확률 계산
      */
     public double getSkillDropChance(int currentRound) {
-        return 0.08 + (currentRound * 0.02); // 10%, 12%, 14%, 16%, 18% for rounds 1-5
+        return 0.15 + (currentRound * 0.05); // 20%, 25%, 30%, 35%, 40% for rounds 1-5 (increased for testing)
     }
     
     // 점진적 비용 계산 메서드들
     public int getAttackPowerCost() { 
-        return baseAttackPowerCost + (attackPowerLevel * 1); // 5, 6, 7, 8...
+        return baseAttackPowerCost + (attackPowerLevel * 2); // 2, 4, 6, 8, 10...
     }
     
     public int getAttackSpeedCost() { 
-        return baseAttackSpeedCost + (attackSpeedLevel * 1); // 4, 5, 6, 7...
+        return baseAttackSpeedCost + (attackSpeedLevel * 2); // 2, 4, 6, 8, 10...
     }
     
     public int getHpUpCost() { 

@@ -4,6 +4,8 @@ import java.awt.Color;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
 import java.awt.image.BufferedImage;
+import javax.imageio.ImageIO;
+import java.io.InputStream;
 
 import org.newdawn.spaceinvaders.Game;
 
@@ -112,27 +114,12 @@ public class ShotEntity extends Entity {
 		this.skillValue = skillValue;
 		
 		if (skillType >= 0) {
-			// This is a skill drop - move towards player
+			// This is a skill drop - move straight down
 			isSkillDrop = true;
 			
-			// Calculate direction towards player
-			int playerX = game.getShip().getX() + 15; // Player center
-			int playerY = game.getShip().getY();
-			
-			// Calculate distance and direction
-			double dxToPlayer = playerX - x;
-			double dyToPlayer = playerY - y;
-			double distance = Math.sqrt(dxToPlayer * dxToPlayer + dyToPlayer * dyToPlayer);
-			
-			// Normalize and scale to desired speed (200 pixels per second)
-			double speed = 200;
-			if (distance > 0) {
-				dx = (dxToPlayer / distance) * speed;
-				dy = (dyToPlayer / distance) * speed;
-			} else {
-				dx = 0;
-				dy = speed; // Fallback to downward movement
-			}
+			// Move straight down at constant speed
+			dx = 0; // No horizontal movement
+			dy = 150; // Move downward at 150 pixels per second
 		} else if (isAlienShot) {
 			dy = 300; // Alien shots move downward
 		} else {
@@ -175,76 +162,33 @@ public class ShotEntity extends Entity {
 	 */
 	public void draw(Graphics g) {
 		if (isSkillDrop) {
-			// Draw skill drop
+			// Draw skill drop using PNG images
 			Graphics2D g2d = (Graphics2D) g;
 			
-			if (skillType == 0) { // Invincible skill
-				// Golden shield-like appearance
-				g2d.setColor(new Color(255, 215, 0, 200)); // Gold with transparency
-				g2d.fillOval((int)x - 8, (int)y - 8, 16, 16);
+			// Load and draw the appropriate PNG image based on skill type
+			BufferedImage skillImage = loadSkillImage(skillType);
+			if (skillImage != null) {
+				// Draw the PNG skill image, scaled to 32x32
+				int imageSize = 32;
+				int drawX = (int)x - imageSize/2;
+				int drawY = (int)y - imageSize/2;
+				g2d.drawImage(skillImage, drawX, drawY, imageSize, imageSize, null);
+			} else {
+				// Fallback: Draw simple colored background if PNG failed to load
+				g2d.setColor(Color.BLACK);
+				g2d.fillRect((int)x - 16, (int)y - 16, 32, 32);
+				g2d.setColor(Color.GRAY);
+				g2d.drawRect((int)x - 16, (int)y - 16, 32, 32);
 				
-				// Inner circle
-				g2d.setColor(new Color(255, 255, 0, 150));
-				g2d.fillOval((int)x - 6, (int)y - 6, 12, 12);
-				
-				// Border
-				g2d.setColor(new Color(255, 140, 0));
-				g2d.setStroke(new java.awt.BasicStroke(2));
-				g2d.drawOval((int)x - 8, (int)y - 8, 16, 16);
-				
-				// Cross symbol for invincibility
+				// Draw skill type text as fallback
 				g2d.setColor(Color.WHITE);
-				g2d.setStroke(new java.awt.BasicStroke(2));
-				g2d.drawLine((int)x - 3, (int)y, (int)x + 3, (int)y);
-				g2d.drawLine((int)x, (int)y - 3, (int)x, (int)y + 3);
-				
-			} else if (skillType == 1) { // Piercing skill
-				// Red piercing arrow-like appearance
-				g2d.setColor(new Color(255, 0, 0, 200)); // Red with transparency
-				g2d.fillOval((int)x - 8, (int)y - 8, 16, 16);
-				
-				// Inner circle
-				g2d.setColor(new Color(255, 100, 100, 150));
-				g2d.fillOval((int)x - 6, (int)y - 6, 12, 12);
-				
-				// Border
-				g2d.setColor(new Color(180, 0, 0));
-				g2d.setStroke(new java.awt.BasicStroke(2));
-				g2d.drawOval((int)x - 8, (int)y - 8, 16, 16);
-				
-				// Arrow symbol for piercing
-				g2d.setColor(Color.WHITE);
-				g2d.setStroke(new java.awt.BasicStroke(2));
-				// Arrow pointing down
-				g2d.drawLine((int)x, (int)y - 4, (int)x, (int)y + 2);
-				g2d.drawLine((int)x - 2, (int)y, (int)x, (int)y + 2);
-				g2d.drawLine((int)x + 2, (int)y, (int)x, (int)y + 2);
-				
-			} else if (skillType == 2) { // Triple shot skill
-				// Blue triple shot appearance
-				g2d.setColor(new Color(0, 100, 255, 200)); // Blue with transparency
-				g2d.fillOval((int)x - 8, (int)y - 8, 16, 16);
-				
-				// Inner circle
-				g2d.setColor(new Color(100, 150, 255, 150));
-				g2d.fillOval((int)x - 6, (int)y - 6, 12, 12);
-				
-				// Border
-				g2d.setColor(new Color(0, 50, 150));
-				g2d.setStroke(new java.awt.BasicStroke(2));
-				g2d.drawOval((int)x - 8, (int)y - 8, 16, 16);
-				
-				// Three dots symbol for triple shot
-				g2d.setColor(Color.WHITE);
-				g2d.setStroke(new java.awt.BasicStroke(2));
-				g2d.fillOval((int)x - 4, (int)y - 2, 3, 3);
-				g2d.fillOval((int)x - 1, (int)y - 2, 3, 3);
-				g2d.fillOval((int)x + 2, (int)y - 2, 3, 3);
+				g2d.setFont(new java.awt.Font("Arial", java.awt.Font.BOLD, 12));
+				g2d.drawString("S" + skillType, (int)x - 8, (int)y + 4);
 			}
 			
 			// Add a subtle glow effect
 			g2d.setColor(new Color(255, 255, 255, 50));
-			g2d.fillOval((int)x - 10, (int)y - 10, 20, 20);
+			g2d.fillOval((int)x - 18, (int)y - 18, 36, 36);
 			
 		} else if (isAlienShot) {
 			// Draw circular alien energy projectile
@@ -298,6 +242,7 @@ public class ShotEntity extends Entity {
 		if (isSkillDrop) {
 			// Skill drop: if we've hit the player ship, add to inventory
 			if (other instanceof ShipEntity) {
+				System.out.println("Skill drop collected! Type: " + skillType + ", Value: " + skillValue);
 				// remove the skill drop
 				game.removeEntity(this);
 				
@@ -322,6 +267,10 @@ public class ShotEntity extends Entity {
 				AlienEntity alien = (AlienEntity) other;
 				alien.takeDamage(game.getPlayerAttackPower());
 				
+				// Create heat effect at hit location
+				HeatEffectEntity heatEffect = new HeatEffectEntity(game, (int)x, (int)y);
+				game.addEntity(heatEffect);
+				
 				// Check if this shot has piercing ability or player has piercing shots
 				if (!hasPiercing && !game.hasPiercingShots()) {
 					// remove the shot only if not piercing
@@ -329,6 +278,18 @@ public class ShotEntity extends Entity {
 					used = true;
 				}
 				// If piercing, the shot continues through aliens
+			} else if (other instanceof BossEntity) {
+				// Player shot: if we've hit a boss, damage it!
+				BossEntity boss = (BossEntity) other;
+				boss.takeDamage(game.getPlayerAttackPower());
+				
+				// Create heat effect at hit location
+				HeatEffectEntity heatEffect = new HeatEffectEntity(game, (int)x, (int)y);
+				game.addEntity(heatEffect);
+				
+				// Boss shots are always destroyed on hit (no piercing through boss)
+				game.removeEntity(this);
+				used = true;
 			}
 		}
 	}
@@ -341,4 +302,44 @@ public class ShotEntity extends Entity {
 	public boolean isAlienShot() {
 		return isAlienShot;
 	}
+	
+	/**
+	 * Load skill image based on skill type
+	 * 
+	 * @param skillType The skill type (0-3)
+	 * @return BufferedImage of the skill icon
+	 */
+	private BufferedImage loadSkillImage(int skillType) {
+		String imagePath;
+		switch (skillType) {
+			case 0: // Attack Power
+				imagePath = "sprites/Skill/1.png";
+				break;
+			case 1: // Attack Speed
+				imagePath = "sprites/Skill/2.png";
+				break;
+			case 2: // HP Recovery
+				imagePath = "sprites/Skill/3.png";
+				break;
+			case 3: // Missile
+				imagePath = "sprites/Skill/4.png";
+				break;
+			default:
+				imagePath = "sprites/Skill/1.png";
+				break;
+		}
+		
+		try {
+			InputStream is = getClass().getClassLoader().getResourceAsStream(imagePath);
+			if (is != null) {
+				BufferedImage image = ImageIO.read(is);
+				is.close();
+				return image;
+			}
+		} catch (Exception e) {
+			System.err.println("Failed to load skill image: " + imagePath);
+		}
+		return null;
+	}
+	
 }

@@ -23,6 +23,7 @@ import org.newdawn.spaceinvaders.entity.ShotEntity;
 import org.newdawn.spaceinvaders.entity.Skill;
 import org.newdawn.spaceinvaders.entity.MissileEntity;
 import org.newdawn.spaceinvaders.entity.ExplosionEntity;
+import org.newdawn.spaceinvaders.entity.BossEntity;
 import org.newdawn.spaceinvaders.gameplay.GameStateManager;
 import org.newdawn.spaceinvaders.gameplay.InputManager;
 import org.newdawn.spaceinvaders.gameplay.SkillManager;
@@ -68,6 +69,8 @@ public class Game extends Canvas
 	private String windowTitle = "Space Invaders 102";
 	/** The game window that we'll update with the frame count */
 	private JFrame container;
+	/** Cached background image for better performance */
+	private java.awt.image.BufferedImage cachedBackgroundImage;
 	
 	/** The game state manager */
 	private GameStateManager gameStateManager;
@@ -172,17 +175,27 @@ public class Game extends Canvas
 		int rows, cols;
 		
 		switch (gameStateManager.getCurrentRound()) {
-			case 1: rows = 3; cols = 6; break;  // 18 aliens
-			case 2: rows = 3; cols = 7; break;  // 21 aliens
-			case 3: rows = 4; cols = 7; break;  // 28 aliens
-			case 4: rows = 4; cols = 8; break;  // 32 aliens
-			case 5: rows = 5; cols = 8; break;  // 40 aliens
-			default: rows = 3; cols = 6; break;
+			case 1: rows = 2; cols = 5; break;  // 10 aliens (이전: 18)
+			case 2: rows = 3; cols = 5; break;  // 15 aliens (이전: 21)
+			case 3: rows = 3; cols = 6; break;  // 18 aliens (이전: 28)
+			case 4: rows = 3; cols = 7; break;  // 21 aliens (이전: 32)
+			case 5: rows = 4; cols = 7; break;  // 28 aliens (이전: 40)
+			default: rows = 2; cols = 5; break;
 		}
+		
+		// 화면 너비에 맞춰서 적들을 균등하게 배치
+		int screenWidth = 800;
+		int margin = 50; // 양쪽 여백
+		int usableWidth = screenWidth - (2 * margin);
+		int spacingX = usableWidth / (cols + 1); // 적들 사이 간격
+		int spacingY = 80; // 세로 간격
 		
 		for (int row=0; row<rows; row++) {
 			for (int x=0; x<cols; x++) {
-				Entity alien = new AlienEntity(this, 120+(x*70), (60)+row*35);
+				// 적들을 화면에 균등하게 배치
+				int posX = margin + spacingX * (x + 1);
+				int posY = 80 + (row * spacingY);
+				Entity alien = new AlienEntity(this, posX, posY);
 				gameStateManager.getEntities().add(alien);
 				alienCount++;
 			}
@@ -236,9 +249,17 @@ public class Game extends Canvas
 		boolean roundAdvanced = gameStateManager.advanceRound();
 		
 		if (roundAdvanced) {
-			// Clear current entities and initialize next round
-			gameStateManager.getEntities().clear();
-			initEntities();
+			// Check if this is a boss round (after round 1, 3, 5, etc.)
+			if (gameStateManager.getCurrentRound() == 2 || 
+				gameStateManager.getCurrentRound() == 4 || 
+				gameStateManager.getCurrentRound() == 6) {
+				// Boss round - spawn boss instead of regular aliens
+				spawnBoss();
+			} else {
+				// Regular round - clear current entities and initialize next round
+				gameStateManager.getEntities().clear();
+				initEntities();
+			}
 		} else {
 			// Game completed
 			gameStateManager.setMessage("Well done! You Win!");
@@ -327,7 +348,7 @@ public class Game extends Canvas
 	 * @param y The y location of the shot
 	 */
 	public void addAlienShot(int x, int y) {
-		ShotEntity shot = new ShotEntity(this, "sprites/alien2.gif", x, y, true);
+		ShotEntity shot = new ShotEntity(this, "sprites/shot.gif", x, y, true);
 		gameStateManager.getEntities().add(shot);
 	}
 	
@@ -344,7 +365,7 @@ public class Game extends Canvas
 		int aimOffset = (int)((playerX - alienX) * 0.15); // 15% of distance towards player
 		aimOffset = Math.max(-15, Math.min(15, aimOffset)); // Clamp to player-sized range
 		
-		ShotEntity shot = new ShotEntity(this, "sprites/alien2.gif", x + aimOffset, y, true);
+		ShotEntity shot = new ShotEntity(this, "sprites/shot.gif", x + aimOffset, y, true);
 		gameStateManager.getEntities().add(shot);
 	}
 	
@@ -357,11 +378,8 @@ public class Game extends Canvas
 	 * @param skillValue The value/duration of the skill
 	 */
 	public void createSkillDrop(int x, int y, int skillType, int skillValue) {
-		// Create skill drop with custom icons (sprite name not used, custom drawing)
-		String spriteName = "sprites/shot.gif"; // Default sprite, will be overridden by custom drawing
-		
-		// Create skill drop entity using new Skill class
-		Skill skillDrop = new Skill(this, spriteName, x, y, skillType, skillValue);
+		// Create skill drop using ShotEntity with skill drop functionality
+		ShotEntity skillDrop = new ShotEntity(this, "sprites/shot.gif", x, y, false, skillType, skillValue);
 		gameStateManager.getEntities().add(skillDrop);
 	}
 	
@@ -449,10 +467,15 @@ public class Game extends Canvas
 	 * @param targetY The target y location
 	 */
 	public void fireMissile(double targetX, double targetY) {
-		// Fire missile from player position
-		MissileEntity missile = new MissileEntity(this, "sprites/Skill/spaceMissiles.png", 
-				(int)ship.getX() + 15, (int)ship.getY(), targetX, targetY);
-		gameStateManager.getEntities().add(missile);
+		try {
+			// Fire missile from player position
+			MissileEntity missile = new MissileEntity(this, "sprites/Skill/Missile.png", 
+					(int)ship.getX() + 15, (int)ship.getY(), targetX, targetY);
+			gameStateManager.getEntities().add(missile);
+		} catch (Exception e) {
+			System.err.println("Error firing missile: " + e.getMessage());
+			e.printStackTrace();
+		}
 	}
 	
 	/**
@@ -746,17 +769,149 @@ public class Game extends Canvas
 	 */
 	private void drawGameplayBackground(java.awt.Graphics2D g) {
 		try {
-			// Load background image
-			java.awt.image.BufferedImage backgroundImage = javax.imageio.ImageIO.read(
-				getClass().getResourceAsStream("/sprites/backgrounds/Background-2.jpg")
-			);
+			// Load background image only once (cache it)
+			if (cachedBackgroundImage == null) {
+				cachedBackgroundImage = javax.imageio.ImageIO.read(
+					getClass().getResourceAsStream("/sprites/backgrounds/Background-3.jpg")
+				);
+			}
 			
-			// Draw background image scaled to fit screen
-			g.drawImage(backgroundImage, 0, 0, 800, 600, null);
+			// Draw cached background image scaled to fit screen
+			g.drawImage(cachedBackgroundImage, 0, 0, 800, 600, null);
 		} catch (Exception e) {
 			// Fallback to black background if image loading fails
 			g.setColor(Color.black);
 			g.fillRect(0, 0, 800, 600);
+		}
+	}
+	
+	/**
+	 * Create explosion effect
+	 * 
+	 * @param x X coordinate
+	 * @param y Y coordinate
+	 * @param radius Explosion radius
+	 */
+	public void createExplosion(int x, int y, double radius) {
+		try {
+			ExplosionEntity explosion = new ExplosionEntity(this, "sprites/Skill/Explosion.png", x, y, radius);
+			gameStateManager.getEntities().add(explosion);
+		} catch (Exception e) {
+			System.err.println("Error creating explosion: " + e.getMessage());
+			e.printStackTrace();
+		}
+	}
+	
+	/**
+	 * Add score points
+	 * 
+	 * @param points Points to add
+	 */
+	public void addScore(int points) {
+		System.out.println("Score added: " + points);
+	}
+	
+	/**
+	 * Add skill points
+	 * 
+	 * @param points Skill points to add
+	 */
+	public void addSkillPoints(int points) {
+		int currentPoints = gameStateManager.getSkillPoints();
+		gameStateManager.setSkillPoints(currentPoints + points);
+		System.out.println("Skill points added: " + points + " (Total: " + (currentPoints + points) + ")");
+	}
+	
+	/**
+	 * Spawn a boss for the current round
+	 */
+	public void spawnBoss() {
+		try {
+			int round = gameStateManager.getCurrentRound();
+			BossEntity boss = new BossEntity(this, 400, 120, round); // Center, slightly lower
+			gameStateManager.getEntities().add(boss);
+			
+			// 보스 좌우에 1round_small.png 몬스터 추가 (조금 띄어서 배치)
+			AlienEntity leftAlien = new AlienEntity(this, 200, 120); // 보스 왼쪽 (더 멀리)
+			AlienEntity rightAlien = new AlienEntity(this, 600, 120); // 보스 오른쪽 (더 멀리)
+			gameStateManager.getEntities().add(leftAlien);
+			gameStateManager.getEntities().add(rightAlien);
+			
+			System.out.println("BOSS SPAWNED! Round " + round + " Boss with " + boss.getMaxHP() + " HP!");
+			System.out.println("Side aliens added to boss fight!");
+			
+			gameStateManager.setMessage("⚠️ BOSS APPEARED! ⚠️");
+			gameStateManager.setWaitingForKeyPress(true);
+		} catch (Exception e) {
+			System.err.println("Error spawning boss: " + e.getMessage());
+			e.printStackTrace();
+		}
+	}
+	
+	/**
+	 * Check if there's currently a boss in the game
+	 * 
+	 * @return True if boss exists
+	 */
+	public boolean hasBoss() {
+		for (Object obj : gameStateManager.getEntities()) {
+			if (obj instanceof BossEntity) {
+				return true;
+			}
+		}
+		return false;
+	}
+	
+	/**
+	 * Get the current boss entity
+	 * 
+	 * @return BossEntity or null if no boss exists
+	 */
+	public BossEntity getBoss() {
+		for (Object obj : gameStateManager.getEntities()) {
+			if (obj instanceof BossEntity) {
+				return (BossEntity) obj;
+			}
+		}
+		return null;
+	}
+	
+	/**
+	 * Handle boss defeat
+	 */
+	public void notifyBossDefeated() {
+		System.out.println("BOSS DEFEATED! Round " + gameStateManager.getCurrentRound() + " completed!");
+		
+		gameStateManager.setMessage("🎉 BOSS DEFEATED! 🎉 Round " + gameStateManager.getCurrentRound() + " Complete!");
+		gameStateManager.setWaitingForKeyPress(true);
+		
+		// Advance to next round after boss defeat
+		boolean roundAdvanced = gameStateManager.advanceRound();
+		if (roundAdvanced) {
+			// Clear entities and start next round
+			gameStateManager.getEntities().clear();
+			initEntities();
+		} else {
+			// Game completed
+			gameStateManager.setMessage("🏆 GAME COMPLETED! 🏆 Congratulations!");
+			gameStateManager.setWaitingForKeyPress(true);
+			gameStateManager.handleGameEnd();
+		}
+	}
+	
+	/**
+	 * Add a boss shot to the game
+	 * 
+	 * @param x X coordinate
+	 * @param y Y coordinate
+	 */
+	public void addBossShot(int x, int y) {
+		try {
+			ShotEntity shot = new ShotEntity(this, "sprites/shot.gif", x, y, true); // true = alien shot
+			gameStateManager.getEntities().add(shot);
+		} catch (Exception e) {
+			System.err.println("Error adding boss shot: " + e.getMessage());
+			e.printStackTrace();
 		}
 	}
 	

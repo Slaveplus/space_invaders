@@ -68,25 +68,40 @@ public class ExplosionEntity extends Entity {
      * @param delta The time that has elapsed since last update
      */
     public void move(long delta) {
-        long currentTime = System.currentTimeMillis();
-        long elapsed = currentTime - startTime;
-        
-        // Calculate current radius based on time
-        double progress = (double) elapsed / explosionDuration;
-        
-        if (progress >= 1.0) {
-            // Explosion finished, remove it
-            game.removeEntity(this);
-            return;
-        }
-        
-        // Grow explosion radius over time
-        currentRadius = maxRadius * progress;
-        
-        // Deal damage to enemies in explosion radius (continuously)
-        if (currentRadius > maxRadius * 0.2 && currentTime - lastDamageTime >= damageInterval) {
-            dealDamageToEnemies();
-            lastDamageTime = currentTime;
+        try {
+            long currentTime = System.currentTimeMillis();
+            long elapsed = currentTime - startTime;
+            
+            // Calculate current radius based on time
+            double progress = (double) elapsed / explosionDuration;
+            
+            if (progress >= 1.0) {
+                // Explosion finished, remove it
+                if (game != null) {
+                    game.removeEntity(this);
+                }
+                return;
+            }
+            
+            // Grow explosion radius over time
+            currentRadius = maxRadius * progress;
+            
+            // Deal damage to enemies in explosion radius (continuously)
+            if (currentRadius > maxRadius * 0.2 && currentTime - lastDamageTime >= damageInterval) {
+                dealDamageToEnemies();
+                lastDamageTime = currentTime;
+            }
+        } catch (Exception e) {
+            System.err.println("Error in explosion move: " + e.getMessage());
+            e.printStackTrace();
+            // Try to remove explosion on error
+            try {
+                if (game != null) {
+                    game.removeEntity(this);
+                }
+            } catch (Exception ex) {
+                System.err.println("Error removing explosion: " + ex.getMessage());
+            }
         }
     }
     
@@ -95,34 +110,39 @@ public class ExplosionEntity extends Entity {
      */
     @Override
     public void draw(Graphics g) {
-        Graphics2D g2d = (Graphics2D) g;
-        
-        // Enable anti-aliasing for smoother explosion
-        g2d.setRenderingHint(java.awt.RenderingHints.KEY_ANTIALIASING, 
-                            java.awt.RenderingHints.VALUE_ANTIALIAS_ON);
-        
-        // Draw explosion image scaled to current radius
-        if (explosionImage != null) {
-            int drawSize = (int) (currentRadius * 2);
-            int drawX = (int) x - drawSize / 2;
-            int drawY = (int) y - drawSize / 2;
+        try {
+            Graphics2D g2d = (Graphics2D) g;
             
-            // Draw the explosion image
-            g2d.drawImage(explosionImage, drawX, drawY, drawSize, drawSize, null);
+            // Enable anti-aliasing for smoother explosion
+            g2d.setRenderingHint(java.awt.RenderingHints.KEY_ANTIALIASING, 
+                                java.awt.RenderingHints.VALUE_ANTIALIAS_ON);
+            
+            // Draw explosion image scaled to current radius
+            if (explosionImage != null) {
+                int drawSize = (int) (currentRadius * 2);
+                int drawX = (int) x - drawSize / 2;
+                int drawY = (int) y - drawSize / 2;
+                
+                // Draw the explosion image
+                g2d.drawImage(explosionImage, drawX, drawY, drawSize, drawSize, null);
+            }
+        
+            // Draw explosion ring effect
+            g2d.setColor(Color.YELLOW);
+            g2d.setStroke(new java.awt.BasicStroke(3.0f));
+            g2d.drawOval((int)(x - currentRadius), (int)(y - currentRadius), 
+                        (int)(currentRadius * 2), (int)(currentRadius * 2));
+            
+            // Draw inner ring
+            g2d.setColor(Color.ORANGE);
+            g2d.setStroke(new java.awt.BasicStroke(2.0f));
+            double innerRadius = currentRadius * 0.7;
+            g2d.drawOval((int)(x - innerRadius), (int)(y - innerRadius), 
+                        (int)(innerRadius * 2), (int)(innerRadius * 2));
+        } catch (Exception e) {
+            System.err.println("Error drawing explosion: " + e.getMessage());
+            e.printStackTrace();
         }
-        
-        // Draw explosion ring effect
-        g2d.setColor(Color.YELLOW);
-        g2d.setStroke(new java.awt.BasicStroke(3.0f));
-        g2d.drawOval((int)(x - currentRadius), (int)(y - currentRadius), 
-                    (int)(currentRadius * 2), (int)(currentRadius * 2));
-        
-        // Draw inner ring
-        g2d.setColor(Color.ORANGE);
-        g2d.setStroke(new java.awt.BasicStroke(2.0f));
-        double innerRadius = currentRadius * 0.7;
-        g2d.drawOval((int)(x - innerRadius), (int)(y - innerRadius), 
-                    (int)(innerRadius * 2), (int)(innerRadius * 2));
     }
     
     /**
@@ -158,14 +178,22 @@ public class ExplosionEntity extends Entity {
      */
     private void loadExplosionImage() {
         try {
+            // Try to load explosion image
             URL url = getClass().getClassLoader().getResource("sprites/Skill/Explosion.png");
             if (url != null) {
                 explosionImage = ImageIO.read(url);
+                System.out.println("Successfully loaded explosion image: sprites/Skill/Explosion.png");
             } else {
                 System.err.println("Cannot find explosion image: sprites/Skill/Explosion.png");
+                explosionImage = null;
             }
         } catch (IOException e) {
             System.err.println("Failed to load explosion image: " + e.getMessage());
+            e.printStackTrace();
+            explosionImage = null;
+        } catch (Exception e) {
+            System.err.println("Unexpected error loading explosion image: " + e.getMessage());
+            e.printStackTrace();
             explosionImage = null;
         }
     }
@@ -176,19 +204,31 @@ public class ExplosionEntity extends Entity {
     private void dealDamageToEnemies() {
         try {
             // Create a copy to avoid ConcurrentModificationException
-            ArrayList<Entity> entities = new ArrayList<>(game.getEntities());
-            for (Entity entity : entities) {
-                if (entity instanceof AlienEntity && !damagedEntities.contains(entity)) {
-                    double dxToEnemy = entity.getX() - x;
-                    double dyToEnemy = entity.getY() - y;
-                    double distanceToEnemy = Math.sqrt(dxToEnemy * dxToEnemy + dyToEnemy * dyToEnemy);
-                    
-                    if (distanceToEnemy <= currentRadius) {
-                        // Damage enemy (high damage for explosion)
-                        AlienEntity alien = (AlienEntity) entity;
-                        alien.takeDamage(game.getPlayerAttackPower() * 3); // 3x damage
-                        damagedEntities.add(entity); // Mark as damaged
+            java.util.List<Object> entities = game.getEntities();
+            java.util.List<AlienEntity> aliensToDamage = new java.util.ArrayList<>();
+            
+            // First collect all aliens in range
+            for (Object obj : entities) {
+                if (obj instanceof AlienEntity) {
+                    AlienEntity alien = (AlienEntity) obj;
+                    if (!damagedEntities.contains(alien)) {
+                        double dxToEnemy = alien.getX() - x;
+                        double dyToEnemy = alien.getY() - y;
+                        double distanceToEnemy = Math.sqrt(dxToEnemy * dxToEnemy + dyToEnemy * dyToEnemy);
+                        
+                        if (distanceToEnemy <= currentRadius) {
+                            aliensToDamage.add(alien);
+                        }
                     }
+                }
+            }
+            
+            // Then damage all collected aliens
+            for (AlienEntity alien : aliensToDamage) {
+                if (alien != null) {
+                    // Damage enemy (high damage for explosion)
+                    alien.takeDamage(game.getPlayerAttackPower() * 3); // 3x damage
+                    damagedEntities.add(alien); // Mark as damaged
                 }
             }
         } catch (Exception e) {

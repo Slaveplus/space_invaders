@@ -124,19 +124,19 @@ public class Skill extends Entity {
         String iconPath;
         switch (skillType) {
             case 0: // Attack Power
-                iconPath = "sprites/Skill/1.png";
+                iconPath = "sprites/Skill/Icon.1_45.png";
                 break;
             case 1: // Attack Speed
-                iconPath = "sprites/Skill/2.png";
+                iconPath = "sprites/Skill/Icon.6_26.png";
                 break;
             case 2: // HP Recovery
-                iconPath = "sprites/Skill/3.png";
+                iconPath = "sprites/Skill/Icon.7_11.png";
                 break;
             case 3: // Missile
-                iconPath = "sprites/Skill/spaceMissiles.png";
+                iconPath = "sprites/Skill/Missile.png";
                 break;
             default:
-                iconPath = "sprites/Skill/1.png";
+                iconPath = "sprites/Skill/Icon.1_45.png";
                 break;
         }
         

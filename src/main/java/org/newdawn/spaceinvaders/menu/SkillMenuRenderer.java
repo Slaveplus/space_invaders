@@ -22,9 +22,7 @@ public class SkillMenuRenderer {
         // Enable anti-aliasing for smoother shapes
         g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
         
-        // Dark background
-        g.setColor(new Color(0, 0, 0, 200));
-        g.fillRect(0, 0, 800, 600);
+        // No background - completely transparent
         
         // Title
         g.setColor(Color.WHITE);
@@ -58,39 +56,15 @@ public class SkillMenuRenderer {
             int panelX = startX + i * (panelWidth + 40);
             boolean isSelected = (i == selectedSkill);
             
-            // Panel background with different colors
-            Color panelColor;
-            Color borderColor;
-            switch (i) {
-                case 0: // Attack Power - Red theme
-                    panelColor = isSelected ? new Color(200, 50, 50, 180) : new Color(100, 30, 30, 150);
-                    borderColor = isSelected ? new Color(255, 100, 100) : new Color(150, 50, 50);
-                    break;
-                case 1: // Attack Speed - Blue theme
-                    panelColor = isSelected ? new Color(50, 100, 200, 180) : new Color(30, 60, 120, 150);
-                    borderColor = isSelected ? new Color(100, 150, 255) : new Color(60, 100, 180);
-                    break;
-                case 2: // HP Up - Green theme
-                    panelColor = isSelected ? new Color(50, 150, 50, 180) : new Color(30, 100, 30, 150);
-                    borderColor = isSelected ? new Color(100, 200, 100) : new Color(60, 150, 60);
-                    break;
-                default:
-                    panelColor = new Color(50, 50, 100, 150);
-                    borderColor = new Color(100, 149, 237);
+            // Panel background using Force images based on affordability
+            boolean canAfford = getCanAfford(i, attackPowerCost, attackSpeedCost, hpUpCost, skillPoints);
+            BufferedImage panelBackground = loadPanelBackground(canAfford);
+            if (panelBackground != null) {
+                g.drawImage(panelBackground, panelX, panelY, panelWidth, panelHeight, null);
             }
             
-            g.setColor(panelColor);
-            g.fillRect(panelX, panelY, panelWidth, panelHeight);
-            
-            // Panel border with glow effect for selected
-            if (isSelected) {
-                g.setColor(new Color(borderColor.getRed(), borderColor.getGreen(), borderColor.getBlue(), 100));
-                g.setStroke(new BasicStroke(4));
-                g.drawRect(panelX - 2, panelY - 2, panelWidth + 4, panelHeight + 4);
-            }
-            g.setColor(borderColor);
-            g.setStroke(new BasicStroke(2));
-            g.drawRect(panelX, panelY, panelWidth, panelHeight);
+            // Draw border based on affordability (reuse canAfford variable)
+            drawSkillBorder(g, panelX, panelY, panelWidth, panelHeight, isSelected, canAfford);
             
             // Skill icon
             drawSkillIcon(g, i, panelX, panelY, panelWidth);
@@ -167,6 +141,168 @@ public class SkillMenuRenderer {
                     break;
             }
         }
+    }
+    
+    /**
+     * Check if skill can be afforded
+     */
+    private boolean getCanAfford(int skillType, int attackPowerCost, int attackSpeedCost, int hpUpCost, int skillPoints) {
+        switch (skillType) {
+            case 0: return skillPoints >= attackPowerCost;
+            case 1: return skillPoints >= attackSpeedCost;
+            case 2: return skillPoints >= hpUpCost;
+            default: return false;
+        }
+    }
+    
+    /**
+     * Draw skill border based on affordability
+     */
+    private void drawSkillBorder(Graphics2D g, int panelX, int panelY, int panelWidth, int panelHeight, boolean isSelected, boolean canAfford) {
+        BufferedImage borderImage;
+        
+        if (canAfford) {
+            // Use Force True.png when affordable
+            borderImage = loadForceTrueImage();
+        } else {
+            // Use Force Select.png when not affordable
+            borderImage = loadForceSelectImage();
+        }
+        
+        if (borderImage != null) {
+            // Create border by drawing the image as a frame around the panel
+            int borderThickness = isSelected ? 8 : 4;
+            
+            // Top border
+            g.drawImage(borderImage, panelX - borderThickness, panelY - borderThickness, 
+                       panelX + panelWidth + borderThickness, panelY, 
+                       0, 0, borderImage.getWidth(), borderImage.getHeight() / 4, null);
+            
+            // Bottom border
+            g.drawImage(borderImage, panelX - borderThickness, panelY + panelHeight, 
+                       panelX + panelWidth + borderThickness, panelY + panelHeight + borderThickness, 
+                       0, borderImage.getHeight() * 3 / 4, borderImage.getWidth(), borderImage.getHeight(), null);
+            
+            // Left border
+            g.drawImage(borderImage, panelX - borderThickness, panelY - borderThickness, 
+                       panelX, panelY + panelHeight + borderThickness, 
+                       0, 0, borderImage.getWidth() / 4, borderImage.getHeight(), null);
+            
+            // Right border
+            g.drawImage(borderImage, panelX + panelWidth, panelY - borderThickness, 
+                       panelX + panelWidth + borderThickness, panelY + panelHeight + borderThickness, 
+                       borderImage.getWidth() * 3 / 4, 0, borderImage.getWidth(), borderImage.getHeight(), null);
+        } else {
+            // Fallback to simple colored border if image fails to load
+            Color borderColor = isSelected ? Color.YELLOW : (canAfford ? Color.GREEN : Color.RED);
+            g.setColor(borderColor);
+            g.setStroke(new BasicStroke(isSelected ? 4 : 2));
+            g.drawRect(panelX, panelY, panelWidth, panelHeight);
+        }
+    }
+    
+    /**
+     * Load panel background image based on affordability
+     */
+    private BufferedImage loadPanelBackground(boolean canAfford) {
+        String imagePath;
+        if (canAfford) {
+            // Use Force True.png when affordable
+            imagePath = "sprites/Force/Force True.png";
+        } else {
+            // Use Force Select.png when not affordable
+            imagePath = "sprites/Force/Force Select.png";
+        }
+        
+        try {
+            InputStream is = getClass().getClassLoader().getResourceAsStream(imagePath);
+            if (is != null) {
+                BufferedImage image = ImageIO.read(is);
+                is.close();
+                System.out.println("Successfully loaded panel background: " + imagePath);
+                return image;
+            }
+        } catch (IOException e) {
+            System.err.println("Failed to load panel background: " + imagePath);
+            e.printStackTrace();
+        }
+        return null;
+    }
+    
+    /**
+     * Load Force True image for affordable skills
+     */
+    private BufferedImage loadForceTrueImage() {
+        try {
+            InputStream is = getClass().getClassLoader().getResourceAsStream("sprites/Force/Force True.png");
+            if (is != null) {
+                BufferedImage image = ImageIO.read(is);
+                is.close();
+                System.out.println("Successfully loaded Force True image");
+                return image;
+            }
+        } catch (IOException e) {
+            System.err.println("Failed to load Force True image: sprites/Force/Force True.png");
+            e.printStackTrace();
+        }
+        return null;
+    }
+    
+    /**
+     * Draw Force Select border around skill panel (legacy method)
+     */
+    private void drawForceSelectBorder(Graphics2D g, int panelX, int panelY, int panelWidth, int panelHeight, boolean isSelected) {
+        BufferedImage forceSelectImage = loadForceSelectImage();
+        
+        if (forceSelectImage != null) {
+            // Create border by drawing the image as a frame around the panel
+            int borderThickness = isSelected ? 8 : 4;
+            
+            // Top border
+            g.drawImage(forceSelectImage, panelX - borderThickness, panelY - borderThickness, 
+                       panelX + panelWidth + borderThickness, panelY, 
+                       0, 0, forceSelectImage.getWidth(), forceSelectImage.getHeight() / 4, null);
+            
+            // Bottom border
+            g.drawImage(forceSelectImage, panelX - borderThickness, panelY + panelHeight, 
+                       panelX + panelWidth + borderThickness, panelY + panelHeight + borderThickness, 
+                       0, forceSelectImage.getHeight() * 3 / 4, forceSelectImage.getWidth(), forceSelectImage.getHeight(), null);
+            
+            // Left border
+            g.drawImage(forceSelectImage, panelX - borderThickness, panelY - borderThickness, 
+                       panelX, panelY + panelHeight + borderThickness, 
+                       0, 0, forceSelectImage.getWidth() / 4, forceSelectImage.getHeight(), null);
+            
+            // Right border
+            g.drawImage(forceSelectImage, panelX + panelWidth, panelY - borderThickness, 
+                       panelX + panelWidth + borderThickness, panelY + panelHeight + borderThickness, 
+                       forceSelectImage.getWidth() * 3 / 4, 0, forceSelectImage.getWidth(), forceSelectImage.getHeight(), null);
+        } else {
+            // Fallback to simple colored border if image fails to load
+            Color borderColor = isSelected ? Color.YELLOW : Color.WHITE;
+            g.setColor(borderColor);
+            g.setStroke(new BasicStroke(isSelected ? 4 : 2));
+            g.drawRect(panelX, panelY, panelWidth, panelHeight);
+        }
+    }
+    
+    /**
+     * Load Force Select background image
+     */
+    private BufferedImage loadForceSelectImage() {
+        try {
+            InputStream is = getClass().getClassLoader().getResourceAsStream("sprites/Force/Force Select.png");
+            if (is != null) {
+                BufferedImage image = ImageIO.read(is);
+                is.close();
+                System.out.println("Successfully loaded Force Select background image");
+                return image;
+            }
+        } catch (IOException e) {
+            System.err.println("Failed to load Force Select background image: sprites/Force/Force Select.png");
+            e.printStackTrace();
+        }
+        return null;
     }
     
     /**
@@ -249,14 +385,6 @@ public class SkillMenuRenderer {
         int costX = panelX + (panelWidth - fm.stringWidth(costText)) / 2;
         g.drawString(costText, costX, panelY + 195);
         
-        // Insufficient points warning
-        if (!canAfford) {
-            g.setColor(Color.RED);
-            g.setFont(new Font("Arial", Font.PLAIN, 11));
-            fm = g.getFontMetrics();
-            String warning = "포인트 부족";
-            int warningX = panelX + (panelWidth - fm.stringWidth(warning)) / 2;
-            g.drawString(warning, warningX, panelY + 215);
-        }
+        // Note: Removed insufficient points warning - now using visual border indication instead
     }
 }
