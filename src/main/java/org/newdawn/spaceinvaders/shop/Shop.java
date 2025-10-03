@@ -20,6 +20,7 @@ public class Shop {
         this.shopManager = new ShopManager();
         this.shopRenderer = new ShopRenderer();
         this.inputHandler = new ShopInputHandler(shopManager);
+        this.inputHandler.setShop(this); // ShopInputHandler에 Shop 참조 설정
         this.shopManager.setInputHandler(inputHandler); // ShopManager에 InputHandler 설정
         loadBackgroundImage();
         initializeShopItems();
@@ -30,6 +31,7 @@ public class Shop {
         this.shopRenderer = new ShopRenderer();
         this.shopRenderer.setUserManager(userManager); // ShopRenderer에도 UserManager 설정
         this.inputHandler = new ShopInputHandler(shopManager);
+        this.inputHandler.setShop(this); // ShopInputHandler에 Shop 참조 설정
         this.shopManager.setInputHandler(inputHandler); // ShopManager에 InputHandler 설정
         loadBackgroundImage();
         initializeShopItems();
@@ -97,5 +99,59 @@ public class Shop {
         if (shopManager != null) {
             shopManager.setCurrentState(org.newdawn.spaceinvaders.shop.ShopState.MAIN);
         }
+        // 애니메이션 리셋
+        if (shopRenderer != null) {
+            shopRenderer.reset();
+        }
+    }
+    
+    /**
+     * 상점 진입 애니메이션 시작
+     */
+    public void startEntryAnimation() {
+        if (shopRenderer != null) {
+            shopRenderer.startEntryAnimation();
+        }
+    }
+    
+    /**
+     * 상점 나가기 애니메이션 시작
+     */
+    public void startExitAnimation() {
+        if (shopRenderer != null) {
+            shopRenderer.startExitAnimation();
+        }
+    }
+    
+    /**
+     * 카테고리 상점 진입 애니메이션 시작
+     */
+    public void startCategoryEntryAnimation() {
+        if (shopRenderer != null) {
+            shopRenderer.startCategoryEntryAnimation();
+        }
+    }
+    
+    /**
+     * 카테고리 상점 나가기 애니메이션 시작
+     */
+    public void startCategoryExitAnimation() {
+        if (shopRenderer != null) {
+            shopRenderer.startCategoryExitAnimation();
+        }
+    }
+    
+    /**
+     * 애니메이션 중인지 확인
+     */
+    public boolean isAnimating() {
+        return shopRenderer != null && shopRenderer.isAnimating();
+    }
+    
+    /**
+     * 카테고리 애니메이션 중인지 확인
+     */
+    public boolean isCategoryAnimating() {
+        return shopRenderer != null && shopRenderer.isCategoryAnimating();
     }
 }

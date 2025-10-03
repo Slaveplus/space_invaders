@@ -7,6 +7,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import javax.imageio.ImageIO;
 import org.newdawn.spaceinvaders.shop.Shop;
+import org.newdawn.spaceinvaders.shop.ShopAnimation;
 import org.newdawn.spaceinvaders.login.UserManager;
 import org.newdawn.spaceinvaders.login.User;
 import org.newdawn.spaceinvaders.app.ScreenNavigator;
@@ -43,6 +44,10 @@ public class MainMenu {
     private Font submenuFont;
     private boolean gameStartRequested = false;
     private boolean musicEnabled = true;
+    
+    // 애니메이션 시스템
+    private ShopAnimation settingsAnimation;
+    private ShopAnimation accountAnimation;
     
     // 싱글플레이 서브메뉴 옵션들
     private String[] singlePlayerOptions = {
@@ -103,6 +108,9 @@ public class MainMenu {
         shop = new Shop(userManager); // UserManager를 Shop에 전달
         this.userManager = userManager;
         this.navigator = navigator;
+        // 애니메이션 초기화
+        this.settingsAnimation = new ShopAnimation();
+        this.accountAnimation = new ShopAnimation();
     // currentUser 캐싱은 사용하지 않음 (UserManager에서 직접 조회)
     }
     
@@ -207,6 +215,14 @@ public class MainMenu {
         if (currentState == MenuState.INVENTORY && shop != null) {
             shop.update();
         }
+        
+        // 애니메이션 업데이트
+        if (settingsAnimation != null) {
+            settingsAnimation.update();
+        }
+        if (accountAnimation != null) {
+            accountAnimation.update();
+        }
     }
     
     /**
@@ -246,6 +262,8 @@ public class MainMenu {
             
             // 상점에서 종료 요청이 있으면 상점 종료
             if (shop.getShopManager().getInputHandler().isExitRequested()) {
+                // 상점 나가기 애니메이션 시작
+                shop.startExitAnimation();
                 showingShop = false;
                 shop.getShopManager().getInputHandler().resetExitRequest();
             }
@@ -281,8 +299,26 @@ public class MainMenu {
                     currentState = MenuState.MAIN;
                     selectedOption = 3; // 인벤토리 옵션으로 돌아가기
                 } else if (currentState == MenuState.RESOLUTION) {
+                    // 해상도 설정에서 설정으로 돌아갈 때 슬라이드 아웃 애니메이션
+                    if (settingsAnimation != null) {
+                        settingsAnimation.startAnimation(ShopAnimation.AnimationType.SLIDE_OUT);
+                    }
                     currentState = MenuState.SETTINGS;
                     selectedOption = 0;
+                } else if (currentState == MenuState.SETTINGS) {
+                    // 설정에서 메인으로 돌아갈 때 슬라이드 아웃 애니메이션
+                    if (settingsAnimation != null) {
+                        settingsAnimation.startAnimation(ShopAnimation.AnimationType.SLIDE_OUT);
+                    }
+                    currentState = MenuState.MAIN;
+                    selectedOption = 4; // 설정 옵션으로 돌아가기
+                } else if (currentState == MenuState.ACCOUNT) {
+                    // 계정에서 메인으로 돌아갈 때 슬라이드 아웃 애니메이션
+                    if (accountAnimation != null) {
+                        accountAnimation.startAnimation(ShopAnimation.AnimationType.SLIDE_OUT);
+                    }
+                    currentState = MenuState.MAIN;
+                    selectedOption = 5; // 계정 옵션으로 돌아가기
                 } else if (currentState != MenuState.MAIN) {
                     currentState = MenuState.MAIN;
                     selectedOption = 0;
@@ -349,6 +385,8 @@ public class MainMenu {
                 // 현재 구조에서 SHOP 상태는 별도 Shop 화면으로 대체됨
                 showingShop = true;
                 shop.reset();
+                // 상점 진입 애니메이션 시작
+                shop.startEntryAnimation();
                 break;
         }
     }
@@ -369,6 +407,8 @@ public class MainMenu {
             case 2: // 상점
                 showingShop = true;
                 shop.reset();
+                // 상점 진입 애니메이션 시작
+                shop.startEntryAnimation();
                 break;
             case 3: // 인벤토리
                 currentState = MenuState.INVENTORY;
@@ -381,10 +421,18 @@ public class MainMenu {
             case 4: // 설정
                 currentState = MenuState.SETTINGS;
                 selectedOption = 0;
+                // 설정 진입 애니메이션 시작
+                if (settingsAnimation != null) {
+                    settingsAnimation.startAnimation(ShopAnimation.AnimationType.SLIDE_IN);
+                }
                 break;
             case 5: // 계정 (사용자 이메일)
                 currentState = MenuState.ACCOUNT;
                 selectedOption = 0;
+                // 계정 진입 애니메이션 시작
+                if (accountAnimation != null) {
+                    accountAnimation.startAnimation(ShopAnimation.AnimationType.SLIDE_IN);
+                }
                 break;
             case 6: // 게임 종료
                 System.exit(0);
@@ -441,11 +489,19 @@ public class MainMenu {
             case 1: // 해상도 변경
                 currentState = MenuState.RESOLUTION;
                 selectedOption = 0;
+                // 해상도 진입 애니메이션 시작
+                if (settingsAnimation != null) {
+                    settingsAnimation.startAnimation(ShopAnimation.AnimationType.SLIDE_IN);
+                }
                 break;
             case 2: // 제작자
                 System.out.println("제작자 정보를 표시합니다.");
                 break;
             case 3: // 이전메뉴
+                // 설정에서 메인으로 돌아갈 때 슬라이드 아웃 애니메이션
+                if (settingsAnimation != null) {
+                    settingsAnimation.startAnimation(ShopAnimation.AnimationType.SLIDE_OUT);
+                }
                 currentState = MenuState.MAIN;
                 selectedOption = 4; // 설정 옵션으로 돌아가기
                 break;
@@ -466,6 +522,10 @@ public class MainMenu {
                 }
                 break;
             case 5: // 이전메뉴
+                // 해상도에서 설정으로 돌아갈 때 슬라이드 아웃 애니메이션
+                if (settingsAnimation != null) {
+                    settingsAnimation.startAnimation(ShopAnimation.AnimationType.SLIDE_OUT);
+                }
                 currentState = MenuState.SETTINGS;
                 selectedOption = 1; // 해상도 변경 옵션으로 돌아가기
                 break;
@@ -494,8 +554,12 @@ public class MainMenu {
                 System.out.println("로그아웃 완료");
                 break;
             case 4: // 이전메뉴
+                // 계정에서 메인으로 돌아갈 때 슬라이드 아웃 애니메이션
+                if (accountAnimation != null) {
+                    accountAnimation.startAnimation(ShopAnimation.AnimationType.SLIDE_OUT);
+                }
                 currentState = MenuState.MAIN;
-                selectedOption = 0;
+                selectedOption = 5; // 계정 옵션으로 돌아가기
                 break;
         }
     }
@@ -623,24 +687,42 @@ public class MainMenu {
         g2d.setColor(new Color(0, 0, 0, 100));
         g2d.fillRect(0, 0, 800, 600);
         
+        // 애니메이션 효과에 따른 패널 위치 계산
+        float progress = accountAnimation.getProgress();
+        int leftPanelX, rightPanelX;
+        
+        if (accountAnimation.isAnimating() && accountAnimation.getCurrentType() == ShopAnimation.AnimationType.SLIDE_IN) {
+            // 양쪽에서 밀려오는 효과
+            leftPanelX = (int) (50 - (200 * (1.0f - progress)));  // 왼쪽에서 오른쪽으로
+            rightPanelX = (int) (270 + (480 * (1.0f - progress))); // 오른쪽에서 왼쪽으로
+        } else if (accountAnimation.isAnimating() && accountAnimation.getCurrentType() == ShopAnimation.AnimationType.SLIDE_OUT) {
+            // 양쪽으로 밀려나가는 효과
+            leftPanelX = (int) (50 - (200 * progress));  // 왼쪽으로 밀려나감
+            rightPanelX = (int) (270 + (480 * progress)); // 오른쪽으로 밀려나감
+        } else {
+            // 애니메이션 완료 후 정상 위치
+            leftPanelX = 50;
+            rightPanelX = 270;
+        }
+        
         // 왼쪽 패널 (메뉴 네비게이션)
         g2d.setColor(new Color(0, 0, 0, 150)); // 반투명 검은색
-        g2d.fillRect(50, 50, 200, 500);
+        g2d.fillRect(leftPanelX, 50, 200, 500);
         g2d.setColor(Color.WHITE);
-        g2d.drawRect(50, 50, 200, 500);
+        g2d.drawRect(leftPanelX, 50, 200, 500);
         
         // 오른쪽 패널 (콘텐츠 표시 영역)
         g2d.setColor(new Color(0, 0, 0, 150)); // 반투명 검은색
-        g2d.fillRect(270, 50, 480, 500);
+        g2d.fillRect(rightPanelX, 50, 480, 500);
         g2d.setColor(Color.WHITE);
-        g2d.drawRect(270, 50, 480, 500);
+        g2d.drawRect(rightPanelX, 50, 480, 500);
         
-        // 제목 "계정"
+        // 제목 "계정" (왼쪽 패널 내부)
         g2d.setColor(Color.WHITE);
         g2d.setFont(titleFont);
         FontMetrics titleMetrics = g2d.getFontMetrics();
         String title = "계정";
-        int titleX = 50 + (200 - titleMetrics.stringWidth(title)) / 2;
+        int titleX = leftPanelX + (200 - titleMetrics.stringWidth(title)) / 2;
         g2d.drawString(title, titleX, 100);
         
         // 메뉴 옵션들 (왼쪽 패널)
@@ -654,28 +736,28 @@ public class MainMenu {
             // 선택된 항목 강조
             if (i == selectedOption) {
                 g2d.setColor(Color.WHITE);
-                g2d.drawRect(60, startY + (i * lineHeight) - 25, 180, 30);
+                g2d.drawRect(leftPanelX + 10, startY + (i * lineHeight) - 25, 180, 30);
                 
                 // 화살표 그리기
                 g2d.setColor(Color.YELLOW);
-                g2d.drawString("→", 220, startY + (i * lineHeight));
+                g2d.drawString("→", leftPanelX + 170, startY + (i * lineHeight));
             }
             
             g2d.setColor(i == selectedOption ? Color.YELLOW : Color.WHITE);
-            int x = 70;
+            int x = leftPanelX + 20;
             int y = startY + (i * lineHeight);
             g2d.drawString(options[i], x, y);
         }
         
         // 오른쪽 패널에 선택된 항목의 상세 정보 표시
-        drawAccountDetails(g2d);
+        drawAccountDetails(g2d, rightPanelX);
     }
     
-    private void drawAccountDetails(Graphics2D g2d) {
+    private void drawAccountDetails(Graphics2D g2d, int panelX) {
         g2d.setColor(Color.WHITE);
         g2d.setFont(menuFont);
         
-        int startX = 290;
+        int startX = panelX + 20;
         int startY = 100;
         int lineHeight = 50;
         
@@ -737,24 +819,42 @@ public class MainMenu {
         g2d.setColor(new Color(0, 0, 0, 100));
         g2d.fillRect(0, 0, 800, 600);
         
+        // 애니메이션 효과에 따른 패널 위치 계산
+        float progress = settingsAnimation.getProgress();
+        int leftPanelX, rightPanelX;
+        
+        if (settingsAnimation.isAnimating() && settingsAnimation.getCurrentType() == ShopAnimation.AnimationType.SLIDE_IN) {
+            // 양쪽에서 밀려오는 효과
+            leftPanelX = (int) (50 - (200 * (1.0f - progress)));  // 왼쪽에서 오른쪽으로
+            rightPanelX = (int) (270 + (480 * (1.0f - progress))); // 오른쪽에서 왼쪽으로
+        } else if (settingsAnimation.isAnimating() && settingsAnimation.getCurrentType() == ShopAnimation.AnimationType.SLIDE_OUT) {
+            // 양쪽으로 밀려나가는 효과
+            leftPanelX = (int) (50 - (200 * progress));  // 왼쪽으로 밀려나감
+            rightPanelX = (int) (270 + (480 * progress)); // 오른쪽으로 밀려나감
+        } else {
+            // 애니메이션 완료 후 정상 위치
+            leftPanelX = 50;
+            rightPanelX = 270;
+        }
+        
         // 왼쪽 패널 (메뉴 네비게이션)
         g2d.setColor(new Color(0, 0, 0, 150)); // 반투명 검은색
-        g2d.fillRect(50, 50, 200, 500);
+        g2d.fillRect(leftPanelX, 50, 200, 500);
         g2d.setColor(Color.WHITE);
-        g2d.drawRect(50, 50, 200, 500);
+        g2d.drawRect(leftPanelX, 50, 200, 500);
         
         // 오른쪽 패널 (콘텐츠 표시 영역)
         g2d.setColor(new Color(0, 0, 0, 150)); // 반투명 검은색
-        g2d.fillRect(270, 50, 480, 500);
+        g2d.fillRect(rightPanelX, 50, 480, 500);
         g2d.setColor(Color.WHITE);
-        g2d.drawRect(270, 50, 480, 500);
+        g2d.drawRect(rightPanelX, 50, 480, 500);
         
-        // 제목 "설정"
+        // 제목 "설정" (왼쪽 패널 내부)
         g2d.setColor(Color.WHITE);
         g2d.setFont(titleFont);
         FontMetrics titleMetrics = g2d.getFontMetrics();
         String title = "설정";
-        int titleX = 50 + (200 - titleMetrics.stringWidth(title)) / 2;
+        int titleX = leftPanelX + (200 - titleMetrics.stringWidth(title)) / 2;
         g2d.drawString(title, titleX, 80);
         
         // 메뉴 옵션들 (왼쪽 패널)
@@ -768,29 +868,28 @@ public class MainMenu {
             // 선택된 항목 강조
             if (i == selectedOption) {
                 g2d.setColor(Color.WHITE);
-                g2d.drawRect(60, startY + (i * lineHeight) - 25, 180, 30);
+                g2d.drawRect(leftPanelX + 10, startY + (i * lineHeight) - 25, 180, 30);
                 
                 // 화살표 그리기
                 g2d.setColor(Color.YELLOW);
-                g2d.drawString("→", 220, startY + (i * lineHeight));
+                g2d.drawString("→", leftPanelX + 170, startY + (i * lineHeight));
             }
             
             g2d.setColor(i == selectedOption ? Color.YELLOW : Color.WHITE);
-            // int x = 70; // metrics 사용 제거하고 고정 여백 사용
-            int x = 70;
+            int x = leftPanelX + 20;
             int y = startY + (i * lineHeight);
             g2d.drawString(options[i], x, y);
         }
         
         // 오른쪽 패널에 선택된 항목의 상세 정보 표시
-        drawSettingsDetails(g2d);
+        drawSettingsDetails(g2d, rightPanelX);
     }
     
-    private void drawSettingsDetails(Graphics2D g2d) {
+    private void drawSettingsDetails(Graphics2D g2d, int panelX) {
         g2d.setColor(Color.WHITE);
         g2d.setFont(menuFont);
         
-        int startX = 290;
+        int startX = panelX + 20;
         int startY = 100;
         int lineHeight = 30;
         
@@ -846,6 +945,13 @@ public class MainMenu {
         logoutRequested = false;
         if (shop != null) {
             shop.reset();
+        }
+        // 애니메이션 리셋
+        if (settingsAnimation != null) {
+            settingsAnimation.reset();
+        }
+        if (accountAnimation != null) {
+            accountAnimation.reset();
         }
     }
     

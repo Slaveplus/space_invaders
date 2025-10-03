@@ -9,12 +9,18 @@ import java.util.List;
  */
 public class ShopInputHandler {
     private ShopManager shopManager;
+    private Shop shop; // Shop 참조 추가 (애니메이션용)
     private int selectedOption = 0;
     private int selectedItem = 0;
     private boolean exitRequested = false;
     
     public ShopInputHandler(ShopManager shopManager) {
         this.shopManager = shopManager;
+    }
+    
+    // Shop 참조 설정 (애니메이션용)
+    public void setShop(Shop shop) {
+        this.shop = shop;
     }
     
     public void handleInput(int keyCode) {
@@ -79,11 +85,19 @@ public class ShopInputHandler {
                 shopManager.setCurrentState(ShopState.CATEGORY);
                 shopManager.setCurrentCategory(ShopCategory.WEAPONS);
                 selectedItem = 0;
+                // 카테고리 진입 애니메이션 시작
+                if (shop != null) {
+                    shop.startCategoryEntryAnimation();
+                }
                 break;
             case 1: // 우주선 상점
                 shopManager.setCurrentState(ShopState.CATEGORY);
                 shopManager.setCurrentCategory(ShopCategory.SPACESHIPS);
                 selectedItem = 0;
+                // 카테고리 진입 애니메이션 시작
+                if (shop != null) {
+                    shop.startCategoryEntryAnimation();
+                }
                 break;
             case 2: // 뒤로가기
                 exitRequested = true;
@@ -133,6 +147,10 @@ public class ShopInputHandler {
                 }
                 break;
             case KeyEvent.VK_ESCAPE:
+                // 카테고리 나가기 애니메이션 시작
+                if (shop != null) {
+                    shop.startCategoryExitAnimation();
+                }
                 shopManager.returnToMainMenu();
                 // selectedOption은 유지하고 selectedItem만 리셋
                 selectedItem = 0;

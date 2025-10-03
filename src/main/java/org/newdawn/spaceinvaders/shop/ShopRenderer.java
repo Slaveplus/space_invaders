@@ -25,6 +25,10 @@ public class ShopRenderer {
     private BufferedImage itemBoxImage;
     private Map<String, BufferedImage> itemImageCache;
     
+    // 애니메이션 시스템 추가
+    private ShopAnimation animation;
+    private ShopAnimation categoryAnimation; // 카테고리 상점용 애니메이션
+    
     public ShopRenderer() {
         initializeFonts();
         loadBackgroundImage();
@@ -32,6 +36,8 @@ public class ShopRenderer {
         loadItemBoxImage();
         itemImageCache = new HashMap<>();
         this.userManager = null;
+        this.animation = new ShopAnimation();
+        this.categoryAnimation = new ShopAnimation();
     }
     
     // UserManager 설정 (실시간 데이터 표시용)
@@ -149,6 +155,64 @@ public class ShopRenderer {
         return null;
     }
     
+    /**
+     * 애니메이션 시작 (상점 진입 시 호출)
+     */
+    public void startEntryAnimation() {
+        animation.startAnimation(ShopAnimation.AnimationType.SLIDE_IN);
+    }
+    
+    /**
+     * 애니메이션 시작 (상점 나가기 시 호출)
+     */
+    public void startExitAnimation() {
+        animation.startAnimation(ShopAnimation.AnimationType.SLIDE_OUT);
+    }
+    
+    /**
+     * 카테고리 상점 진입 애니메이션 시작
+     */
+    public void startCategoryEntryAnimation() {
+        categoryAnimation.startAnimation(ShopAnimation.AnimationType.SLIDE_IN);
+    }
+    
+    /**
+     * 카테고리 상점 나가기 애니메이션 시작
+     */
+    public void startCategoryExitAnimation() {
+        categoryAnimation.startAnimation(ShopAnimation.AnimationType.SLIDE_OUT);
+    }
+    
+    /**
+     * 애니메이션 업데이트
+     */
+    public void updateAnimation() {
+        animation.update();
+        categoryAnimation.update();
+    }
+    
+    /**
+     * 애니메이션 중인지 확인
+     */
+    public boolean isAnimating() {
+        return animation.isAnimating();
+    }
+    
+    /**
+     * 카테고리 애니메이션 중인지 확인
+     */
+    public boolean isCategoryAnimating() {
+        return categoryAnimation.isAnimating();
+    }
+    
+    /**
+     * 애니메이션 리셋
+     */
+    public void reset() {
+        animation.reset();
+        categoryAnimation.reset();
+    }
+    
     public void draw(Graphics2D g2d, ShopManager shopManager, ShopInputHandler inputHandler) {
         // 배경 이미지 그리기
         if (backgroundImage != null) {
@@ -158,6 +222,9 @@ public class ShopRenderer {
         // 반투명 오버레이
         g2d.setColor(new Color(0, 0, 0, 120));
         g2d.fillRect(0, 0, 800, 600);
+        
+        // 애니메이션 업데이트
+        updateAnimation();
         
         // 현재 상태에 따라 다른 화면 그리기
         switch (shopManager.getCurrentState()) {
@@ -192,24 +259,42 @@ public class ShopRenderer {
     }
     
     private void drawMainShop(Graphics2D g2d, ShopManager shopManager, ShopInputHandler inputHandler) {
+        // 애니메이션 효과에 따른 패널 위치 계산
+        float progress = animation.getProgress();
+        int leftPanelX, rightPanelX;
+        
+        if (animation.isAnimating() && animation.getCurrentType() == ShopAnimation.AnimationType.SLIDE_IN) {
+            // 양쪽에서 밀려오는 효과
+            leftPanelX = (int) (50 - (200 * (1.0f - progress)));  // 왼쪽에서 오른쪽으로
+            rightPanelX = (int) (270 + (480 * (1.0f - progress))); // 오른쪽에서 왼쪽으로
+        } else if (animation.isAnimating() && animation.getCurrentType() == ShopAnimation.AnimationType.SLIDE_OUT) {
+            // 양쪽으로 밀려나가는 효과
+            leftPanelX = (int) (50 - (200 * progress));  // 왼쪽으로 밀려나감
+            rightPanelX = (int) (270 + (480 * progress)); // 오른쪽으로 밀려나감
+        } else {
+            // 애니메이션 완료 후 정상 위치
+            leftPanelX = 50;
+            rightPanelX = 270;
+        }
+        
         // 왼쪽 패널 (메뉴 네비게이션)
         g2d.setColor(new Color(0, 0, 0, 150)); // 반투명 검은색
-        g2d.fillRect(50, 50, 200, 500);
+        g2d.fillRect(leftPanelX, 50, 200, 500);
         g2d.setColor(Color.WHITE);
-        g2d.drawRect(50, 50, 200, 500);
+        g2d.drawRect(leftPanelX, 50, 200, 500);
         
         // 오른쪽 패널 (콘텐츠 표시 영역)
         g2d.setColor(new Color(0, 0, 0, 150)); // 반투명 검은색
-        g2d.fillRect(270, 50, 480, 500);
+        g2d.fillRect(rightPanelX, 50, 480, 500);
         g2d.setColor(Color.WHITE);
-        g2d.drawRect(270, 50, 480, 500);
+        g2d.drawRect(rightPanelX, 50, 480, 500);
         
-        // 제목 "상점"
+        // 제목 "상점" (왼쪽 패널 내부)
         g2d.setColor(Color.WHITE);
         g2d.setFont(titleFont);
         FontMetrics titleMetrics = g2d.getFontMetrics();
         String title = "상점";
-        int titleX = 50 + (200 - titleMetrics.stringWidth(title)) / 2;
+        int titleX = leftPanelX + (200 - titleMetrics.stringWidth(title)) / 2;
         g2d.drawString(title, titleX, 100);
         
         // 메뉴 옵션들 (왼쪽 패널)
@@ -226,28 +311,28 @@ public class ShopRenderer {
             // 선택된 항목 강조
             if (i == inputHandler.getSelectedOption()) {
                 g2d.setColor(Color.WHITE);
-                g2d.drawRect(60, startY + (i * lineHeight) - 25, 180, 30);
+                g2d.drawRect(leftPanelX + 10, startY + (i * lineHeight) - 25, 180, 30);
                 
                 // 화살표 그리기
                 g2d.setColor(Color.YELLOW);
-                g2d.drawString("→", 220, startY + (i * lineHeight));
+                g2d.drawString("→", leftPanelX + 170, startY + (i * lineHeight));
             }
             
             g2d.setColor(i == inputHandler.getSelectedOption() ? Color.YELLOW : Color.WHITE);
-            int x = 70;
+            int x = leftPanelX + 20;
             int y = startY + (i * lineHeight);
             g2d.drawString(mainOptions[i], x, y);
         }
         
         // 오른쪽 패널에 선택된 항목의 상세 정보 표시
-        drawShopDetails(g2d, shopManager, inputHandler);
+        drawShopDetails(g2d, shopManager, inputHandler, rightPanelX);
     }
     
-    private void drawShopDetails(Graphics2D g2d, ShopManager shopManager, ShopInputHandler inputHandler) {
+    private void drawShopDetails(Graphics2D g2d, ShopManager shopManager, ShopInputHandler inputHandler, int panelX) {
         g2d.setColor(Color.WHITE);
         g2d.setFont(menuFont);
         
-        int startX = 290;
+        int startX = panelX + 20;
         int startY = 100;
         int lineHeight = 30;
         
@@ -307,22 +392,41 @@ public class ShopRenderer {
     }
     
     private void drawCategoryShop(Graphics2D g2d, ShopManager shopManager, ShopInputHandler inputHandler) {
+        // 애니메이션 효과에 따른 패널 위치 계산
+        float progress = categoryAnimation.getProgress();
+        int panelX, panelY;
+        
+        if (categoryAnimation.isAnimating() && categoryAnimation.getCurrentType() == ShopAnimation.AnimationType.SLIDE_IN) {
+            // 위에서 아래로 밀려오는 효과
+            panelX = 50;
+            panelY = (int) (50 - (500 * (1.0f - progress))); // 위에서 아래로
+        } else if (categoryAnimation.isAnimating() && categoryAnimation.getCurrentType() == ShopAnimation.AnimationType.SLIDE_OUT) {
+            // 아래에서 위로 밀려나가는 효과
+            panelX = 50;
+            panelY = (int) (50 - (500 * progress)); // 아래에서 위로
+        } else {
+            // 애니메이션 완료 후 정상 위치
+            panelX = 50;
+            panelY = 50;
+        }
+        
         // 전체 화면을 활용한 단일 패널
         g2d.setColor(new Color(0, 0, 0, 150)); // 반투명 검은색
-        g2d.fillRect(50, 50, 700, 500);
+        g2d.fillRect(panelX, panelY, 700, 500);
         g2d.setColor(Color.WHITE);
-        g2d.drawRect(50, 50, 700, 500);
+        g2d.drawRect(panelX, panelY, 700, 500);
         
         // 카테고리 제목 표시
         g2d.setColor(Color.WHITE);
         g2d.setFont(titleFont);
         FontMetrics titleMetrics = g2d.getFontMetrics();
         String categoryTitle = getCategoryTitle(shopManager.getCurrentCategory());
-        int titleX = 50 + (700 - titleMetrics.stringWidth(categoryTitle)) / 2;
-        g2d.drawString(categoryTitle, titleX, 100);
+        int titleX = panelX + (700 - titleMetrics.stringWidth(categoryTitle)) / 2;
+        int titleY = panelY + 50; // 패널 내부에서 50px 아래
+        g2d.drawString(categoryTitle, titleX, titleY);
         
         // 아이템들 표시
-        drawCategoryItems(g2d, shopManager, inputHandler);
+        drawCategoryItems(g2d, shopManager, inputHandler, panelX, panelY);
     }
     
     private String getCategoryTitle(ShopCategory category) {
@@ -342,18 +446,18 @@ public class ShopRenderer {
         }
     }
     
-    private void drawCategoryItems(Graphics2D g2d, ShopManager shopManager, ShopInputHandler inputHandler) {
+    private void drawCategoryItems(Graphics2D g2d, ShopManager shopManager, ShopInputHandler inputHandler, int panelX, int panelY) {
         // 플레이어 코인 표시 (상단 우측) - 실시간 데이터
         int currentCoins = getCurrentCoins();
         if (coinImage != null) {
-            g2d.drawImage(coinImage, 650, 70, 24, 24, null);
+            g2d.drawImage(coinImage, panelX + 600, panelY + 20, 24, 24, null);
             g2d.setColor(Color.YELLOW);
             g2d.setFont(menuFont);
-            g2d.drawString(": " + currentCoins, 680, 90);
+            g2d.drawString(": " + currentCoins, panelX + 630, panelY + 40);
         } else {
             g2d.setColor(Color.YELLOW);
             g2d.setFont(menuFont);
-            g2d.drawString("보유 코인: " + currentCoins, 650, 90);
+            g2d.drawString("보유 코인: " + currentCoins, panelX + 600, panelY + 40);
         }
         
         // 해당 카테고리의 아이템 목록
@@ -364,20 +468,19 @@ public class ShopRenderer {
         if (categoryItems.isEmpty()) {
             g2d.setColor(Color.WHITE);
             g2d.setFont(menuFont);
-            g2d.drawString("이 카테고리에는 아이템이 없습니다.", 350, 200);
+            g2d.drawString("이 카테고리에는 아이템이 없습니다.", panelX + 350, panelY + 200);
             return;
         }
         
         // 아이템들을 그리드 형태로 표시 (3열로 확장)
         int itemsPerRow = 3;
         int panelWidth = 700; // 전체 패널 너비
-        int panelStartX = 50; // 패널 시작 X 좌표
         int spacingX = 15; // 아이템 간 가로 간격
         int spacingY = 20; // 아이템 간 세로 간격
         int itemWidth = (panelWidth - spacingX * (itemsPerRow + 1)) / itemsPerRow; // 패널 너비에 맞게 계산
         int itemHeight = 150;
-        int startX = panelStartX + spacingX;
-        int startY = 130;
+        int startX = panelX + spacingX;
+        int startY = panelY + 80; // 제목 아래로 조정
         
         for (int i = 0; i < categoryItems.size(); i++) {
             ShopItem item = categoryItems.get(i);
@@ -475,8 +578,8 @@ public class ShopRenderer {
             g2d.setFont(menuFont);
             String message = shopManager.getPurchaseMessage();
             FontMetrics messageMetrics = g2d.getFontMetrics();
-            int messageX = 290 + (480 - messageMetrics.stringWidth(message)) / 2;
-            g2d.drawString(message, messageX, 500);
+            int messageX = panelX + (700 - messageMetrics.stringWidth(message)) / 2;
+            g2d.drawString(message, messageX, panelY + 450);
         }
     }
     
