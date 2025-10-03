@@ -334,7 +334,7 @@ public class ShopInputHandler {
         switch (spaceshipId) {
             case "king":
                 return "총장님";
-            case "destroyer":
+            case "professor":
                 return "평생지도교수님";
             case "software_king":
                 return "학과장님";

@@ -5,10 +5,6 @@ import java.awt.Graphics2D;
 // no direct AWT listeners here; handled via InputManager
 import java.util.ArrayList;
 
-import javax.swing.JFrame;
-import javax.swing.JPanel;
-
-import org.newdawn.spaceinvaders.SystemTimer;
 import org.newdawn.spaceinvaders.gameplay.entity.AlienEntity;
 import org.newdawn.spaceinvaders.gameplay.entity.BossEntity;
 import org.newdawn.spaceinvaders.gameplay.entity.Entity;
@@ -16,7 +12,10 @@ import org.newdawn.spaceinvaders.gameplay.entity.ExplosionEntity;
 import org.newdawn.spaceinvaders.gameplay.entity.MissileEntity;
 import org.newdawn.spaceinvaders.gameplay.entity.ShipEntity;
 import org.newdawn.spaceinvaders.gameplay.entity.ShotEntity;
-import org.newdawn.spaceinvaders.gameplay.entity.Skill;
+import org.newdawn.spaceinvaders.login.UserManager;
+import org.newdawn.spaceinvaders.shop.ShopCategory;
+import org.newdawn.spaceinvaders.shop.ShopItem;
+import org.newdawn.spaceinvaders.app.Screen;
 
 /**
  * The main hook of our game. This class with both act as a manager
@@ -55,12 +54,6 @@ public class Game extends Canvas implements Screen
 
 	/** The current number of frames recorded */
 	// FPS 표시 기능은 상위에서 처리 가능, 내부적으로는 카운트만 유지하지 않음
-	/** The normal title of the game window */
-	private String windowTitle = "Space Invaders 102";
-	/** The game window that we'll update with the frame count */
-	private JFrame container;
-	/** Cached background image for better performance */
-	private java.awt.image.BufferedImage cachedBackgroundImage;
 	
 	/** The game state manager */
 	private GameStateManager gameStateManager;
@@ -73,6 +66,9 @@ public class Game extends Canvas implements Screen
 	/** Background renderer (cached) */
 	private BackgroundRenderer backgroundRenderer;
 	// gameplay는 mainmenu 패키지에 의존하지 않도록, 오버레이는 UIRenderer에서 처리
+	
+	/** 메인메뉴 전환 요청 플래그 */
+	private boolean requestMainMenu = false;
 	
 	/**
 	 * Construct our game and set it running.
@@ -115,7 +111,19 @@ public class Game extends Canvas implements Screen
 		// 게임플레이 상태 초기화 (entities.clear() 포함)
 		gameStateManager.startNewGame();
 		
-		// 엔티티 초기화 (startNewGame() 후에 호출)
+		// ShopManager에 아이템들 추가 및 장착 정보 로드
+		if (userManager != null && userManager.isLoggedIn()) {
+			System.out.println("Game: 게임 시작 시 ShopManager 초기화");
+			// ShopManager의 static 메서드로 아이템 초기화
+			org.newdawn.spaceinvaders.shop.ShopManager.initializeDefaultItems(userManager.getShopManager());
+			userManager.getShopManager().loadInventoryFromDB();
+			userManager.getShopManager().loadEquipmentFromDB();
+		}
+		
+		// 장착된 아이템 적용 (ShopManager 초기화 후)
+		applyEquippedItems();
+		
+		// 엔티티 초기화 (스킨 적용 후)
 		initEntities();
 		
 		// 입력 상태 초기화
@@ -466,7 +474,9 @@ public class Game extends Canvas implements Screen
 			!gameStateManager.isShowingSkillMenu()) {
 			// Update skill effects
 			skillManager.updateSkillEffects();
-			ArrayList<Entity> entities = gameStateManager.getEntities();
+			
+			// Create a copy to avoid ConcurrentModificationException
+			ArrayList<Entity> entities = new ArrayList<>(gameStateManager.getEntities());
 			for (Entity entity : entities) {
 				entity.move(delta);
 			}
@@ -481,7 +491,6 @@ public class Game extends Canvas implements Screen
 			} else if (inputManager.isRightPressed() && !inputManager.isLeftPressed()) {
 				ship.setHorizontalMovement(moveSpeed);
 			}
-<<<<<<< HEAD
 			if (inputManager.isFirePressed()) {
 				tryToFire();
 			}
@@ -603,7 +612,8 @@ public class Game extends Canvas implements Screen
 			skillManager.getAttackPowerCost(),
 			skillManager.getAttackSpeedCost(),
 			skillManager.getHpUpCost(),
-			gameStateManager.getSelectedSkill()
+			gameStateManager.getSelectedSkill(),
+			skillManager
 		);
 	}
 	
@@ -614,26 +624,6 @@ public class Game extends Canvas implements Screen
 		uiRenderer.drawPauseOverlay(g2d, gameStateManager.getSelectedPauseMenuItem());
 	}
 
-	/**
-	 * 게임플레이 배경 그리기
-	 */
-	private void drawGameplayBackground(java.awt.Graphics2D g) {
-		try {
-			// Load background image only once (cache it)
-			if (cachedBackgroundImage == null) {
-				cachedBackgroundImage = javax.imageio.ImageIO.read(
-					getClass().getResourceAsStream("/sprites/backgrounds/Background-3.jpg")
-				);
-			}
-			
-			// Draw cached background image scaled to fit screen
-			g.drawImage(cachedBackgroundImage, 0, 0, 800, 600, null);
-		} catch (Exception e) {
-			// Fallback to black background if image loading fails
-			g.setColor(java.awt.Color.black);
-			g.fillRect(0, 0, 800, 600);
-		}
-	}
 	
 	/**
 	 * Create explosion effect
@@ -745,7 +735,6 @@ public class Game extends Canvas implements Screen
 			// Game completed
 			gameStateManager.setMessage("🏆 GAME COMPLETED! 🏆 Congratulations!");
 			gameStateManager.setWaitingForKeyPress(true);
-			gameStateManager.handleGameEnd();
 		}
 	}
 	
@@ -766,6 +755,134 @@ public class Game extends Canvas implements Screen
 	}
 	
 	/**
+	 * Set the UserManager for accessing equipped items
+	 */
+	public void setUserManager(UserManager userManager) {
+		this.userManager = userManager;
+		// ShopManager의 장착 정보 동기화
+		if (userManager != null && userManager.isLoggedIn()) {
+			// ShopManager에 아이템들 추가 (MainMenu와 동일한 방식)
+			org.newdawn.spaceinvaders.shop.ShopManager.initializeDefaultItems(userManager.getShopManager());
+			userManager.getShopManager().loadInventoryFromDB();
+			userManager.getShopManager().loadEquipmentFromDB();
+			System.out.println("Game: UserManager 설정 완료 - 장착 정보 동기화");
+		}
+	}
+	
+	/**
+	 * Get the current UserManager
+	 */
+	public UserManager getUserManager() {
+		return userManager;
+	}
+	
+	/**
+	 * Get the GameStateManager
+	 */
+	public GameStateManager getGameStateManager() {
+		return gameStateManager;
+	}
+	
+	/**
+	 * Apply equipped items from UserManager
+	 */
+	private void applyEquippedItems() {
+		if (userManager == null) {
+			System.out.println("UserManager is null, using default skins");
+			return;
+		}
+		
+		// Apply spaceship skin
+		applySpaceshipSkin();
+		
+		// Apply weapon skin
+		applyWeaponSkin();
+		
+		// Apply powerup effects
+		applyPowerupEffects();
+	}
+	
+	/**
+	 * Apply equipped spaceship skin
+	 */
+	private void applySpaceshipSkin() {
+		if (userManager == null) return;
+		
+		ShopItem equippedSpaceship = userManager.getShopManager().getEquippedItem(ShopCategory.SPACESHIPS);
+		if (equippedSpaceship != null) {
+			currentSpaceshipSkin = "sprites/ships/" + equippedSpaceship.getId() + ".png";
+			System.out.println("Applied spaceship skin: " + currentSpaceshipSkin);
+			
+			// 기존 ShipEntity가 있으면 스킨 변경
+			if (ship != null) {
+				ship.changeSkin(currentSpaceshipSkin);
+				System.out.println("ShipEntity 스킨 변경됨: " + currentSpaceshipSkin);
+			}
+		}
+	}
+	
+	/**
+	 * Apply equipped weapon skin
+	 */
+	private void applyWeaponSkin() {
+		if (userManager == null) return;
+		
+		ShopItem equippedWeapon = userManager.getShopManager().getEquippedItem(ShopCategory.WEAPONS);
+		if (equippedWeapon != null) {
+			currentWeaponSkin = "sprites/weapons/" + equippedWeapon.getId() + ".png";
+			System.out.println("Applied weapon skin: " + currentWeaponSkin);
+		}
+	}
+	
+	/**
+	 * Apply powerup effects
+	 */
+	private void applyPowerupEffects() {
+		if (userManager == null) return;
+		
+		// Apply powerup effects if any
+		// This can be extended based on your powerup system
+		System.out.println("Powerup effects applied");
+	}
+	
+	/**
+	 * Get current spaceship skin path
+	 */
+	public String getCurrentSpaceshipSkin() {
+		return currentSpaceshipSkin;
+	}
+	
+	/**
+	 * Get current weapon skin path
+	 */
+	public String getCurrentWeaponSkin() {
+		return currentWeaponSkin;
+	}
+	
+	/**
+	 * Go to main menu (called from pause menu)
+	 */
+	public void goToMainMenu() {
+		// 메인메뉴 전환 요청 플래그 설정
+		requestMainMenu = true;
+		System.out.println("게임 종료 요청 - 메인 메뉴로 전환");
+	}
+	
+	/**
+	 * 메인메뉴 전환 요청 여부 확인
+	 */
+	public boolean isRequestingMainMenu() {
+		return requestMainMenu;
+	}
+	
+	/**
+	 * 메인메뉴 전환 요청 플래그 리셋
+	 */
+	public void resetMainMenuRequest() {
+		requestMainMenu = false;
+	}
+	
+	/**
 	 * The entry point into the game. We'll simply create an
 	 * instance of class which will start the display and game
 	 * loop.
@@ -773,12 +890,9 @@ public class Game extends Canvas implements Screen
 	 * @param argv The arguments that are passed into our game
 	 */
 	public static void main(String argv[]) {
-		Game g = new Game();
-
-		// Start the main game loop, note: this method will not
-		// return until the game has finished running. Hence we are
-		// using the actual main thread to run the game.
-		g.gameLoop();
+		// Game is now managed by SpaceInvadersApp
+		// This main method is kept for compatibility but should not be used directly
+		System.out.println("Game class should be instantiated through SpaceInvadersApp");
 	}
 	
 }

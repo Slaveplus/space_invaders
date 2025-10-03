@@ -47,7 +47,7 @@ public class InputManager {
          */
         public void keyTyped(KeyEvent e) {
             // 게임플레이 중 "any key" 대기 상태일 때
-            if (gameStateManager.isGameplay() && gameStateManager.isWaitingForKeyPress()) {
+            if (gameStateManager.isWaitingForKeyPress()) {
                 // 스킬 메뉴가 열려있고 waitingForKeyPress가 true인 경우 (스킬 포인트 부족 메시지)
                 if (gameStateManager.isShowingSkillMenu()) {
                     gameStateManager.setWaitingForKeyPress(false);

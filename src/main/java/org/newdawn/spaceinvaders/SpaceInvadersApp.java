@@ -76,7 +76,7 @@ public class SpaceInvadersApp extends JFrame implements ScreenNavigator {
         // 스크린 생성 (UserManager 공유)
         loginScreenCanvas = new LoginScreenCanvas(this, userManager);
         mainMenuCanvas = new MainMenuCanvas(this, userManager);
-        gameScreen = new Game(this); // Game을 스크린(캔버스)으로 사용
+        gameScreen = new Game(); // Game을 스크린(캔버스)으로 사용
         gameScreen.setUserManager(userManager); // Game에 UserManager 전달
 
         // 초기 화면
@@ -151,6 +151,14 @@ public class SpaceInvadersApp extends JFrame implements ScreenNavigator {
 
             if (currentScreen != null) {
                 currentScreen.update(delta);
+                
+                // 게임에서 메인 메뉴로 돌아가기 요청이 있는지 확인
+                if (currentScreen == gameScreen && gameScreen.isRequestingMainMenu()) {
+                    // 메인 메뉴로 전환
+                    setScreen(mainMenuCanvas);
+                    gameScreen.resetMainMenuRequest();
+                    System.out.println("게임에서 메인 메뉴로 전환됨");
+                }
             }
 
             // strategy가 null이거나 캔버스가 displayable 상태가 아니면 버퍼 전략 재생성

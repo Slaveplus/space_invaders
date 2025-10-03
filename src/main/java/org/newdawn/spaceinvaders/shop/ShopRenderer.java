@@ -371,7 +371,7 @@ public class ShopRenderer {
                 break;
             case 1: // 우주선 상점
                 g2d.drawString("다양한 우주선을 구매할 수 있습니다.", startX, startY + lineHeight * 2);
-                g2d.drawString("다양한 색상의 전투기, 평생지도교수님 등", startX, startY + lineHeight * 3);
+                g2d.drawString("다양한 색상의 전투기, 기깔나는 전투기 등", startX, startY + lineHeight * 3);
                 g2d.drawString("Enter를 눌러 우주선 상점에 입장하세요.", startX, startY + lineHeight * 4);
                 break;
             case 2: // 뒤로가기

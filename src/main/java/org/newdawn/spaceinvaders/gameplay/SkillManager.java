@@ -328,15 +328,12 @@ public class SkillManager {
     private void fireMissileAtRandomTarget() {
         try {
             // Find a random enemy to target
-            java.util.List<Object> entities = game.getEntities();
+            java.util.List<Entity> entities = game.getEntities();
             java.util.List<Entity> enemies = new java.util.ArrayList<>();
             
-            for (Object obj : entities) {
-                if (obj instanceof Entity) {
-                    Entity entity = (Entity) obj;
-                    if (entity instanceof AlienEntity) {
-                        enemies.add(entity);
-                    }
+            for (Entity entity : entities) {
+                if (entity instanceof AlienEntity) {
+                    enemies.add(entity);
                 }
             }
             
@@ -359,4 +356,5 @@ public class SkillManager {
             game.fireMissile(400, 300);
         }
     }
+    
 }

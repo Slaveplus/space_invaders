@@ -10,7 +10,6 @@ import org.newdawn.spaceinvaders.gameplay.Game;
 import java.awt.image.BufferedImage;
 import java.io.IOException;
 import java.net.URL;
-import java.util.ArrayList;
 
 /**
  * 폭발 효과를 나타내는 엔티티
@@ -206,13 +205,13 @@ public class ExplosionEntity extends Entity {
     private void dealDamageToEnemies() {
         try {
             // Create a copy to avoid ConcurrentModificationException
-            java.util.List<Object> entities = game.getEntities();
+            java.util.List<Entity> entities = game.getEntities();
             java.util.List<AlienEntity> aliensToDamage = new java.util.ArrayList<>();
             
             // First collect all aliens in range
-            for (Object obj : entities) {
-                if (obj instanceof AlienEntity) {
-                    AlienEntity alien = (AlienEntity) obj;
+            for (Entity entity : entities) {
+                if (entity instanceof AlienEntity) {
+                    AlienEntity alien = (AlienEntity) entity;
                     if (!damagedEntities.contains(alien)) {
                         double dxToEnemy = alien.getX() - x;
                         double dyToEnemy = alien.getY() - y;

@@ -96,7 +96,7 @@ public class ShopManager {
         ShopItem kimbap_code = new ShopItem("kimbap_code", "김밥 코드", "교수님이 극혐하신다", 3000, 
                                        ShopCategory.WEAPONS, ItemRarity.LEGENDARY);
         kimbap_code.setIconPath("sprites/weapons/kimbap_code.png");
-        kimbap_code.setRequiredSpaceshipId("destroyer"); // 평생지도교수님 전용
+        kimbap_code.setRequiredSpaceshipId("professor"); // 평생지도교수님 전용
         shopManager.addItem(kimbap_code);
 
         
@@ -111,10 +111,10 @@ public class ShopManager {
         battleship.setIconPath("sprites/ships/spaceship_blue.png");
         shopManager.addItem(battleship);
         
-        ShopItem destroyer = new ShopItem("destroyer", "평생지도교수님", "초초초희귀 킹갓제너럴 프로페서", 1500, 
+        ShopItem professor = new ShopItem("professor", "평생지도교수님", "초초초희귀 킹갓제너럴 프로페서", 1500, 
                                        ShopCategory.SPACESHIPS, ItemRarity.LEGENDARY);
-        destroyer.setIconPath("sprites/ships/professor.png");
-        shopManager.addItem(destroyer);
+        professor.setIconPath("sprites/ships/professor.png");
+        shopManager.addItem(professor);
 
         ShopItem king = new ShopItem("king", "총장님", "천원의 아침밥", 5000, 
                                        ShopCategory.SPACESHIPS, ItemRarity.LEGENDARY);

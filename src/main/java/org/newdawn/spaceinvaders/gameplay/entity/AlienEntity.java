@@ -5,7 +5,6 @@ import java.awt.Graphics2D;
 
 import org.newdawn.spaceinvaders.gameplay.Game;
 import org.newdawn.spaceinvaders.gameplay.sprite.Sprite;
-import org.newdawn.spaceinvaders.gameplay.sprite.SpriteStore;
 
 /**
  * An entity which represents one of our space invader aliens.

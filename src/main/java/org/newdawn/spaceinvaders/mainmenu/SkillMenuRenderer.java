@@ -1,7 +1,6 @@
 package org.newdawn.spaceinvaders.mainmenu;
 
 import java.awt.*;
-import java.awt.geom.AffineTransform;
 import java.awt.image.BufferedImage;
 import javax.imageio.ImageIO;
 import java.io.IOException;
@@ -18,7 +17,7 @@ public class SkillMenuRenderer {
      */
     public void drawSkillMenu(Graphics2D g, int skillPoints, int attackPower, double attackSpeed, 
                              int maxHP, int attackPowerCost, int attackSpeedCost, int hpUpCost,
-                             int selectedSkill) {
+                             int selectedSkill, org.newdawn.spaceinvaders.gameplay.SkillManager skillManager) {
         // Enable anti-aliasing for smoother shapes
         g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
         
@@ -63,8 +62,8 @@ public class SkillMenuRenderer {
                 g.drawImage(panelBackground, panelX, panelY, panelWidth, panelHeight, null);
             }
             
-            // Draw border based on affordability (reuse canAfford variable)
-            drawSkillBorder(g, panelX, panelY, panelWidth, panelHeight, isSelected, canAfford);
+            // Draw border based on skill enhancement status
+            drawSkillBorder(g, panelX, panelY, panelWidth, panelHeight, isSelected, canAfford, i, skillManager);
             
             // Skill icon
             drawSkillIcon(g, i, panelX, panelY, panelWidth);
@@ -158,14 +157,30 @@ public class SkillMenuRenderer {
     /**
      * Draw skill border based on affordability
      */
-    private void drawSkillBorder(Graphics2D g, int panelX, int panelY, int panelWidth, int panelHeight, boolean isSelected, boolean canAfford) {
+    private void drawSkillBorder(Graphics2D g, int panelX, int panelY, int panelWidth, int panelHeight, boolean isSelected, boolean canAfford, int skillIndex, org.newdawn.spaceinvaders.gameplay.SkillManager skillManager) {
         BufferedImage borderImage;
         
-        if (canAfford) {
-            // Use Force True.png when affordable
+        // 스킬 강화 상태 확인
+        boolean isEnhanced = false;
+        if (skillManager != null) {
+            switch (skillIndex) {
+                case 0: // 공격력
+                    isEnhanced = skillManager.getAttackPowerLevel() > 0;
+                    break;
+                case 1: // 공격속도
+                    isEnhanced = skillManager.getAttackSpeedLevel() > 0;
+                    break;
+                case 2: // HP 증가
+                    isEnhanced = skillManager.getHpUpLevel() > 0;
+                    break;
+            }
+        }
+        
+        if (isEnhanced) {
+            // 스킬이 강화되었으면 Force True.png 사용
             borderImage = loadForceTrueImage();
         } else {
-            // Use Force Select.png when not affordable
+            // 스킬이 강화되지 않았으면 Force Select.png 사용
             borderImage = loadForceSelectImage();
         }
         
