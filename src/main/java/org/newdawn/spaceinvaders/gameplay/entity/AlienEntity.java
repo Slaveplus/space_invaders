@@ -185,6 +185,8 @@ public class AlienEntity extends Entity {
 		} else if (x > Rules.ALIEN_MAX_X) {
 			changeDirection();
 			x = Rules.ALIEN_MAX_X;
+		}
+
 		// 주기적으로 방향을 바꾸는 로직 추가 (더 역동적인 움직임)
 		long currentTime = System.currentTimeMillis();
 		if (currentTime - lastDirectionChange > directionChangeInterval) {
@@ -199,14 +201,14 @@ public class AlienEntity extends Entity {
 			}
 		}
 
-		// Check screen boundaries and change direction (좌우로 맵 전체를 왕복)
+		// 좌우 왕복 (세부 한계)
 		if (x < 10) {
 			movingRight = true;
-			dx = Math.abs(dx); // 현재 속도 유지하되 양수로
-			x = 10; // Keep alien on screen
+			dx = Math.abs(dx);
+			x = 10;
 		} else if (x > 750) {
 			movingRight = false;
-			dx = -Math.abs(dx); // 현재 속도 유지하되 음수로
+			dx = -Math.abs(dx);
 			x = 750;
 		}
 
@@ -217,21 +219,16 @@ public class AlienEntity extends Entity {
 			changeVerticalDirection();
 			y = Rules.ALIEN_MAX_Y;
 		}
-		
-		// Random direction changes for more chaotic movement
-		if (lastDirectionChange > directionChangeInterval) {
-			if (Math.random() < 0.1) { // 10% chance to change direction randomly
-				changeDirection();
-			}
-			lastDirectionChange = 0;
 
-		// Y 위치 제한 (맵 절반 이상 내려오지 못하게)
-		if (y < 50) {
-			y = 50;
-		} else if (y > 300) { // 맵 절반(300) 이상 내려오지 못하게 제한
-			y = 300;
+		// Random direction changes
+		if (lastDirectionChange > directionChangeInterval) {
+			if (Math.random() < 0.1) changeDirection();
+			lastDirectionChange = 0;
 		}
-		
+
+		// Y 위치 제한
+		if (y < 50) y = 50; else if (y > 300) y = 300;
+
 		// proceed with normal move
 		super.move(delta);
 	}

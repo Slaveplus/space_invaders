@@ -328,6 +328,20 @@ public class UIRenderer {
     GraphicsUtils.drawCenteredString(g, hint, 520);
     }
 
+    // Overload used by new network Game (no SkillManager UI details required)
+    public void drawSkillOverlay(Graphics2D g,
+                                 int skillPoints,
+                                 int attackPower,
+                                 double attackSpeed,
+                                 int maxHP,
+                                 int costAtk,
+                                 int costAspd,
+                                 int costHp,
+                                 int selectedSkill) {
+        drawBasicSkillOverlay(g, skillPoints, attackPower, attackSpeed, maxHP, costAtk, costAspd, costHp, selectedSkill);
+    }
+
+    // Original skill overlay using SkillManager (retain for legacy single-player screens if any)
     public void drawSkillOverlay(Graphics2D g,
                                  int skillPoints,
                                  int attackPower,
@@ -338,42 +352,45 @@ public class UIRenderer {
                                  int costHp,
                                  int selectedSkill,
                                  SkillManager skillManager) {
-        // SkillMenuRenderer 사용
-        org.newdawn.spaceinvaders.mainmenu.SkillMenuRenderer skillMenuRenderer = new org.newdawn.spaceinvaders.mainmenu.SkillMenuRenderer();
-        skillMenuRenderer.drawSkillMenu(g, skillPoints, attackPower, attackSpeed, maxHP, costAtk, costAspd, costHp, selectedSkill, skillManager);
-                                 int selectedSkill) {
-        // 반투명 배경
-        g.setColor(new Color(0, 0, 0, 160));
-    g.fillRect(0, 0, GameViewport.WIDTH, GameViewport.HEIGHT);
+        drawBasicSkillOverlay(g, skillPoints, attackPower, attackSpeed, maxHP, costAtk, costAspd, costHp, selectedSkill);
+    }
 
-        // 제목
+    private void drawBasicSkillOverlay(Graphics2D g,
+                                       int skillPoints,
+                                       int attackPower,
+                                       double attackSpeed,
+                                       int maxHP,
+                                       int costAtk,
+                                       int costAspd,
+                                       int costHp,
+                                       int selectedSkill) {
+        g.setColor(new Color(0,0,0,160));
+        g.fillRect(0,0, GameViewport.WIDTH, GameViewport.HEIGHT);
+
         g.setFont(new Font("Arial", Font.BOLD, 32));
         g.setColor(Color.WHITE);
         String title = "스킬 업그레이드";
         FontMetrics fm = g.getFontMetrics();
-    int titleX = (GameViewport.WIDTH - fm.stringWidth(title)) / 2;
+        int titleX = (GameViewport.WIDTH - fm.stringWidth(title)) / 2;
         g.drawString(title, titleX, 140);
 
-        // 포인트
         g.setFont(FONT_TEXT_16_B);
         g.setColor(Color.YELLOW);
         g.drawString("스킬 포인트: " + skillPoints, 300, 180);
 
-        // 카드 형태 버튼 3개
         String[] names = {"공격력 +1", "공격속도 +0.2", "최대HP +3 & 풀회복"};
         String[] costs = {"필요: " + costAtk, "필요: " + costAspd, "필요: " + costHp};
         int startX = 120;
-        for (int i = 0; i < 3; i++) {
-            boolean sel = (i == selectedSkill);
-            int x = startX + i * 200;
+        for (int i=0;i<3;i++) {
+            boolean sel = (i==selectedSkill);
+            int x = startX + i*200;
             drawCard(g, x, 220, 180, 140, names[i], costs[i], sel);
         }
 
-        // 힌트
         g.setFont(FONT_TEXT_12_P);
         g.setColor(Color.CYAN);
-    String hint = "좌/우로 이동, Enter/Space 선택, Q 닫기";
-    GraphicsUtils.drawCenteredString(g, hint, 410);
+        String hint = "좌/우 이동, Enter/Space 선택, Q 닫기";
+        GraphicsUtils.drawCenteredString(g, hint, 410);
     }
 
     private void drawMenuButton(Graphics2D g, String text, int x, int y, int w, int h, boolean selected) {
