@@ -7,6 +7,9 @@ import org.newdawn.spaceinvaders.gameplay.ResolutionManager;
 import org.newdawn.spaceinvaders.login.LoginScreenCanvas;
 import org.newdawn.spaceinvaders.login.UserManager;
 import org.newdawn.spaceinvaders.mainmenu.MainMenuCanvas;
+import org.newdawn.spaceinvaders.room.GameClient;
+import org.newdawn.spaceinvaders.room.RoomListCanvas;
+import org.newdawn.spaceinvaders.room.RoomLobbyCanvas;
 
 import javax.swing.*;
 import java.awt.*;
@@ -36,6 +39,9 @@ public class SpaceInvadersApp extends JFrame implements ScreenNavigator {
     // 스크린(캔버스)
     private LoginScreenCanvas loginScreenCanvas;
     private MainMenuCanvas mainMenuCanvas;
+    private RoomListCanvas roomListCanvas; // 동적 생성 (접속 후)
+    private RoomLobbyCanvas roomLobbyCanvas; // 현재 로비
+    private GameClient currentClient; // 현재 GameClient 참조
     private Game gameScreen; // Game 자체를 캔버스로 이용
 
     private Screen currentScreen; // update/render 가상화
@@ -225,6 +231,8 @@ public class SpaceInvadersApp extends JFrame implements ScreenNavigator {
 
     @Override
     public void startNewGame() {
+        // 게임 시작 전에 멀티플레이 클라이언트가 살아있다면 정리 (싱글게임 전환시 세션 종료)
+        cleanupClient();
         if (gameScreen != null) gameScreen.startNewGame();
         requestSetScreen(gameScreen);
     }
@@ -233,10 +241,54 @@ public class SpaceInvadersApp extends JFrame implements ScreenNavigator {
     public void exitGame() {
         running = false;
     }
+
+    /** 현재 GameClient 및 관련 화면 정리 */
+    private void cleanupClient() {
+        if (roomListCanvas != null && currentClient != null) {
+            currentClient.removeListener(roomListCanvas);
+        }
+        if (roomLobbyCanvas != null && currentClient != null) {
+            currentClient.removeListener(roomLobbyCanvas);
+        }
+        if (currentClient != null) {
+            currentClient.shutdown();
+            currentClient = null;
+        }
+        roomListCanvas = null;
+        roomLobbyCanvas = null;
+    }
     
     @Override
     public void setResolution(int width, int height) {
         changeResolution(width, height);
+    }
+
+    // ===== 멀티플레이 네비게이션 구현 =====
+    @Override
+    public void showRoomList(GameClient client) {
+        // 기존 클라이언트 리스너 정리 필요시 처리
+        if (client != currentClient) {
+            // 다른 세션으로 전환 시 이전 세션 종료
+            cleanupClient();
+            this.currentClient = client;
+        }
+        if (roomListCanvas == null || roomListCanvas.getWidth() != currentWidth) {
+            roomListCanvas = new RoomListCanvas(this, client);
+            roomListCanvas.init();
+        }
+        requestSetScreen(roomListCanvas);
+    }
+
+    @Override
+    public void showRoomLobby(String roomId) {
+        if (currentClient == null) {
+            // 예외 상황: 클라이언트 없으면 목록으로
+            showRoomList(null);
+            return;
+        }
+        roomLobbyCanvas = new RoomLobbyCanvas(this, currentClient, roomId);
+        roomLobbyCanvas.init();
+        requestSetScreen(roomLobbyCanvas);
     }
     
     // 해상도 변경 메서드들

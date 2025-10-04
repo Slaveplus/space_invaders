@@ -11,10 +11,16 @@ import org.newdawn.spaceinvaders.shop.ShopAnimation;
 import org.newdawn.spaceinvaders.login.UserManager;
 import org.newdawn.spaceinvaders.login.User;
 import org.newdawn.spaceinvaders.app.ScreenNavigator;
+import org.newdawn.spaceinvaders.room.GameClient;
 
 /**
  * 우주 배경을 사용한 메인 메뉴 시스템
  */
+import java.util.Properties;
+import java.io.FileOutputStream;
+import java.io.FileInputStream;
+import java.io.File;
+
 public class MainMenu {
     // 상점 클래스 연결
     private Shop shop;
@@ -26,14 +32,14 @@ public class MainMenu {
 
     /** 현재 메뉴 상태 */
     public enum MenuState {
-        MAIN,           // 메인 메뉴
-        SINGLE_PLAYER,  // 싱글플레이 서브메뉴
-        MULTI_PLAYER,   // 멀티플레이 서브메뉴
-        SHOP,           // 상점 메뉴
-        INVENTORY,      // 인벤토리 메뉴
-        SETTINGS,       // 설정 메뉴
-        RESOLUTION,     // 해상도 변경 메뉴
-        ACCOUNT         // 계정 메뉴
+        MAIN,            // 메인 메뉴
+        GAMEPLAY,        // 통합 게임플레이(싱글/멀티)
+        SHOP,            // 상점 메뉴
+        INVENTORY,       // 인벤토리 메뉴
+        SETTINGS,        // 설정 메뉴
+        RESOLUTION,      // 해상도 변경 메뉴
+        ACCOUNT,         // 계정 메뉴
+        SERVER_CONNECT   // 서버 접속 정보 입력
     }
     
     private MenuState currentState = MenuState.MAIN;
@@ -49,9 +55,10 @@ public class MainMenu {
     private ShopAnimation settingsAnimation;
     private ShopAnimation accountAnimation;
     
-    // 싱글플레이 서브메뉴 옵션들
-    private String[] singlePlayerOptions = {
-        "새게임",
+    // 통합 게임플레이 서브메뉴 옵션 (싱글/멀티 통합)
+    private String[] gameplayOptions = {
+        "게임참가",
+        "리더보드",
         "플레이기록",
         "이전메뉴"
     };
@@ -82,12 +89,7 @@ public class MainMenu {
         {0, 0} // 이전메뉴는 무시
     };
     
-    // 멀티플레이 서브메뉴 옵션들
-    private String[] multiPlayerOptions = {
-        "게임참가",
-        "리더보드",
-        "이전메뉴"
-    };
+    // (기존 멀티플레이 옵션 제거, gameplayOptions 사용)
 
     // 계정 메뉴 옵션들
     private String[] accountOptions = {
@@ -126,8 +128,7 @@ public class MainMenu {
             : "게스트";
         
         return new String[]{
-            "싱글플레이",
-            "멀티플레이", 
+            "게임플레이",
             "상점",
             "인벤토리",
             "설정",
@@ -277,6 +278,17 @@ public class MainMenu {
             }
         }
         
+        // 서버 연결 입력 모드일 경우 별도 처리 (방향키 중 일부는 옵션 이동 대신 입력 전용)
+        if (currentState == MenuState.SERVER_CONNECT) {
+            if (keyCode == KeyEvent.VK_ESCAPE) {
+                currentState = MenuState.GAMEPLAY;
+                selectedOption = 0;
+                return;
+            }
+            handleServerConnectKey(keyCode);
+            return;
+        }
+
         switch (keyCode) {
             case KeyEvent.VK_UP:
                 selectedOption = Math.max(0, selectedOption - 1);
@@ -291,7 +303,7 @@ public class MainMenu {
             case KeyEvent.VK_ESCAPE:
                 if (currentState == MenuState.INVENTORY) {
                     currentState = MenuState.MAIN;
-                    selectedOption = 3; // 인벤토리 옵션으로 돌아가기
+                    selectedOption = 2; // 통합 후 인벤토리 인덱스 조정
                 } else if (currentState == MenuState.RESOLUTION) {
                     // 설정 메뉴의 좌우 패널 애니메이션 시작 (상점과 동일한 방식)
                     if (settingsAnimation != null) {
@@ -305,14 +317,17 @@ public class MainMenu {
                         settingsAnimation.startAnimation(ShopAnimation.AnimationType.SLIDE_OUT);
                     }
                     currentState = MenuState.MAIN;
-                    selectedOption = 4; // 설정 옵션으로 돌아가기
+                    selectedOption = 3; // 설정 인덱스 조정
                 } else if (currentState == MenuState.ACCOUNT) {
                     // 계정에서 메인으로 돌아갈 때 슬라이드 아웃 애니메이션
                     if (accountAnimation != null) {
                         accountAnimation.startAnimation(ShopAnimation.AnimationType.SLIDE_OUT);
                     }
                     currentState = MenuState.MAIN;
-                    selectedOption = 5; // 계정 옵션으로 돌아가기
+                    selectedOption = 4; // 계정 인덱스 조정
+                } else if (currentState == MenuState.GAMEPLAY) {
+                    currentState = MenuState.MAIN;
+                    selectedOption = 0;
                 } else if (currentState != MenuState.MAIN) {
                     currentState = MenuState.MAIN;
                     selectedOption = 0;
@@ -326,16 +341,16 @@ public class MainMenu {
      */
     private String[] getCurrentMenuOptions() {
         switch (currentState) {
-            case SINGLE_PLAYER:
-                return singlePlayerOptions;
-            case MULTI_PLAYER:
-                return multiPlayerOptions;
+            case GAMEPLAY:
+                return gameplayOptions;
             case SETTINGS:
                 return getSettingsOptions();
             case RESOLUTION:
                 return resolutionOptions;
             case ACCOUNT:
                 return accountOptions;
+            case SERVER_CONNECT:
+                return new String[]{};
             case INVENTORY:
                 return new String[]{"뒤로가기"}; // 인벤토리는 뒤로가기만
             case SHOP:
@@ -357,11 +372,8 @@ public class MainMenu {
             case MAIN:
                 handleMainMenuSelection();
                 break;
-            case SINGLE_PLAYER:
-                handleSinglePlayerSelection();
-                break;
-            case MULTI_PLAYER:
-                handleMultiPlayerSelection();
+            case GAMEPLAY:
+                handleGameplaySelection();
                 break;
             case SETTINGS:
                 handleSettingsSelection();
@@ -382,6 +394,9 @@ public class MainMenu {
                 // 상점 진입 애니메이션 시작
                 shop.startEntryAnimation();
                 break;
+            case SERVER_CONNECT:
+                // 입력 화면에서는 옵션 선택 없음
+                break;
         }
     }
     
@@ -390,21 +405,17 @@ public class MainMenu {
      */
     private void handleMainMenuSelection() {
         switch (selectedOption) {
-            case 0: // 싱글플레이
-                currentState = MenuState.SINGLE_PLAYER;
+            case 0: // 게임플레이 통합
+                currentState = MenuState.GAMEPLAY;
                 selectedOption = 0;
                 break;
-            case 1: // 멀티플레이
-                currentState = MenuState.MULTI_PLAYER;
-                selectedOption = 0;
-                break;
-            case 2: // 상점
+            case 1: // 상점
                 showingShop = true;
                 shop.reset();
                 // 상점 진입 애니메이션 시작
                 shop.startEntryAnimation();
                 break;
-            case 3: // 인벤토리
+            case 2: // 인벤토리
                 currentState = MenuState.INVENTORY;
                 selectedOption = 0;
                 // 인벤토리 진입 시 경고창 초기화
@@ -416,7 +427,7 @@ public class MainMenu {
                     shop.startInventoryEntryAnimation();
                 }
                 break;
-            case 4: // 설정
+            case 3: // 설정
                 currentState = MenuState.SETTINGS;
                 selectedOption = 0;
                 // 설정 진입 애니메이션 시작
@@ -424,7 +435,7 @@ public class MainMenu {
                     settingsAnimation.startAnimation(ShopAnimation.AnimationType.SLIDE_IN);
                 }
                 break;
-            case 5: // 계정 (사용자 이메일)
+            case 4: // 계정 (사용자 이메일)
                 currentState = MenuState.ACCOUNT;
                 selectedOption = 0;
                 // 계정 진입 애니메이션 시작
@@ -432,39 +443,26 @@ public class MainMenu {
                     accountAnimation.startAnimation(ShopAnimation.AnimationType.SLIDE_IN);
                 }
                 break;
-            case 6: // 게임 종료
+            case 5: // 게임 종료
                 System.exit(0);
                 break;
         }
     }
     
-    /**
-     * 싱글플레이 메뉴 선택을 처리합니다
-     */
-    private void handleSinglePlayerSelection() {
+    /** 통합 게임플레이 메뉴 선택 */
+    private void handleGameplaySelection() {
         switch (selectedOption) {
-            case 0: // 새게임
-                gameStartRequested = true;
-                break;
-            case 1: // 플레이기록
-                break;
-            case 2: // 이전메뉴
-                currentState = MenuState.MAIN;
-                selectedOption = 0;
-                break;
-        }
-    }
-    
-    /**
-     * 멀티플레이 메뉴 선택을 처리합니다
-     */
-    private void handleMultiPlayerSelection() {
-        switch (selectedOption) {
-            case 0: // 게임참가
+            case 0: // 게임참가 -> 서버 연결 입력 화면으로 이동
+                currentState = MenuState.SERVER_CONNECT;
+                resetServerConnectInputs();
                 break;
             case 1: // 리더보드
+                // TODO: 리더보드 구현
                 break;
-            case 2: // 이전메뉴
+            case 2: // 플레이기록
+                // TODO: 플레이기록 구현
+                break;
+            case 3: // 이전메뉴
                 currentState = MenuState.MAIN;
                 selectedOption = 0;
                 break;
@@ -570,7 +568,7 @@ public class MainMenu {
             // 저장 중이 아닐 때만 저장 시작
             if (!shop.getShopManager().getEquipmentManager().isSaving()) {
                 // 변경사항을 DB에 저장
-                boolean saveSuccess = shop.getShopManager().getEquipmentManager().saveChangesToDB();
+                shop.getShopManager().getEquipmentManager().saveChangesToDB();
                 // 인벤토리 변경사항 저장 완료
             }
         }
@@ -635,6 +633,8 @@ public class MainMenu {
             drawSettingsMenu(g2d);
         } else if (currentState == MenuState.RESOLUTION) {
             drawResolutionMenu(g2d);
+        } else if (currentState == MenuState.SERVER_CONNECT) {
+            drawServerConnectScreen(g2d);
         } else {
             // 메뉴 옵션들 그리기
             drawMenuOptions(g2d);
@@ -923,6 +923,195 @@ public class MainMenu {
         g2d.setColor(Color.GRAY);
         g2d.setFont(new Font("Arial", Font.PLAIN, 14));
         g2d.drawString("↑↓: 이동  Enter/Space: 선택  ESC: 뒤로가기", 280, 550);
+    }
+
+    // ===== 서버 연결 상태 필드 =====
+    private String serverAddressInput = "";
+    private String serverPortInput = "";
+    private static final String DEFAULT_SERVER_ADDRESS = "127.0.0.1";
+    private static final String DEFAULT_SERVER_PORT = "7777";
+    private static final String CONFIG_FILE = System.getProperty("user.home") + File.separator + ".spaceinvaders_server.properties";
+    private boolean serverAddressFocus = true; // true 주소, false 포트 또는 버튼 영역
+    private int serverSelectedButton = 0; // 0 연결 1 취소
+    private String serverMessage = "";
+    private int serverMessageTimer = 0;
+
+    private void resetServerConnectInputs() {
+        // 설정 파일에서 불러오기
+        Properties props = new Properties();
+        boolean loaded = false;
+        try (FileInputStream fis = new FileInputStream(CONFIG_FILE)) {
+            props.load(fis);
+            loaded = true;
+        } catch (Exception e) {
+            // 파일 없거나 오류시 무시
+        }
+        serverAddressInput = loaded ? props.getProperty("server.address", DEFAULT_SERVER_ADDRESS) : DEFAULT_SERVER_ADDRESS;
+        serverPortInput = loaded ? props.getProperty("server.port", DEFAULT_SERVER_PORT) : DEFAULT_SERVER_PORT;
+        serverAddressFocus = true;
+        serverSelectedButton = 0;
+        serverMessage = "";
+        serverMessageTimer = 0;
+    }
+
+    private void handleServerConnectKey(int keyCode) {
+        if (serverMessageTimer > 0) {
+            serverMessageTimer--;
+            if (serverMessageTimer == 0) serverMessage = "";
+        }
+        switch (keyCode) {
+            case KeyEvent.VK_TAB:
+            case KeyEvent.VK_DOWN:
+                if (serverAddressFocus) {
+                    serverAddressFocus = false; // 포트 필드로 이동
+                } else {
+                    // 버튼 선택 모드 유지 (심플 처리)
+                    serverAddressFocus = false;
+                }
+                break;
+            case KeyEvent.VK_UP:
+                if (!serverAddressFocus) {
+                    serverAddressFocus = true;
+                }
+                break;
+            case KeyEvent.VK_LEFT:
+                if (!serverAddressFocus) serverSelectedButton = Math.max(0, serverSelectedButton - 1);
+                break;
+            case KeyEvent.VK_RIGHT:
+                if (!serverAddressFocus) serverSelectedButton = Math.min(1, serverSelectedButton + 1);
+                break;
+            case KeyEvent.VK_BACK_SPACE:
+                if (serverAddressFocus && serverAddressInput.length() > 0) {
+                    serverAddressInput = serverAddressInput.substring(0, serverAddressInput.length()-1);
+                } else if (!serverAddressFocus && serverPortInput.length() > 0) {
+                    serverPortInput = serverPortInput.substring(0, serverPortInput.length()-1);
+                }
+                break;
+            case KeyEvent.VK_ENTER:
+                if (serverAddressFocus) {
+                    serverAddressFocus = false; // 포트로 이동
+                } else {
+                    if (serverSelectedButton == 0) {
+                        attemptServerConnection();
+                    } else {
+                        currentState = MenuState.GAMEPLAY;
+                        selectedOption = 0;
+                    }
+                }
+                break;
+            default:
+                if (keyCode >= KeyEvent.VK_A && keyCode <= KeyEvent.VK_Z && serverAddressFocus) {
+                    char c = (char)('a' + (keyCode - KeyEvent.VK_A));
+                    serverAddressInput += c;
+                } else if (keyCode >= KeyEvent.VK_0 && keyCode <= KeyEvent.VK_9) {
+                    char c = (char)('0' + (keyCode - KeyEvent.VK_0));
+                    if (serverAddressFocus) serverAddressInput += c; else serverPortInput += c;
+                } else if (keyCode == KeyEvent.VK_PERIOD && serverAddressFocus) {
+                    serverAddressInput += '.';
+                } else if (keyCode == KeyEvent.VK_MINUS && serverAddressFocus) {
+                    serverAddressInput += '-';
+                }
+                break;
+        }
+    }
+
+    private void attemptServerConnection() {
+        if (serverAddressInput.isEmpty()) { showServerMessage("주소 필요"); return; }
+        if (serverPortInput.isEmpty()) { showServerMessage("포트 필요"); return; }
+        int port;
+        try { port = Integer.parseInt(serverPortInput); if (port<1||port>65535) { showServerMessage("포트 범위 오류"); return; } }
+        catch(Exception e){ showServerMessage("포트 숫자 오류"); return; }
+        showServerMessage("접속 시도: "+serverAddressInput+":"+port);
+        // 실제 GameClient 생성 및 연결 시도
+        try {
+            String username = userManager!=null && userManager.isLoggedIn()? userManager.getCurrentUser().getUsername():"Guest";
+            GameClient client = new GameClient(serverAddressInput, port, username);
+            client.connect();
+            // 접속 성공 시 서버 주소/포트 저장
+            saveServerConfig(serverAddressInput, serverPortInput);
+            // 방 목록 표시로 전환
+            if (navigator != null) {
+                navigator.showRoomList(client);
+            } else {
+                gameStartRequested = false; // 네비게이터 없으면 기존 로직 비활성화
+            }
+            // 메인메뉴 상태를 MAIN으로 전환 (다시 돌아와도 메인화면)
+            currentState = MenuState.MAIN;
+            selectedOption = 0;
+        } catch (Exception ex) {
+            showServerMessage("접속 실패: "+ex.getMessage());
+        }
+    }
+
+    private void saveServerConfig(String address, String port) {
+        Properties props = new Properties();
+        props.setProperty("server.address", address);
+        props.setProperty("server.port", port);
+        try (FileOutputStream fos = new FileOutputStream(CONFIG_FILE)) {
+            props.store(fos, "SpaceInvaders 서버 접속 정보");
+        } catch (Exception e) {
+            // 저장 실패시 무시
+        }
+    }
+
+    private void showServerMessage(String msg) {
+        serverMessage = msg;
+        serverMessageTimer = 180; // 3초
+    }
+
+    private void drawServerConnectScreen(Graphics2D g2d) {
+        // 패널 배경
+        g2d.setColor(new Color(0,0,0,160));
+        g2d.fillRoundRect(140,140,520,320,20,20);
+        g2d.setColor(Color.WHITE);
+        g2d.drawRoundRect(140,140,520,320,20,20);
+        g2d.setFont(titleFont.deriveFont(36f));
+        String t = "서버 접속";
+        FontMetrics tm = g2d.getFontMetrics();
+        g2d.drawString(t, 400 - tm.stringWidth(t)/2, 190);
+        g2d.setFont(menuFont);
+        int labelX=200, boxX=320, y0=230, gap=60;
+        // 주소
+        g2d.setColor(Color.WHITE); g2d.drawString("주소:", labelX, y0);
+        drawServerInputBox(g2d, boxX, y0-30, 300, 40, serverAddressFocus);
+        g2d.setColor(serverAddressInput.isEmpty() && serverAddressFocus ? Color.GRAY:Color.WHITE);
+        g2d.drawString(serverAddressInput.isEmpty() && serverAddressFocus?"예) 127.0.0.1":serverAddressInput, boxX+10, y0);
+        // 포트
+        g2d.setColor(Color.WHITE); g2d.drawString("포트:", labelX, y0+gap);
+        drawServerInputBox(g2d, boxX, y0+gap-30, 300, 40, !serverAddressFocus);
+        g2d.setColor(serverPortInput.isEmpty() && !serverAddressFocus ? Color.GRAY:Color.WHITE);
+        g2d.drawString(serverPortInput.isEmpty() && !serverAddressFocus?"예) 7777":serverPortInput, boxX+10, y0+gap);
+        // 버튼
+        int btnY = y0 + gap*2 + 10; int bw=140; int bh=40; int space=40; int startX = 400 - (bw*2 + space)/2;
+        drawServerButton(g2d, startX, btnY, bw, bh, !serverAddressFocus && serverSelectedButton==0, "연결");
+        drawServerButton(g2d, startX + bw + space, btnY, bw, bh, !serverAddressFocus && serverSelectedButton==1, "취소");
+        if (!serverMessage.isEmpty()) {
+            g2d.setColor(Color.YELLOW);
+            g2d.setFont(submenuFont);
+            FontMetrics mm = g2d.getFontMetrics();
+            g2d.drawString(serverMessage, 400 - mm.stringWidth(serverMessage)/2, btnY + 70);
+        }
+        g2d.setColor(Color.LIGHT_GRAY);
+        g2d.setFont(new Font("Arial", Font.PLAIN, 12));
+        String help = "Tab/↓: 다음  Enter: 확정/연결  ESC: 뒤로";
+        FontMetrics hm = g2d.getFontMetrics();
+        g2d.drawString(help, 400 - hm.stringWidth(help)/2, 470);
+    }
+
+    private void drawServerInputBox(Graphics2D g2d,int x,int y,int w,int h,boolean focus){
+        g2d.setColor(Color.DARK_GRAY);
+        g2d.fillRect(x,y,w,h);
+        g2d.setColor(focus?Color.YELLOW:Color.WHITE);
+        g2d.drawRect(x,y,w,h);
+    }
+
+    private void drawServerButton(Graphics2D g2d,int x,int y,int w,int h,boolean sel,String text){
+        g2d.setColor(new Color(40,40,40,200));
+        g2d.fillRect(x,y,w,h);
+        g2d.setColor(sel?Color.YELLOW:Color.WHITE);
+        g2d.drawRect(x,y,w,h);
+        FontMetrics fm = g2d.getFontMetrics();
+        g2d.drawString(text, x + (w - fm.stringWidth(text))/2, y + (h + fm.getAscent())/2 - 4);
     }
     
     /**
