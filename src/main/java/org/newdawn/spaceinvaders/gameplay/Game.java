@@ -43,6 +43,8 @@ public class Game extends Canvas implements Screen
 	private double moveSpeed = 300;
 	/** UserManager for accessing equipped items */
 	private UserManager userManager;
+	/** ResolutionManager for handling resolution scaling */
+	private ResolutionManager resolutionManager;
 	// lastFire and firingInterval are now managed by GameStateManager
 	/** The number of aliens left on the screen */
 	private int alienCount;
@@ -104,6 +106,13 @@ public class Game extends Canvas implements Screen
 
 	
 	/**
+	 * ResolutionManager 설정
+	 */
+	public void setResolutionManager(ResolutionManager resolutionManager) {
+		this.resolutionManager = resolutionManager;
+	}
+	
+	/**
 	 * Start a fresh game, this should clear out any old data and
 	 * create a new set.
 	 */
@@ -113,7 +122,6 @@ public class Game extends Canvas implements Screen
 		
 		// ShopManager에 아이템들 추가 및 장착 정보 로드
 		if (userManager != null && userManager.isLoggedIn()) {
-			System.out.println("Game: 게임 시작 시 ShopManager 초기화");
 			// ShopManager의 static 메서드로 아이템 초기화
 			org.newdawn.spaceinvaders.shop.ShopManager.initializeDefaultItems(userManager.getShopManager());
 			userManager.getShopManager().loadInventoryFromDB();
@@ -519,6 +527,13 @@ public class Game extends Canvas implements Screen
 	}
 
 	public void render(Graphics2D g) {
+		// 해상도 스케일링 적용
+		if (resolutionManager != null) {
+			double scaleX = resolutionManager.getScaleX();
+			double scaleY = resolutionManager.getScaleY();
+			g.scale(scaleX, scaleY);
+		}
+		
 		// 배경 (cached)
 		backgroundRenderer.draw(g);
 		// entities
@@ -648,7 +663,7 @@ public class Game extends Canvas implements Screen
 	 * @param points Points to add
 	 */
 	public void addScore(int points) {
-		System.out.println("Score added: " + points);
+		// 점수 추가
 	}
 	
 	/**
@@ -659,7 +674,6 @@ public class Game extends Canvas implements Screen
 	public void addSkillPoints(int points) {
 		int currentPoints = gameStateManager.getSkillPoints();
 		gameStateManager.setSkillPoints(currentPoints + points);
-		System.out.println("Skill points added: " + points + " (Total: " + (currentPoints + points) + ")");
 	}
 	
 	/**
@@ -677,8 +691,7 @@ public class Game extends Canvas implements Screen
 			gameStateManager.getEntities().add(leftAlien);
 			gameStateManager.getEntities().add(rightAlien);
 			
-			System.out.println("BOSS SPAWNED! Round " + round + " Boss with " + boss.getMaxHP() + " HP!");
-			System.out.println("Side aliens added to boss fight!");
+		// 보스 스폰 완료
 			
 			gameStateManager.setMessage("⚠️ BOSS APPEARED! ⚠️");
 			gameStateManager.setWaitingForKeyPress(true);
@@ -720,7 +733,7 @@ public class Game extends Canvas implements Screen
 	 * Handle boss defeat
 	 */
 	public void notifyBossDefeated() {
-		System.out.println("BOSS DEFEATED! Round " + gameStateManager.getCurrentRound() + " completed!");
+		// 보스 처치 완료
 		
 		gameStateManager.setMessage("🎉 BOSS DEFEATED! 🎉 Round " + gameStateManager.getCurrentRound() + " Complete!");
 		gameStateManager.setWaitingForKeyPress(true);
@@ -765,7 +778,6 @@ public class Game extends Canvas implements Screen
 			org.newdawn.spaceinvaders.shop.ShopManager.initializeDefaultItems(userManager.getShopManager());
 			userManager.getShopManager().loadInventoryFromDB();
 			userManager.getShopManager().loadEquipmentFromDB();
-			System.out.println("Game: UserManager 설정 완료 - 장착 정보 동기화");
 		}
 	}
 	
@@ -788,7 +800,6 @@ public class Game extends Canvas implements Screen
 	 */
 	private void applyEquippedItems() {
 		if (userManager == null) {
-			System.out.println("UserManager is null, using default skins");
 			return;
 		}
 		
@@ -811,12 +822,9 @@ public class Game extends Canvas implements Screen
 		ShopItem equippedSpaceship = userManager.getShopManager().getEquippedItem(ShopCategory.SPACESHIPS);
 		if (equippedSpaceship != null) {
 			currentSpaceshipSkin = "sprites/ships/" + equippedSpaceship.getId() + ".png";
-			System.out.println("Applied spaceship skin: " + currentSpaceshipSkin);
-			
 			// 기존 ShipEntity가 있으면 스킨 변경
 			if (ship != null) {
 				ship.changeSkin(currentSpaceshipSkin);
-				System.out.println("ShipEntity 스킨 변경됨: " + currentSpaceshipSkin);
 			}
 		}
 	}
@@ -830,7 +838,6 @@ public class Game extends Canvas implements Screen
 		ShopItem equippedWeapon = userManager.getShopManager().getEquippedItem(ShopCategory.WEAPONS);
 		if (equippedWeapon != null) {
 			currentWeaponSkin = "sprites/weapons/" + equippedWeapon.getId() + ".png";
-			System.out.println("Applied weapon skin: " + currentWeaponSkin);
 		}
 	}
 	
@@ -842,7 +849,6 @@ public class Game extends Canvas implements Screen
 		
 		// Apply powerup effects if any
 		// This can be extended based on your powerup system
-		System.out.println("Powerup effects applied");
 	}
 	
 	/**
@@ -865,7 +871,6 @@ public class Game extends Canvas implements Screen
 	public void goToMainMenu() {
 		// 메인메뉴 전환 요청 플래그 설정
 		requestMainMenu = true;
-		System.out.println("게임 종료 요청 - 메인 메뉴로 전환");
 	}
 	
 	/**
@@ -892,7 +897,6 @@ public class Game extends Canvas implements Screen
 	public static void main(String argv[]) {
 		// Game is now managed by SpaceInvadersApp
 		// This main method is kept for compatibility but should not be used directly
-		System.out.println("Game class should be instantiated through SpaceInvadersApp");
 	}
 	
 }

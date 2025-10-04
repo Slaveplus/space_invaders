@@ -3,6 +3,7 @@ package org.newdawn.spaceinvaders;
 import org.newdawn.spaceinvaders.app.Screen;
 import org.newdawn.spaceinvaders.app.ScreenNavigator;
 import org.newdawn.spaceinvaders.gameplay.Game;
+import org.newdawn.spaceinvaders.gameplay.ResolutionManager;
 import org.newdawn.spaceinvaders.login.LoginScreenCanvas;
 import org.newdawn.spaceinvaders.login.UserManager;
 import org.newdawn.spaceinvaders.mainmenu.MainMenuCanvas;
@@ -28,6 +29,9 @@ public class SpaceInvadersApp extends JFrame implements ScreenNavigator {
 
     // 공유 UserManager
     private UserManager userManager;
+    
+    // 해상도 관리자
+    private ResolutionManager resolutionManager;
     
     // 스크린(캔버스)
     private LoginScreenCanvas loginScreenCanvas;
@@ -70,6 +74,10 @@ public class SpaceInvadersApp extends JFrame implements ScreenNavigator {
         canvas.createBufferStrategy(2);
         strategy = canvas.getBufferStrategy();
 
+        // 해상도 관리자 초기화
+        resolutionManager = new ResolutionManager();
+        resolutionManager.setResolution(currentWidth, currentHeight);
+
         // 공유 UserManager 생성
         userManager = new UserManager();
 
@@ -78,6 +86,7 @@ public class SpaceInvadersApp extends JFrame implements ScreenNavigator {
         mainMenuCanvas = new MainMenuCanvas(this, userManager);
         gameScreen = new Game(); // Game을 스크린(캔버스)으로 사용
         gameScreen.setUserManager(userManager); // Game에 UserManager 전달
+        gameScreen.setResolutionManager(resolutionManager); // Game에 ResolutionManager 전달
 
         // 초기 화면
         setScreen(loginScreenCanvas);
@@ -157,7 +166,6 @@ public class SpaceInvadersApp extends JFrame implements ScreenNavigator {
                     // 메인 메뉴로 전환
                     setScreen(mainMenuCanvas);
                     gameScreen.resetMainMenuRequest();
-                    System.out.println("게임에서 메인 메뉴로 전환됨");
                 }
             }
 
@@ -236,6 +244,11 @@ public class SpaceInvadersApp extends JFrame implements ScreenNavigator {
         this.currentWidth = width;
         this.currentHeight = height;
         
+        // 해상도 관리자 업데이트
+        if (resolutionManager != null) {
+            resolutionManager.setResolution(width, height);
+        }
+        
         // 창 크기 업데이트
         JPanel panel = (JPanel) getContentPane();
         panel.setPreferredSize(new Dimension(width, height));
@@ -263,6 +276,11 @@ public class SpaceInvadersApp extends JFrame implements ScreenNavigator {
     
     public int getCurrentHeight() {
         return currentHeight;
+    }
+    
+    @Override
+    public ResolutionManager getResolutionManager() {
+        return resolutionManager;
     }
     
     // 미리 정의된 해상도 옵션들

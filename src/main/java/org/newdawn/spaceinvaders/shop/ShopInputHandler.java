@@ -106,12 +106,10 @@ public class ShopInputHandler {
     }
     
     private void handleCategoryInput(int keyCode) {
-        // 현재 카테고리의 아이템들만 필터링
-        List<ShopItem> categoryItems = shopManager.getShopItems().stream()
-                .filter(item -> item.getCategory() == shopManager.getCurrentCategory())
-                .collect(java.util.stream.Collectors.toList());
+        // 현재 페이지의 아이템들만 가져오기
+        List<ShopItem> currentPageItems = shopManager.getItemsForCurrentPage(shopManager.getCurrentCategory());
         
-    int itemsPerRow = 3;
+        int itemsPerRow = 3;
         
         switch (keyCode) {
             case KeyEvent.VK_UP:
@@ -121,7 +119,7 @@ public class ShopInputHandler {
                 System.out.println("선택된 아이템: " + selectedItem);
                 break;
             case KeyEvent.VK_DOWN:
-                if (selectedItem + itemsPerRow < categoryItems.size()) {
+                if (selectedItem + itemsPerRow < currentPageItems.size()) {
                     selectedItem += itemsPerRow;
                 }
                 System.out.println("선택된 아이템: " + selectedItem);
@@ -133,17 +131,29 @@ public class ShopInputHandler {
                 System.out.println("선택된 아이템: " + selectedItem);
                 break;
             case KeyEvent.VK_RIGHT:
-                if (selectedItem < categoryItems.size() - 1) {
+                if (selectedItem < currentPageItems.size() - 1) {
                     selectedItem++;
                 }
                 System.out.println("선택된 아이템: " + selectedItem);
                 break;
+            case KeyEvent.VK_P:
+                // 이전 페이지로 이동
+                shopManager.previousPage(shopManager.getCurrentCategory());
+                selectedItem = 0; // 페이지 변경 시 선택 초기화
+                System.out.println("이전 페이지로 이동: " + (shopManager.getCurrentPage() + 1));
+                break;
+            case KeyEvent.VK_L:
+                // 다음 페이지로 이동
+                shopManager.nextPage(shopManager.getCurrentCategory());
+                selectedItem = 0; // 페이지 변경 시 선택 초기화
+                System.out.println("다음 페이지로 이동: " + (shopManager.getCurrentPage() + 1));
+                break;
             case KeyEvent.VK_ENTER:
             case KeyEvent.VK_SPACE:
-                if (selectedItem < categoryItems.size()) {
+                if (selectedItem < currentPageItems.size()) {
                     shopManager.setCurrentState(ShopState.PURCHASE);
                     selectedOption = 0; // 예 버튼 선택
-                    System.out.println("구매 확인으로 이동: " + categoryItems.get(selectedItem).getName());
+                    System.out.println("구매 확인으로 이동: " + currentPageItems.get(selectedItem).getName());
                 }
                 break;
             case KeyEvent.VK_ESCAPE:
@@ -181,13 +191,11 @@ public class ShopInputHandler {
             case KeyEvent.VK_ENTER:
             case KeyEvent.VK_SPACE:
                 if (selectedOption == 0) {
-                    // 예 - 구매 실행
-                    List<ShopItem> categoryItems = shopManager.getShopItems().stream()
-                            .filter(item -> item.getCategory() == shopManager.getCurrentCategory())
-                            .collect(java.util.stream.Collectors.toList());
+                    // 예 - 구매 실행 (현재 페이지의 아이템 사용)
+                    List<ShopItem> currentPageItems = shopManager.getItemsForCurrentPage(shopManager.getCurrentCategory());
                     
-                    if (selectedItem < categoryItems.size()) {
-                        ShopItem item = categoryItems.get(selectedItem);
+                    if (selectedItem < currentPageItems.size()) {
+                        ShopItem item = currentPageItems.get(selectedItem);
                         if (shopManager.purchaseItem(item.getId())) {
                             System.out.println(item.getName() + "을(를) 구매했습니다!");
                         } else {
@@ -227,6 +235,18 @@ public class ShopInputHandler {
             case KeyEvent.VK_DOWN:
                 // 아이템 선택 아래로
                 moveInventorySelection(3); // 3컬럼이므로 +3
+                break;
+            case KeyEvent.VK_P:
+                // 이전 페이지로 이동
+                shopManager.previousInventoryPage(shopManager.getInventoryCategory());
+                selectedItem = 0; // 페이지 변경 시 선택 초기화
+                System.out.println("인벤토리 이전 페이지로 이동: " + (shopManager.getCurrentInventoryPage() + 1));
+                break;
+            case KeyEvent.VK_L:
+                // 다음 페이지로 이동
+                shopManager.nextInventoryPage(shopManager.getInventoryCategory());
+                selectedItem = 0; // 페이지 변경 시 선택 초기화
+                System.out.println("인벤토리 다음 페이지로 이동: " + (shopManager.getCurrentInventoryPage() + 1));
                 break;
             case KeyEvent.VK_ENTER:
             case KeyEvent.VK_SPACE:
@@ -278,26 +298,26 @@ public class ShopInputHandler {
     }
     
     private void moveInventorySelection(int direction) {
-        List<ShopItem> categoryItems = shopManager.getInventoryByCategory(shopManager.getInventoryCategory());
-        if (!categoryItems.isEmpty()) {
+        List<ShopItem> currentPageItems = shopManager.getInventoryItemsForCurrentPage(shopManager.getInventoryCategory());
+        if (!currentPageItems.isEmpty()) {
             int newSelectedItem = selectedItem + direction;
             
-            // 범위 체크 및 순환 처리
+            // 범위 체크 (순환 처리 제거 - 페이지 내에서만 이동)
             if (newSelectedItem < 0) {
-                newSelectedItem = categoryItems.size() - 1;
-            } else if (newSelectedItem >= categoryItems.size()) {
                 newSelectedItem = 0;
+            } else if (newSelectedItem >= currentPageItems.size()) {
+                newSelectedItem = currentPageItems.size() - 1;
             }
             
             selectedItem = newSelectedItem;
-            System.out.println("인벤토리 아이템 선택: " + selectedItem + " (총 " + categoryItems.size() + "개)");
+            System.out.println("인벤토리 아이템 선택: " + selectedItem + " (현재 페이지 " + currentPageItems.size() + "개)");
         }
     }
     
     private void toggleItemEquip() {
-        List<ShopItem> categoryItems = shopManager.getInventoryByCategory(shopManager.getInventoryCategory());
-        if (!categoryItems.isEmpty() && selectedItem < categoryItems.size()) {
-            ShopItem item = categoryItems.get(selectedItem);
+        List<ShopItem> currentPageItems = shopManager.getInventoryItemsForCurrentPage(shopManager.getInventoryCategory());
+        if (!currentPageItems.isEmpty() && selectedItem < currentPageItems.size()) {
+            ShopItem item = currentPageItems.get(selectedItem);
             ShopCategory category = item.getCategory();
             
             if (shopManager.isItemEquipped(item)) {

@@ -1,5 +1,7 @@
 package org.newdawn.spaceinvaders.app;
 
+import org.newdawn.spaceinvaders.gameplay.ResolutionManager;
+
 /**
  * 화면 전환을 위한 네비게이터. 구현체는 SpaceInvadersApp이 담당합니다.
  */
@@ -9,4 +11,9 @@ public interface ScreenNavigator {
     void startNewGame();
     void exitGame();
     void setResolution(int width, int height);
+    int getCurrentWidth();
+    int getCurrentHeight();
+    
+    // 해상도 관리자 추가
+    ResolutionManager getResolutionManager();
 }

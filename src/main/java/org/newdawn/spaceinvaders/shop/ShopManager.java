@@ -27,6 +27,14 @@ public class ShopManager {
     private EquipmentManager equipmentManager;
     private ShopCategory inventoryCategory = ShopCategory.WEAPONS; // 인벤토리에서 현재 보고 있는 카테고리
     
+    // 페이지네이션 관련 변수들
+    private int currentPage = 0; // 현재 페이지 (0부터 시작)
+    private int itemsPerPage = 6; // 페이지당 아이템 수 (2x3 그리드)
+    
+    // 인벤토리 페이지네이션 관련 변수들
+    private int currentInventoryPage = 0; // 인벤토리 현재 페이지 (0부터 시작)
+    private int inventoryItemsPerPage = 6; // 인벤토리 페이지당 아이템 수 (2x3 그리드)
+    
     public ShopManager() {
         this.shopItems = new ArrayList<>();
         this.playerInventory = new ArrayList<>();
@@ -98,6 +106,12 @@ public class ShopManager {
         kimbap_code.setIconPath("sprites/weapons/kimbap_code.png");
         kimbap_code.setRequiredSpaceshipId("professor"); // 평생지도교수님 전용
         shopManager.addItem(kimbap_code);
+
+        ShopItem breakfast_1000 = new ShopItem("breakfast_1000", "천원의 아침밥", "인기가 너무 많아서 조기 종료되었다", 5000, 
+                                       ShopCategory.WEAPONS, ItemRarity.LEGENDARY);
+                                       breakfast_1000.setIconPath("sprites/weapons/breakfast_1000.png");
+                                       breakfast_1000.setRequiredSpaceshipId("king"); // 총장님 전용
+        shopManager.addItem(breakfast_1000);
 
         
         // 우주선 아이템들
@@ -194,8 +208,8 @@ public class ShopManager {
             return false;
         }
         
-        // 이미 구매된 아이템인지 확인
-        if (item.isPurchased()) {
+        // 이미 구매된 아이템인지 확인 (인벤토리에 있는지 확인)
+        if (isItemInInventory(itemId)) {
             setPurchaseMessage("이미 구매한 아이템입니다.");
             return false;
         }
@@ -282,7 +296,10 @@ public class ShopManager {
     public ShopState getCurrentState() { return currentState; }
     
     public void setCurrentState(ShopState state) { this.currentState = state; }
-    public void setCurrentCategory(ShopCategory category) { this.currentCategory = category; }
+    public void setCurrentCategory(ShopCategory category) { 
+        this.currentCategory = category; 
+        resetPage(); // 카테고리 변경 시 페이지 리셋
+    }
     public ShopCategory getCurrentCategory() { return currentCategory; }
     
     // 메인 메뉴로 돌아갈 때 카테고리 정보 유지
@@ -495,6 +512,7 @@ public class ShopManager {
     
     public void setInventoryCategory(ShopCategory category) {
         this.inventoryCategory = category;
+        resetInventoryPage(); // 인벤토리 카테고리 변경 시 페이지 리셋
     }
     
     public List<ShopItem> getInventoryByCategory(ShopCategory category) {
@@ -546,10 +564,10 @@ public class ShopManager {
     
     // 선택된 아이템 가져오기 (구매 확인용)
     public ShopItem getSelectedItem(int selectedIndex) {
-        // 현재 카테고리의 아이템들 중에서 선택된 아이템 반환
-        List<ShopItem> categoryItems = getItemsByCategory(currentCategory);
-        if (selectedIndex >= 0 && selectedIndex < categoryItems.size()) {
-            return categoryItems.get(selectedIndex);
+        // 현재 페이지의 아이템들 중에서 선택된 아이템 반환
+        List<ShopItem> currentPageItems = getItemsForCurrentPage(currentCategory);
+        if (selectedIndex >= 0 && selectedIndex < currentPageItems.size()) {
+            return currentPageItems.get(selectedIndex);
         }
         return null;
     }
@@ -557,5 +575,125 @@ public class ShopManager {
     // 선택된 아이템 ID로 아이템 가져오기
     public ShopItem getSelectedItemById(String itemId) {
         return getItemById(itemId);
+    }
+    
+    // 페이지네이션 관련 메서드들
+    public int getCurrentPage() {
+        return currentPage;
+    }
+    
+    public void setCurrentPage(int page) {
+        this.currentPage = Math.max(0, page);
+    }
+    
+    public int getItemsPerPage() {
+        return itemsPerPage;
+    }
+    
+    public int getTotalPages(ShopCategory category) {
+        List<ShopItem> categoryItems = getItemsByCategory(category);
+        return (int) Math.ceil((double) categoryItems.size() / itemsPerPage);
+    }
+    
+    public List<ShopItem> getItemsForCurrentPage(ShopCategory category) {
+        List<ShopItem> categoryItems = getItemsByCategory(category);
+        int startIndex = currentPage * itemsPerPage;
+        int endIndex = Math.min(startIndex + itemsPerPage, categoryItems.size());
+        
+        if (startIndex >= categoryItems.size()) {
+            return new ArrayList<>();
+        }
+        
+        return categoryItems.subList(startIndex, endIndex);
+    }
+    
+    public int getTotalItems(ShopCategory category) {
+        return getItemsByCategory(category).size();
+    }
+    
+    public boolean canGoToPreviousPage() {
+        return currentPage > 0;
+    }
+    
+    public boolean canGoToNextPage(ShopCategory category) {
+        return currentPage < getTotalPages(category) - 1;
+    }
+    
+    public void nextPage(ShopCategory category) {
+        int totalPages = getTotalPages(category);
+        if (currentPage < totalPages - 1) {
+            currentPage++;
+        }
+    }
+    
+    public void previousPage(ShopCategory category) {
+        if (currentPage > 0) {
+            currentPage--;
+        }
+    }
+    
+    public void resetPage() {
+        currentPage = 0;
+    }
+    
+    // 인벤토리 페이지네이션 관련 메서드들
+    public int getCurrentInventoryPage() {
+        return currentInventoryPage;
+    }
+    
+    public void setCurrentInventoryPage(int page) {
+        this.currentInventoryPage = Math.max(0, page);
+    }
+    
+    public int getInventoryItemsPerPage() {
+        return inventoryItemsPerPage;
+    }
+    
+    public int getTotalInventoryPages(ShopCategory category) {
+        List<ShopItem> inventoryItems = getInventoryByCategory(category);
+        return (int) Math.ceil((double) inventoryItems.size() / inventoryItemsPerPage);
+    }
+    
+    public List<ShopItem> getInventoryItemsForCurrentPage(ShopCategory category) {
+        List<ShopItem> inventoryItems = getInventoryByCategory(category);
+        int startIndex = currentInventoryPage * inventoryItemsPerPage;
+        int endIndex = Math.min(startIndex + inventoryItemsPerPage, inventoryItems.size());
+        
+        if (startIndex >= inventoryItems.size()) {
+            return new ArrayList<>();
+        }
+        
+        return inventoryItems.subList(startIndex, endIndex);
+    }
+    
+    public boolean canGoToPreviousInventoryPage() {
+        return currentInventoryPage > 0;
+    }
+    
+    public boolean canGoToNextInventoryPage(ShopCategory category) {
+        return currentInventoryPage < getTotalInventoryPages(category) - 1;
+    }
+    
+    public void nextInventoryPage(ShopCategory category) {
+        int totalPages = getTotalInventoryPages(category);
+        if (currentInventoryPage < totalPages - 1) {
+            currentInventoryPage++;
+        }
+    }
+    
+    public void previousInventoryPage(ShopCategory category) {
+        if (currentInventoryPage > 0) {
+            currentInventoryPage--;
+        }
+    }
+    
+    public void resetInventoryPage() {
+        currentInventoryPage = 0;
+    }
+    
+    // 아이템이 인벤토리에 있는지 확인
+    public boolean isItemInInventory(String itemId) {
+        return playerInventory.stream()
+                .anyMatch(item -> item.getId().equals(itemId));
     }
 }
