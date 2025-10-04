@@ -3,7 +3,6 @@ package org.newdawn.spaceinvaders.gameplay;
 import org.newdawn.spaceinvaders.gameplay.core.Rules;
 
 import org.newdawn.spaceinvaders.gameplay.entity.Entity;
-
 import java.util.ArrayList;
 
 /**
@@ -54,8 +53,16 @@ public class GameStateManager {
 
     // 게임 로직
     private boolean logicRequiredThisLoop = false;
-
-    public GameStateManager() { }
+    
+    // 라운드 전환 상태 구분
+    private boolean isRoundTransition = false;
+    
+    public GameStateManager() {
+        System.out.println("GameStateManager 초기화 완료");
+    }
+    
+    
+    // ========== 게임플레이 상태 관리 (GameState.java에서 통합) ==========
     
     /**
      * 게임 시작 시 초기화
@@ -82,6 +89,7 @@ public class GameStateManager {
         waitingForKeyPress = false;
         message = "";
         logicRequiredThisLoop = false;
+        isRoundTransition = false;
     }
     
     // Getters and Setters for gameplay state
@@ -142,6 +150,9 @@ public class GameStateManager {
     public boolean isLogicRequiredThisLoop() { return logicRequiredThisLoop; }
     public void setLogicRequiredThisLoop(boolean logicRequiredThisLoop) { this.logicRequiredThisLoop = logicRequiredThisLoop; }
     
+    public boolean isRoundTransition() { return isRoundTransition; }
+    public void setRoundTransition(boolean roundTransition) { this.isRoundTransition = roundTransition; }
+    
     /**
      * 플레이어 데미지 처리
      */
@@ -150,6 +161,7 @@ public class GameStateManager {
         if (currentHP <= 0) {
             message = "Oh no! They got you, try again?";
             waitingForKeyPress = true;
+            isRoundTransition = false; // 게임 오버 시 라운드 전환 플래그 해제
         }
     }
     
@@ -161,6 +173,7 @@ public class GameStateManager {
             currentRound++;
             message = "라운드 " + currentRound + " 시작! 준비하세요!";
             waitingForKeyPress = true;
+            isRoundTransition = true; // 라운드 전환 플래그 설정
             
             // Update alien firing interval for new round (공통 규칙 사용)
             alienFiringInterval = Rules.globalAlienFiringIntervalMs(currentRound, baseAlienFiringInterval);
@@ -170,6 +183,7 @@ public class GameStateManager {
             // Game completed
             message = "축하합니다! 모든 라운드를 클리어했습니다!";
             waitingForKeyPress = true;
+            isRoundTransition = false; // 게임 완료
             return false; // Game completed
         }
     }

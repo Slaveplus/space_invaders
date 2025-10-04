@@ -45,9 +45,9 @@ public class LoginScreenCanvas extends Canvas implements Screen {
         }
     };
 
-    public LoginScreenCanvas(ScreenNavigator navigator) {
+    public LoginScreenCanvas(ScreenNavigator navigator, UserManager userManager) {
         this.navigator = navigator;
-        this.loginScreen = new LoginScreen();
+        this.loginScreen = new LoginScreen(userManager);
         setIgnoreRepaint(true);
         setBackground(Color.black);
         setSize(SpaceInvadersApp.WIDTH, SpaceInvadersApp.HEIGHT);
@@ -56,13 +56,11 @@ public class LoginScreenCanvas extends Canvas implements Screen {
 
     @Override
     public void init() {
-        // 로그인 화면 진입 시 이전 상태/세션 초기화
+        // 로그인 화면 진입 시 입력 상태만 초기화 (로그아웃은 하지 않음)
         if (loginScreen != null) {
             loginScreen.reset();
-            if (loginScreen.getUserManager() != null) {
-                // 이전 로그인 세션이 남아 자동으로 메인메뉴로 리다이렉트되는 문제 방지
-                loginScreen.getUserManager().logoutUser();
-            }
+            // logoutUser() 호출 제거 - 인벤토리 데이터 보존
+            System.out.println("LoginScreenCanvas: 로그인 화면 초기화 (세션 유지)");
         }
     }
 

@@ -20,6 +20,7 @@ public class ShopItem {
     private String iconPath;
     private int level;
     private int maxLevel;
+    private String requiredSpaceshipId; // 전용 우주선 ID (null이면 모든 우주선 호환)
     
     public ShopItem(String id, String name, String description, int basePrice, 
                    ShopCategory category, ItemRarity rarity) {
@@ -34,6 +35,7 @@ public class ShopItem {
         this.isAvailable = true;
         this.level = 1;
         this.maxLevel = 1;
+        this.requiredSpaceshipId = null; // 기본값: 모든 우주선 호환
     }
     
     // 확장 가능한 메서드들
@@ -74,4 +76,18 @@ public class ShopItem {
     public void setAvailable(boolean available) { this.isAvailable = available; }
     public void setIconPath(String iconPath) { this.iconPath = iconPath; }
     public void setMaxLevel(int maxLevel) { this.maxLevel = maxLevel; }
+    
+    // 전용 우주선 관련 메서드들
+    public String getRequiredSpaceshipId() { return requiredSpaceshipId; }
+    public void setRequiredSpaceshipId(String requiredSpaceshipId) { this.requiredSpaceshipId = requiredSpaceshipId; }
+    
+    /**
+     * 특정 우주선과 호환되는지 확인
+     */
+    public boolean isCompatibleWith(ShopItem spaceship) {
+        if (requiredSpaceshipId == null) {
+            return true; // 전용 우주선이 없으면 모든 우주선과 호환
+        }
+        return spaceship != null && requiredSpaceshipId.equals(spaceship.getId());
+    }
 }

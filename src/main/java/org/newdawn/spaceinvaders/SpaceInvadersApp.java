@@ -9,6 +9,7 @@ import org.newdawn.spaceinvaders.multiplay.LobbyCanvas;
 import org.newdawn.spaceinvaders.multiplay.MultiplayerClient;
 // CoopGameScreen 제거: Game을 네트 클라이언트 화면으로 공용 사용
 import org.newdawn.spaceinvaders.login.LoginScreenCanvas;
+import org.newdawn.spaceinvaders.login.UserManager;
 import org.newdawn.spaceinvaders.mainmenu.MainMenuCanvas;
 
 import javax.swing.*;
@@ -19,11 +20,19 @@ import java.awt.image.BufferStrategy;
  * 애플리케이션 프레임. 창, 메인 루프, 화면 전환을 관리합니다.
  */
 public class SpaceInvadersApp extends JFrame implements ScreenNavigator {
-    public static final int WIDTH = 800;
-    public static final int HEIGHT = 600;
+    // 기본 해상도 설정
+    public static final int DEFAULT_WIDTH = 800;
+    public static final int DEFAULT_HEIGHT = 600;
+
+    // 현재 해상도 (동적으로 변경 가능)
+    private int currentWidth = DEFAULT_WIDTH;
+    private int currentHeight = DEFAULT_HEIGHT;
 
     private Canvas canvas;              // 현재 화면이 부착되는 캔버스
     private BufferStrategy strategy;    // 더블버퍼
+
+    // 공유 UserManager
+    private UserManager userManager;
 
     // 스크린(캔버스)
     private LoginScreenCanvas loginScreenCanvas;
@@ -56,15 +65,15 @@ public class SpaceInvadersApp extends JFrame implements ScreenNavigator {
         super(windowTitle);
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         setIgnoreRepaint(true);
-        setResizable(false);
+        setResizable(true); // 창 크기 조절 가능하도록 변경
 
         JPanel panel = (JPanel) getContentPane();
-        panel.setPreferredSize(new Dimension(WIDTH, HEIGHT));
+        panel.setPreferredSize(new Dimension(currentWidth, currentHeight));
         panel.setLayout(null);
 
         // 기본 캔버스 생성 (실제 화면 캔버스로 교체됨)
         canvas = new Canvas();
-        canvas.setBounds(0, 0, WIDTH, HEIGHT);
+        canvas.setBounds(0, 0, currentWidth, currentHeight);
         canvas.setIgnoreRepaint(true);
         panel.add(canvas);
 
@@ -75,6 +84,14 @@ public class SpaceInvadersApp extends JFrame implements ScreenNavigator {
         canvas.createBufferStrategy(2);
         strategy = canvas.getBufferStrategy();
 
+        // 공유 UserManager 생성
+        userManager = new UserManager();
+
+        // 스크린 생성 (UserManager 공유)
+        loginScreenCanvas = new LoginScreenCanvas(this, userManager);
+        mainMenuCanvas = new MainMenuCanvas(this, userManager);
+        gameScreen = new Game(); // Game을 스크린(캔버스)으로 사용
+        gameScreen.setUserManager(userManager); // Game에 UserManager 전달
     // 스크린 생성
         loginScreenCanvas = new LoginScreenCanvas(this);
         mainMenuCanvas = new MainMenuCanvas(this);
@@ -90,7 +107,7 @@ public class SpaceInvadersApp extends JFrame implements ScreenNavigator {
         setScreen(loginScreenCanvas);
     }
 
-    
+
 
     /** 다음 화면 전환을 요청 (렌더 루프가 EDT에서 안전하게 처리) */
     private void requestSetScreen(Canvas next) {
@@ -106,11 +123,11 @@ public class SpaceInvadersApp extends JFrame implements ScreenNavigator {
 
         // 새 화면 추가
         canvas = newCanvas;
-        canvas.setBounds(0, 0, WIDTH, HEIGHT);
+        canvas.setBounds(0, 0, currentWidth, currentHeight);
         canvas.setIgnoreRepaint(true);
-    getContentPane().add(canvas);
-    canvas.setVisible(true);
-    canvas.setFocusable(true);
+        getContentPane().add(canvas);
+        canvas.setVisible(true);
+        canvas.setFocusable(true);
         getContentPane().revalidate();
         getContentPane().repaint();
 
@@ -160,6 +177,14 @@ public class SpaceInvadersApp extends JFrame implements ScreenNavigator {
 
             if (currentScreen != null) {
                 currentScreen.update(delta);
+
+                // 게임에서 메인 메뉴로 돌아가기 요청이 있는지 확인
+                if (currentScreen == gameScreen && gameScreen.isRequestingMainMenu()) {
+                    // 메인 메뉴로 전환
+                    setScreen(mainMenuCanvas);
+                    gameScreen.resetMainMenuRequest();
+                    System.out.println("게임에서 메인 메뉴로 전환됨");
+                }
             }
 
             // strategy가 null이거나 캔버스가 displayable 상태가 아니면 버퍼 전략 재생성
@@ -190,7 +215,7 @@ public class SpaceInvadersApp extends JFrame implements ScreenNavigator {
             }
             try {
                 g.setColor(Color.black);
-                g.fillRect(0, 0, WIDTH, HEIGHT);
+                g.fillRect(0, 0, currentWidth, currentHeight);
                 if (currentScreen != null) currentScreen.render(g);
             } finally {
                 if (g != null) g.dispose();
@@ -251,6 +276,64 @@ public class SpaceInvadersApp extends JFrame implements ScreenNavigator {
     @Override
     public void exitGame() {
         running = false;
+    }
+
+    @Override
+    public void setResolution(int width, int height) {
+        changeResolution(width, height);
+    }
+
+    // 해상도 변경 메서드들
+    public void changeResolution(int width, int height) {
+        this.currentWidth = width;
+        this.currentHeight = height;
+
+        // 창 크기 업데이트
+        JPanel panel = (JPanel) getContentPane();
+        panel.setPreferredSize(new Dimension(width, height));
+
+        // 캔버스 크기 업데이트
+        canvas.setBounds(0, 0, width, height);
+
+        // Game 화면 크기도 업데이트
+        if (gameScreen != null) {
+            gameScreen.setBounds(0, 0, width, height);
+        }
+
+        // 창 크기 재조정
+        pack();
+        setLocationRelativeTo(null);
+
+        // 버퍼 전략 재생성
+        canvas.createBufferStrategy(2);
+        strategy = canvas.getBufferStrategy();
+    }
+
+    public int getCurrentWidth() {
+        return currentWidth;
+    }
+
+    public int getCurrentHeight() {
+        return currentHeight;
+    }
+
+    // 미리 정의된 해상도 옵션들
+    public static final int[][] RESOLUTION_OPTIONS = {
+        {800, 600},   // 기본
+        {1024, 768},  // 일반
+        {1280, 720},  // HD
+        {1366, 768},  // 노트북
+        {1920, 1080}  // Full HD
+    };
+
+    public static String[] getResolutionNames() {
+        return new String[]{
+            "800x600 (기본)",
+            "1024x768 (일반)",
+            "1280x720 (HD)",
+            "1366x768 (노트북)",
+            "1920x1080 (Full HD)"
+        };
     }
 
     public static void main(String[] args) {

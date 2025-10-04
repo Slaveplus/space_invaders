@@ -2,10 +2,14 @@ package org.newdawn.spaceinvaders.gameplay.entity;
 
 import java.awt.Graphics;
 import java.awt.Graphics2D;
+import java.awt.image.BufferedImage;
+import javax.imageio.ImageIO;
 
 import org.newdawn.spaceinvaders.gameplay.Game;
 import org.newdawn.spaceinvaders.gameplay.core.Rules;
 import org.newdawn.spaceinvaders.gameplay.render.BulletRenderer;
+
+import java.io.InputStream;
 
 /**
  * An entity representing a shot fired by the player's ship
@@ -27,11 +31,13 @@ public class ShotEntity extends Entity {
 	private int skillType = -1;
 	/** Skill value for skill drops */
 	private int skillValue = 0;
+	/** True if this shot has piercing ability */
+	private boolean hasPiercing = false;
 
 	// Reusable strokes to avoid per-frame allocations
 	// kept for backward compatibility; BulletRenderer uses its own strokes
 	// private static final BasicStroke STROKE_2PX = new BasicStroke(2);
-	
+
 	/**
 	 * Create a new shot from the player
 	 * 
@@ -71,6 +77,30 @@ public class ShotEntity extends Entity {
 	}
 	
 	/**
+	 * Create a new shot with piercing ability
+	 *
+	 * @param game The game in which the shot has been created
+	 * @param sprite The sprite representing this shot
+	 * @param x The initial x location of the shot
+	 * @param y The initial y location of the shot
+	 * @param isAlienShot True if this is an alien shot
+	 * @param hasPiercing True if this shot has piercing ability
+	 */
+	public ShotEntity(Game game,String sprite,int x,int y,boolean isAlienShot,boolean hasPiercing) {
+		super(sprite,x,y);
+
+		this.game = game;
+		this.isAlienShot = isAlienShot;
+		this.hasPiercing = hasPiercing;
+
+		if (isAlienShot) {
+			dy = 300; // Move downward for alien shots
+		} else {
+			dy = moveSpeed; // Move upward for player shots
+		}
+	}
+
+	/**
 	 * Create a new shot (player, alien, or skill drop)
 	 * 
 	 * @param game The game in which the shot has been created
@@ -90,9 +120,12 @@ public class ShotEntity extends Entity {
 		this.skillValue = skillValue;
 		
 		if (skillType >= 0) {
-			// This is a skill drop
+			// This is a skill drop - move straight down
 			isSkillDrop = true;
-			dy = 150; // Skill drops move downward toward player
+
+			// Move straight down at constant speed
+			dx = 0; // No horizontal movement
+			dy = 150; // Move downward at 150 pixels per second
 		} else if (isAlienShot) {
 			dy = Rules.BULLET_ENEMY_SPEED_Y; // Alien shots move downward
 		} else {
@@ -135,8 +168,35 @@ public class ShotEntity extends Entity {
 	 */
 	public void draw(Graphics g) {
 		if (isSkillDrop) {
+			// Draw skill drop using PNG images
 			Graphics2D g2d = (Graphics2D) g;
 			BulletRenderer.drawSkillDrop(g2d, (int) x, (int) y, skillType < 0 ? 0 : skillType);
+
+			// Load and draw the appropriate PNG image based on skill type
+			BufferedImage skillImage = loadSkillImage(skillType);
+			if (skillImage != null) {
+				// Draw the PNG skill image, scaled to 32x32
+				int imageSize = 32;
+				int drawX = (int)x - imageSize/2;
+				int drawY = (int)y - imageSize/2;
+				g2d.drawImage(skillImage, drawX, drawY, imageSize, imageSize, null);
+			} else {
+				// Fallback: Draw simple colored background if PNG failed to load
+				g2d.setColor(Color.BLACK);
+				g2d.fillRect((int)x - 16, (int)y - 16, 32, 32);
+				g2d.setColor(Color.GRAY);
+				g2d.drawRect((int)x - 16, (int)y - 16, 32, 32);
+
+				// Draw skill type text as fallback
+				g2d.setColor(Color.WHITE);
+				g2d.setFont(new java.awt.Font("Arial", java.awt.Font.BOLD, 12));
+				g2d.drawString("S" + skillType, (int)x - 8, (int)y + 4);
+			}
+
+			// Add a subtle glow effect
+			g2d.setColor(new Color(255, 255, 255, 50));
+			g2d.fillOval((int)x - 18, (int)y - 18, 36, 36);
+
 		} else if (isAlienShot) {
 			Graphics2D g2d = (Graphics2D) g;
 			int w = (sprite != null ? sprite.getWidth() : 16);
@@ -166,6 +226,7 @@ public class ShotEntity extends Entity {
 		if (isSkillDrop) {
 			// Skill drop: if we've hit the player ship, add to inventory
 			if (other instanceof ShipEntity) {
+				System.out.println("Skill drop collected! Type: " + skillType + ", Value: " + skillValue);
 				// remove the skill drop
 				game.removeEntity(this);
 				
@@ -190,14 +251,79 @@ public class ShotEntity extends Entity {
 				AlienEntity alien = (AlienEntity) other;
 				alien.takeDamage(game.getPlayerAttackPower());
 				
-				// Check if player has piercing shots
-				if (!game.hasPiercingShots()) {
+				// Create heat effect at hit location
+				HeatEffectEntity heatEffect = new HeatEffectEntity(game, (int)x, (int)y);
+				game.addEntity(heatEffect);
+
+				// Check if this shot has piercing ability or player has piercing shots
+				if (!hasPiercing && !game.hasPiercingShots()) {
 					// remove the shot only if not piercing
 					game.removeEntity(this);
 					used = true;
 				}
 				// If piercing, the shot continues through aliens
+			} else if (other instanceof BossEntity) {
+				// Player shot: if we've hit a boss, damage it!
+				BossEntity boss = (BossEntity) other;
+				boss.takeDamage(game.getPlayerAttackPower());
+
+				// Create heat effect at hit location
+				HeatEffectEntity heatEffect = new HeatEffectEntity(game, (int)x, (int)y);
+				game.addEntity(heatEffect);
+
+				// Boss shots are always destroyed on hit (no piercing through boss)
+				game.removeEntity(this);
+				used = true;
 			}
 		}
 	}
+
+	/**
+	 * Check if this is an alien shot
+	 *
+	 * @return True if this is an alien shot
+	 */
+	public boolean isAlienShot() {
+		return isAlienShot;
+	}
+
+	/**
+	 * Load skill image based on skill type
+	 *
+	 * @param skillType The skill type (0-3)
+	 * @return BufferedImage of the skill icon
+	 */
+	private BufferedImage loadSkillImage(int skillType) {
+		String imagePath;
+		switch (skillType) {
+			case 0: // Attack Power
+				imagePath = "sprites/Skill/1.png";
+				break;
+			case 1: // Attack Speed
+				imagePath = "sprites/Skill/2.png";
+				break;
+			case 2: // HP Recovery
+				imagePath = "sprites/Skill/3.png";
+				break;
+			case 3: // Missile
+				imagePath = "sprites/Skill/4.png";
+				break;
+			default:
+				imagePath = "sprites/Skill/1.png";
+				break;
+		}
+
+		try {
+			InputStream is = getClass().getClassLoader().getResourceAsStream(imagePath);
+			if (is != null) {
+				BufferedImage image = ImageIO.read(is);
+				is.close();
+				return image;
+			}
+		} catch (Exception e) {
+			System.err.println("Failed to load skill image: " + imagePath);
+		}
+		return null;
+	}
+
 }

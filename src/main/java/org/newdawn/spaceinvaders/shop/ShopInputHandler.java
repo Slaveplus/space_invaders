@@ -9,6 +9,7 @@ import java.util.List;
  */
 public class ShopInputHandler {
     private ShopManager shopManager;
+    private Shop shop; // Shop 참조 추가 (애니메이션용)
     private int selectedOption = 0;
     private int selectedItem = 0;
     private boolean exitRequested = false;
@@ -17,8 +18,12 @@ public class ShopInputHandler {
         this.shopManager = shopManager;
     }
     
+    // Shop 참조 설정 (애니메이션용)
+    public void setShop(Shop shop) {
+        this.shop = shop;
+    }
+    
     public void handleInput(int keyCode) {
-        System.out.println("상점 키 입력: " + keyCode + ", 상태: " + shopManager.getCurrentState());
         
         switch (shopManager.getCurrentState()) {
             case MAIN:
@@ -59,34 +64,40 @@ public class ShopInputHandler {
         switch (keyCode) {
             case KeyEvent.VK_UP:
                 selectedOption = Math.max(0, selectedOption - 1);
-                System.out.println("선택된 옵션: " + selectedOption);
                 break;
             case KeyEvent.VK_DOWN:
                 selectedOption = Math.min(mainOptions.length - 1, selectedOption + 1);
-                System.out.println("선택된 옵션: " + selectedOption);
                 break;
             case KeyEvent.VK_ENTER:
             case KeyEvent.VK_SPACE:
                 handleMainShopSelection();
                 break;
             case KeyEvent.VK_ESCAPE:
-                // 상점 종료
+                // 상점 종료 요청
+                exitRequested = true;
                 break;
         }
     }
     
     private void handleMainShopSelection() {
-        System.out.println("메인 상점 선택: " + selectedOption);
         switch (selectedOption) {
             case 0: // 무기 상점
                 shopManager.setCurrentState(ShopState.CATEGORY);
                 shopManager.setCurrentCategory(ShopCategory.WEAPONS);
                 selectedItem = 0;
+                // 카테고리 진입 애니메이션 시작
+                if (shop != null) {
+                    shop.startCategoryEntryAnimation();
+                }
                 break;
             case 1: // 우주선 상점
                 shopManager.setCurrentState(ShopState.CATEGORY);
                 shopManager.setCurrentCategory(ShopCategory.SPACESHIPS);
                 selectedItem = 0;
+                // 카테고리 진입 애니메이션 시작
+                if (shop != null) {
+                    shop.startCategoryEntryAnimation();
+                }
                 break;
             case 2: // 뒤로가기
                 exitRequested = true;
@@ -136,10 +147,13 @@ public class ShopInputHandler {
                 }
                 break;
             case KeyEvent.VK_ESCAPE:
+                // 카테고리 나가기 애니메이션 시작
+                if (shop != null) {
+                    shop.startCategoryExitAnimation();
+                }
                 shopManager.returnToMainMenu();
                 // selectedOption은 유지하고 selectedItem만 리셋
                 selectedItem = 0;
-                System.out.println("메인 메뉴로 돌아가기 - 이전 선택 유지: " + selectedOption);
                 break;
         }
     }
@@ -194,11 +208,142 @@ public class ShopInputHandler {
     
     private void handleInventoryInput(int keyCode) {
         switch (keyCode) {
+            case KeyEvent.VK_Q:
+                // Q 키로 카테고리 변경 (Tab 키 대신)
+                changeInventoryCategory(1);
+                break;
+            case KeyEvent.VK_LEFT:
+                // 아이템 선택 왼쪽으로
+                moveInventorySelection(-1);
+                break;
+            case KeyEvent.VK_RIGHT:
+                // 아이템 선택 오른쪽으로
+                moveInventorySelection(1);
+                break;
+            case KeyEvent.VK_UP:
+                // 아이템 선택 위로
+                moveInventorySelection(-3); // 3컬럼이므로 -3
+                break;
+            case KeyEvent.VK_DOWN:
+                // 아이템 선택 아래로
+                moveInventorySelection(3); // 3컬럼이므로 +3
+                break;
+            case KeyEvent.VK_ENTER:
+            case KeyEvent.VK_SPACE:
+                // 아이템 장착/해제
+                toggleItemEquip();
+                break;
             case KeyEvent.VK_ESCAPE:
                 shopManager.returnToMainMenu();
                 // selectedOption은 유지
-                System.out.println("메인 메뉴로 돌아가기 - 이전 선택 유지: " + selectedOption);
                 break;
+        }
+    }
+    
+    private void changeInventoryCategory(int direction) {
+        ShopCategory[] categories = {
+            ShopCategory.WEAPONS,
+            ShopCategory.SPACESHIPS
+        };
+        
+        ShopCategory currentCategory = shopManager.getInventoryCategory();
+        System.out.println("현재 카테고리: " + currentCategory + ", 방향: " + direction);
+        
+        int currentIndex = -1;
+        
+        for (int i = 0; i < categories.length; i++) {
+            if (categories[i] == currentCategory) {
+                currentIndex = i;
+                break;
+            }
+        }
+        
+        System.out.println("현재 인덱스: " + currentIndex);
+        
+        if (currentIndex != -1) {
+            int newIndex = currentIndex + direction;
+            if (newIndex < 0) {
+                newIndex = categories.length - 1;
+            } else if (newIndex >= categories.length) {
+                newIndex = 0;
+            }
+            
+            System.out.println("새 인덱스: " + newIndex + " -> " + categories[newIndex]);
+            shopManager.setInventoryCategory(categories[newIndex]);
+            selectedItem = 0; // 카테고리 변경 시 선택 초기화
+            System.out.println("인벤토리 카테고리 변경 완료: " + categories[newIndex].getDisplayName());
+        } else {
+            System.out.println("현재 카테고리를 찾을 수 없음: " + currentCategory);
+        }
+    }
+    
+    private void moveInventorySelection(int direction) {
+        List<ShopItem> categoryItems = shopManager.getInventoryByCategory(shopManager.getInventoryCategory());
+        if (!categoryItems.isEmpty()) {
+            int newSelectedItem = selectedItem + direction;
+            
+            // 범위 체크 및 순환 처리
+            if (newSelectedItem < 0) {
+                newSelectedItem = categoryItems.size() - 1;
+            } else if (newSelectedItem >= categoryItems.size()) {
+                newSelectedItem = 0;
+            }
+            
+            selectedItem = newSelectedItem;
+            System.out.println("인벤토리 아이템 선택: " + selectedItem + " (총 " + categoryItems.size() + "개)");
+        }
+    }
+    
+    private void toggleItemEquip() {
+        List<ShopItem> categoryItems = shopManager.getInventoryByCategory(shopManager.getInventoryCategory());
+        if (!categoryItems.isEmpty() && selectedItem < categoryItems.size()) {
+            ShopItem item = categoryItems.get(selectedItem);
+            ShopCategory category = item.getCategory();
+            
+            if (shopManager.isItemEquipped(item)) {
+                // 아이템 해제
+                if (shopManager.unequipItem(category)) {
+                    System.out.println("아이템 해제: " + item.getName());
+                }
+            } else {
+                // 호환성 확인 (무기 아이템의 경우)
+                if (item.getCategory() == ShopCategory.WEAPONS) {
+                    ShopItem currentSpaceship = shopManager.getEquippedItem(ShopCategory.SPACESHIPS);
+                    if (!item.isCompatibleWith(currentSpaceship)) {
+                        String requiredShipName = getSpaceshipNameById(item.getRequiredSpaceshipId());
+                        shopManager.setWarningMessage("이 무기는 " + requiredShipName + " 전용입니다!");
+                        System.out.println("장착 실패: " + item.getName() + "은(는) " + requiredShipName + " 전용 무기입니다.");
+                        return;
+                    }
+                }
+                
+                // 아이템 장착
+                if (shopManager.equipItem(item)) {
+                    System.out.println("아이템 장착: " + item.getName());
+                }
+            }
+        }
+    }
+    
+    /**
+     * 우주선 ID로 우주선 이름을 반환
+     */
+    private String getSpaceshipNameById(String spaceshipId) {
+        if (spaceshipId == null) return "모든 우주선";
+        
+        switch (spaceshipId) {
+            case "king":
+                return "총장님";
+            case "professor":
+                return "평생지도교수님";
+            case "software_king":
+                return "학과장님";
+            case "fighter_ship":
+                return "Green SpaceShip";
+            case "battleship":
+                return "Blue SpaceShip";
+            default:
+                return "알 수 없는 우주선";
         }
     }
     
@@ -328,14 +473,14 @@ public class ShopInputHandler {
     }
     
     private void handlePurchaseMouseClick(int x, int y) {
-        // 구매 확인 창의 예/아니요 버튼 클릭 처리
-        int dialogX = 200; // (800 - 400) / 2
-        int dialogY = 175; // (600 - 250) / 2
-        int buttonY = dialogY + 170;
-        int yesX = dialogX + (400 / 2) - 80 - 10; // 110
-        int noX = dialogX + (400 / 2) + 10; // 210
+        // 구매 확인 창의 예/아니요 버튼 클릭 처리 (새로운 크기에 맞게 수정)
+        int dialogX = 100; // (800 - 600) / 2
+        int dialogY = 75; // (600 - 450) / 2
+        int buttonY = dialogY + 380;
+        int yesX = dialogX + (600 / 2) - 100 - 15; // 185
+        int noX = dialogX + (600 / 2) + 15; // 315
         
-        if (x >= yesX && x <= yesX + 80 && y >= buttonY && y <= buttonY + 30) {
+        if (x >= yesX && x <= yesX + 100 && y >= buttonY && y <= buttonY + 40) {
             // 예 버튼 클릭
             selectedOption = 0;
             // 구매 실행
@@ -353,7 +498,7 @@ public class ShopInputHandler {
             }
             shopManager.setCurrentState(ShopState.CATEGORY);
             System.out.println("마우스 클릭: 구매 확인");
-        } else if (x >= noX && x <= noX + 80 && y >= buttonY && y <= buttonY + 30) {
+        } else if (x >= noX && x <= noX + 100 && y >= buttonY && y <= buttonY + 40) {
             // 아니요 버튼 클릭
             selectedOption = 1;
             shopManager.setCurrentState(ShopState.CATEGORY);

@@ -13,4 +13,5 @@ public interface ScreenNavigator {
     void showMultiplayerLobby();
     void startMultiplayerGame();
     void exitGame();
+    void setResolution(int width, int height);
 }
