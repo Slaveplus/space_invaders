@@ -2,18 +2,23 @@ package org.newdawn.spaceinvaders.gameplay;
 
 import java.util.ArrayList;
 
+import org.newdawn.spaceinvaders.gameplay.entity.AlienEntity;
 import org.newdawn.spaceinvaders.gameplay.entity.Entity;
-import org.newdawn.spaceinvaders.gameplay.entity.ShotEntity;
 
 /**
  * 스킬 시스템을 관리하는 클래스
  * 스킬 효과, 인벤토리, 드롭 등을 관리
  */
 public class SkillManager {
-    // 스킬 비용
-    private int attackPowerCost = 2;
-    private int attackSpeedCost = 2;
-    private int hpUpCost = 8;
+    // 스킬 강화 레벨 (점진적 비용 계산용)
+    private int attackPowerLevel = 0;
+    private int attackSpeedLevel = 0;
+    private int hpUpLevel = 0;
+    
+    // 기본 스킬 비용 (밸런스 조정)
+    private final int baseAttackPowerCost = 2;   // 공격력: 2, 4, 6, 8, 10...
+    private final int baseAttackSpeedCost = 2;   // 공격속도: 2, 4, 6, 8, 10...
+    private final int baseHpUpCost = 15;         // 체력: 15, 23, 31, 39...
     
     // 스킬 효과 상태
     private boolean isInvincible = false;
@@ -27,6 +32,7 @@ public class SkillManager {
     private int invincibleSkills = 0;
     private int piercingSkills = 0;
     private int tripleShotSkills = 0;
+    private int missileSkills = 0;
     
     // 게임 참조
     private Game game;
@@ -39,10 +45,10 @@ public class SkillManager {
      * 게임 시작 시 스킬 시스템 초기화
      */
     public void reset() {
-        // Reset skill costs
-        attackPowerCost = 2;
-        attackSpeedCost = 2;
-        hpUpCost = 8;
+        // Reset skill levels
+        attackPowerLevel = 0;
+        attackSpeedLevel = 0;
+        hpUpLevel = 0;
         
         // Reset skill effects
         isInvincible = false;
@@ -87,6 +93,8 @@ public class SkillManager {
             piercingSkills++;
         } else if (skillType == 2) { // Triple shot skill
             tripleShotSkills++;
+        } else if (skillType == 3) { // Missile skill
+            missileSkills++;
         }
     }
     
@@ -113,6 +121,12 @@ public class SkillManager {
                 tripleShotSkills--;
                 hasTripleShot = true;
                 tripleShotEndTime = currentTime + (skillValue * 1000);
+            }
+        } else if (skillType == 3) { // Missile skill
+            if (missileSkills > 0) {
+                missileSkills--;
+                // Fire missile at random enemy location
+                fireMissileAtRandomTarget();
             }
         }
     }
@@ -162,20 +176,23 @@ public class SkillManager {
             }
         }
         
-        // Random skill type (0: Invincible, 1: Piercing, 2: Triple Shot)
+        // Random skill type (0: Attack Power, 1: Attack Speed, 2: HP Recovery, 3: Missile)
         double random = Math.random();
         int skillType;
         int skillValue;
         
-        if (random < 0.33) {
-            skillType = 0; // Invincible
+        if (random < 0.25) {
+            skillType = 0; // Attack Power
             skillValue = 5; // 5 seconds
-        } else if (random < 0.66) {
-            skillType = 1; // Piercing
+        } else if (random < 0.5) {
+            skillType = 1; // Attack Speed
             skillValue = 10; // 10 seconds
-        } else {
-            skillType = 2; // Triple Shot
+        } else if (random < 0.75) {
+            skillType = 2; // HP Recovery
             skillValue = 8; // 8 seconds
+        } else {
+            skillType = 3; // Missile
+            skillValue = 1; // 1 missile
         }
         
         // Create skill entity
@@ -186,49 +203,10 @@ public class SkillManager {
      * 스킬 드롭 엔티티 추가
      */
     private void addSkillDrop(int x, int y, int skillType, int skillValue) {
-        // ShotEntity는 기본 생성자만 지원하므로 일반 ShotEntity로 생성
-        new ShotEntity(game, "sprites/shot.gif", x, y);
-        // TODO: 스킬 드롭 기능은 별도 엔티티로 구현 필요
+        // Game의 createSkillDrop 메서드를 사용하여 스킬 드롭 생성
+        game.createSkillDrop(x, y, skillType, skillValue);
     }
     
-    /**
-     * 스킬 선택 처리
-     */
-    public String handleSkillSelection(int selectedSkill, int skillPoints, int attackPower, 
-                                     double attackSpeed, int maxHP) {
-        int requiredCost = 0;
-        
-        // Check required cost for selected skill
-        switch (selectedSkill) {
-            case 0: // Attack Power
-                requiredCost = attackPowerCost;
-                break;
-            case 1: // Attack Speed
-                requiredCost = attackSpeedCost;
-                break;
-            case 2: // HP Up & Heal
-                requiredCost = hpUpCost;
-                break;
-        }
-        
-        if (skillPoints < requiredCost) {
-            return "스킬 포인트가 부족합니다! (필요: " + requiredCost + "포인트)";
-        }
-        
-        switch (selectedSkill) {
-            case 0: // Attack Power
-                attackPowerCost++; // Increase cost for next upgrade
-                return "공격력이 증가했습니다!";
-            case 1: // Attack Speed
-                attackSpeedCost++; // Increase cost for next upgrade
-                return "공격속도가 증가했습니다!";
-            case 2: // HP Up & Heal
-                hpUpCost += 5; // Increase cost by 5 for next upgrade
-                return "최대 HP가 증가하고 회복되었습니다!";
-        }
-        
-        return "";
-    }
     
     /**
      * 스킬 포인트 계산 (라운드별)
@@ -280,18 +258,31 @@ public class SkillManager {
      * 스킬 드롭 확률 계산
      */
     public double getSkillDropChance(int currentRound) {
-        return 0.08 + (currentRound * 0.02); // 10%, 12%, 14%, 16%, 18% for rounds 1-5
+        return 0.15 + (currentRound * 0.05); // 20%, 25%, 30%, 35%, 40% for rounds 1-5 (increased for testing)
     }
     
-    // Getters and Setters
-    public int getAttackPowerCost() { return attackPowerCost; }
-    public void setAttackPowerCost(int attackPowerCost) { this.attackPowerCost = attackPowerCost; }
+    // 점진적 비용 계산 메서드들
+    public int getAttackPowerCost() { 
+        return baseAttackPowerCost + (attackPowerLevel * 2); // 2, 4, 6, 8, 10...
+    }
     
-    public int getAttackSpeedCost() { return attackSpeedCost; }
-    public void setAttackSpeedCost(int attackSpeedCost) { this.attackSpeedCost = attackSpeedCost; }
+    public int getAttackSpeedCost() { 
+        return baseAttackSpeedCost + (attackSpeedLevel * 2); // 2, 4, 6, 8, 10...
+    }
     
-    public int getHpUpCost() { return hpUpCost; }
-    public void setHpUpCost(int hpUpCost) { this.hpUpCost = hpUpCost; }
+    public int getHpUpCost() { 
+        return baseHpUpCost + (hpUpLevel * 8); // 15, 23, 31, 39...
+    }
+    
+    // 강화 레벨 증가 메서드들
+    public void increaseAttackPowerLevel() { attackPowerLevel++; }
+    public void increaseAttackSpeedLevel() { attackSpeedLevel++; }
+    public void increaseHpUpLevel() { hpUpLevel++; }
+    
+    // 강화 레벨 getter 메서드들
+    public int getAttackPowerLevel() { return attackPowerLevel; }
+    public int getAttackSpeedLevel() { return attackSpeedLevel; }
+    public int getHpUpLevel() { return hpUpLevel; }
     
     public boolean isInvincible() { return isInvincible; }
     public void setInvincible(boolean invincible) { isInvincible = invincible; }
@@ -320,6 +311,9 @@ public class SkillManager {
     public int getTripleShotSkills() { return tripleShotSkills; }
     public void setTripleShotSkills(int tripleShotSkills) { this.tripleShotSkills = tripleShotSkills; }
     
+    public int getMissileSkills() { return missileSkills; }
+    public void setMissileSkills(int missileSkills) { this.missileSkills = missileSkills; }
+    
     /**
      * 남은 시간 계산
      */
@@ -327,4 +321,40 @@ public class SkillManager {
         long remaining = (endTime - System.currentTimeMillis()) / 1000;
         return Math.max(0, remaining);
     }
+    
+    /**
+     * 미사일을 랜덤 적 위치로 발사
+     */
+    private void fireMissileAtRandomTarget() {
+        try {
+            // Find a random enemy to target
+            java.util.List<Entity> entities = game.getEntities();
+            java.util.List<Entity> enemies = new java.util.ArrayList<>();
+            
+            for (Entity entity : entities) {
+                if (entity instanceof AlienEntity) {
+                    enemies.add(entity);
+                }
+            }
+            
+            if (!enemies.isEmpty()) {
+                // Pick a random enemy
+                Entity target = enemies.get((int)(Math.random() * enemies.size()));
+                
+                // Fire missile at target location
+                game.fireMissile(target.getX() + 15, target.getY() + 15);
+            } else {
+                // No enemies, fire missile at random screen position
+                double randomX = 100 + Math.random() * 600;
+                double randomY = 100 + Math.random() * 300;
+                game.fireMissile(randomX, randomY);
+            }
+        } catch (Exception e) {
+            System.err.println("Error firing missile: " + e.getMessage());
+            e.printStackTrace();
+            // Fallback: fire missile at center of screen
+            game.fireMissile(400, 300);
+        }
+    }
+    
 }

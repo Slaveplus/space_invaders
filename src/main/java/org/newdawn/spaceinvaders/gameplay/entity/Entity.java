@@ -137,10 +137,24 @@ public abstract class Entity {
 	 * @return True if the entities collide with each other
 	 */
 	public boolean collidesWith(Entity other) {
-		me.setBounds((int) x,(int) y,sprite.getWidth(),sprite.getHeight());
-		him.setBounds((int) other.x,(int) other.y,other.sprite.getWidth(),other.sprite.getHeight());
+		// Use getBounds() if available (for entities with custom collision boxes)
+		// Otherwise use default sprite bounds
+		Rectangle myBounds = getBounds();
+		Rectangle otherBounds = other.getBounds();
+		
+		me.setBounds(myBounds);
+		him.setBounds(otherBounds);
 
 		return me.intersects(him);
+	}
+	
+	/**
+	 * Get the collision bounds for this entity
+	 * 
+	 * @return Rectangle representing the collision bounds
+	 */
+	public Rectangle getBounds() {
+		return new Rectangle((int) x, (int) y, sprite.getWidth(), sprite.getHeight());
 	}
 	
 	/**
