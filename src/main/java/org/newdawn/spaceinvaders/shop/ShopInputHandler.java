@@ -161,6 +161,10 @@ public class ShopInputHandler {
                 if (shop != null) {
                     shop.startCategoryExitAnimation();
                 }
+                // 메인 상점의 좌우 패널 애니메이션 시작 (양쪽에서 밀려오는 효과)
+                if (shop != null) {
+                    shop.startEntryAnimation();
+                }
                 shopManager.returnToMainMenu();
                 // selectedOption은 유지하고 selectedItem만 리셋
                 selectedItem = 0;

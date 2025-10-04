@@ -293,9 +293,9 @@ public class MainMenu {
                     currentState = MenuState.MAIN;
                     selectedOption = 3; // 인벤토리 옵션으로 돌아가기
                 } else if (currentState == MenuState.RESOLUTION) {
-                    // 해상도 설정에서 설정으로 돌아갈 때 슬라이드 아웃 애니메이션
+                    // 설정 메뉴의 좌우 패널 애니메이션 시작 (상점과 동일한 방식)
                     if (settingsAnimation != null) {
-                        settingsAnimation.startAnimation(ShopAnimation.AnimationType.SLIDE_OUT);
+                        settingsAnimation.startAnimation(ShopAnimation.AnimationType.SLIDE_IN);
                     }
                     currentState = MenuState.SETTINGS;
                     selectedOption = 0;
@@ -411,6 +411,10 @@ public class MainMenu {
                 if (shop != null && shop.getShopManager() != null) {
                     shop.getShopManager().clearWarningDialog();
                 }
+                // 인벤토리 진입 애니메이션 시작 (위에서 아래로)
+                if (shop != null) {
+                    shop.startInventoryEntryAnimation();
+                }
                 break;
             case 4: // 설정
                 currentState = MenuState.SETTINGS;
@@ -508,9 +512,9 @@ public class MainMenu {
                 }
                 break;
             case 3: // 이전메뉴
-                // 해상도에서 설정으로 돌아갈 때 슬라이드 아웃 애니메이션
+                // 설정 메뉴의 좌우 패널 애니메이션 시작 (상점과 동일한 방식)
                 if (settingsAnimation != null) {
-                    settingsAnimation.startAnimation(ShopAnimation.AnimationType.SLIDE_OUT);
+                    settingsAnimation.startAnimation(ShopAnimation.AnimationType.SLIDE_IN);
                 }
                 currentState = MenuState.SETTINGS;
                 selectedOption = 1; // 해상도 변경 옵션으로 돌아가기
@@ -569,6 +573,11 @@ public class MainMenu {
                 boolean saveSuccess = shop.getShopManager().getEquipmentManager().saveChangesToDB();
                 // 인벤토리 변경사항 저장 완료
             }
+        }
+        
+        // 인벤토리 나가기 애니메이션 시작 (아래에서 위로)
+        if (shop != null) {
+            shop.startInventoryExitAnimation();
         }
         
         // 메인 메뉴로 돌아가기
