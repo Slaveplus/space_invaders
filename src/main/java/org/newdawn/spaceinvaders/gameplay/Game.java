@@ -9,6 +9,7 @@ import org.newdawn.spaceinvaders.gameplay.entity.AlienEntity;
 import org.newdawn.spaceinvaders.gameplay.entity.BossEntity;
 import org.newdawn.spaceinvaders.gameplay.entity.Entity;
 import org.newdawn.spaceinvaders.gameplay.entity.ExplosionEntity;
+import org.newdawn.spaceinvaders.gameplay.entity.entity_attack.IceAttack;
 import org.newdawn.spaceinvaders.gameplay.entity.MissileEntity;
 import org.newdawn.spaceinvaders.gameplay.entity.ShipEntity;
 import org.newdawn.spaceinvaders.gameplay.entity.ShotEntity;
@@ -69,11 +70,15 @@ public class Game extends Canvas implements Screen
 	
 	/** 메인메뉴 전환 요청 플래그 */
 	private boolean requestMainMenu = false;
+	/** 게임 시작 시간 (3초 공격 지연용) */
+	private long gameStartTime = 0;
 	
 	/**
 	 * Construct our game and set it running.
 	 */
 	public Game() {
+		// 게임 시작 시간 기록
+		gameStartTime = System.currentTimeMillis();
 		setIgnoreRepaint(true);
 		setBounds(0,0,800,600);
 		setFocusable(true);
@@ -88,7 +93,8 @@ public class Game extends Canvas implements Screen
 		uiRenderer = new UIRenderer(this);
 
 		// background & overlays
-		backgroundRenderer = new BackgroundRenderer("sprites/backgrounds/Background-2.jpg");
+		backgroundRenderer = new BackgroundRenderer();
+		updateBackgroundForRound(1); // 1라운드부터 시작
 		
 		// initialize the input manager
 		inputManager = new InputManager(gameStateManager, this);
@@ -110,6 +116,9 @@ public class Game extends Canvas implements Screen
 	public void startGame() {
 		// 게임플레이 상태 초기화 (entities.clear() 포함)
 		gameStateManager.startNewGame();
+		
+		// 1라운드 배경 설정
+		updateBackgroundForRound(1);
 		
 		// ShopManager에 아이템들 추가 및 장착 정보 로드
 		if (userManager != null && userManager.isLoggedIn()) {
@@ -143,38 +152,10 @@ public class Game extends Canvas implements Screen
 		ship = new ShipEntity(this, currentSpaceshipSkin, 370, 550);
 		gameStateManager.getEntities().add(ship);
 		
-		// Create aliens based on current round with balanced progression
-		alienCount = 0;
-		int rows, cols;
+		// All rounds (1-5) now spawn bosses instead of regular aliens
+		spawnBoss();
 		
-		switch (gameStateManager.getCurrentRound()) {
-			case 1: rows = 2; cols = 5; break;  // 10 aliens (이전: 18)
-			case 2: rows = 3; cols = 5; break;  // 15 aliens (이전: 21)
-			case 3: rows = 3; cols = 6; break;  // 18 aliens (이전: 28)
-			case 4: rows = 3; cols = 7; break;  // 21 aliens (이전: 32)
-			case 5: rows = 4; cols = 7; break;  // 28 aliens (이전: 40)
-			default: rows = 2; cols = 5; break;
-		}
-		
-		// 화면 너비에 맞춰서 적들을 균등하게 배치
-		int screenWidth = 800;
-		int margin = 50; // 양쪽 여백
-		int usableWidth = screenWidth - (2 * margin);
-		int spacingX = usableWidth / (cols + 1); // 적들 사이 간격
-		int spacingY = 80; // 세로 간격
-		
-		for (int row=0; row<rows; row++) {
-			for (int x=0; x<cols; x++) {
-				// 적들을 화면에 균등하게 배치
-				int posX = margin + spacingX * (x + 1);
-				int posY = 80 + (row * spacingY);
-				Entity alien = new AlienEntity(this, posX, posY);
-				gameStateManager.getEntities().add(alien);
-				alienCount++;
-			}
-		}
-		
-		gameStateManager.setAlienCount(alienCount);
+		// alienCount is set in spawnBoss() method (Boss + 2 side aliens = 3)
 	}
 	
 	/**
@@ -213,6 +194,26 @@ public class Game extends Canvas implements Screen
 	}
 	
 	/**
+	 * Notification that the player has been damaged by boss attack
+	 */
+	public void notifyPlayerDamaged(int damage) {
+		// Check if player is invincible
+		if (skillManager.isInvincible()) {
+			return; // No damage taken when invincible
+		}
+		
+		// Apply damage multiple times based on attack damage value
+		for (int i = 0; i < damage; i++) {
+			gameStateManager.takeDamage();
+			if (gameStateManager.getCurrentHP() <= 0) {
+				gameStateManager.setMessage("Oh no! Boss attack got you, try again?");
+				gameStateManager.setWaitingForKeyPress(true);
+				break;
+			}
+		}
+	}
+	
+	/**
 	 * Notification that the player has won since all the aliens
 	 * are dead.
 	 */
@@ -220,17 +221,11 @@ public class Game extends Canvas implements Screen
 		boolean roundAdvanced = gameStateManager.advanceRound();
 		
 		if (roundAdvanced) {
-			// Check if this is a boss round (after round 1, 3, 5, etc.)
-			if (gameStateManager.getCurrentRound() == 2 || 
-				gameStateManager.getCurrentRound() == 4 || 
-				gameStateManager.getCurrentRound() == 6) {
-				// Boss round - spawn boss instead of regular aliens
-				spawnBoss();
-			} else {
-				// Regular round - clear current entities and initialize next round
-				gameStateManager.getEntities().clear();
-				initEntities();
-			}
+			// Update background for new round
+			updateBackgroundForRound(gameStateManager.getCurrentRound());
+			
+			// All rounds are now boss rounds (1~5라운드 모두 보스)
+			spawnBoss();
 		} else {
 			// Game completed
 			gameStateManager.setMessage("Well done! You Win!");
@@ -252,8 +247,9 @@ public class Game extends Canvas implements Screen
 			skillManager.dropSkill(gameStateManager.getCurrentRound());
 		}
 		
-		// Count remaining aliens dynamically (excluding those marked for removal)
+		// Count remaining aliens and check if boss is alive
 		int remainingAliens = 0;
+		boolean bossAlive = false;
 		ArrayList<Entity> entities = gameStateManager.getEntities();
 		ArrayList<Entity> removeList = gameStateManager.getRemoveList();
 		
@@ -261,9 +257,13 @@ public class Game extends Canvas implements Screen
 			if (entity instanceof AlienEntity && !removeList.contains(entity)) {
 				remainingAliens++;
 			}
+			if (entity instanceof BossEntity && !removeList.contains(entity)) {
+				bossAlive = true;
+			}
 		}
 		
-		if (remainingAliens == 0) {
+		// Only advance round if all aliens are dead AND boss is also dead
+		if (remainingAliens == 0 && !bossAlive) {
 			notifyWin();
 		}
 		
@@ -307,6 +307,7 @@ public class Game extends Canvas implements Screen
 			// Fire single shot
 			ShotEntity shot = new ShotEntity(this, currentWeaponSkin, ship.getX()+10, ship.getY()-30);
 			gameStateManager.getEntities().add(shot);
+			System.out.println("Player fired shot at position: (" + (ship.getX()+10) + ", " + (ship.getY()-30) + ")");
 		}
 	}
 	
@@ -348,7 +349,7 @@ public class Game extends Canvas implements Screen
 	 */
 	public void createSkillDrop(int x, int y, int skillType, int skillValue) {
 		// Create skill drop using ShotEntity with skill drop functionality
-		ShotEntity skillDrop = new ShotEntity(this, "sprites/shot.gif", x, y, false, skillType, skillValue);
+		ShotEntity skillDrop = new ShotEntity(this, "sprites/shot.gif", x, y, skillType, skillValue);
 		gameStateManager.getEntities().add(skillDrop);
 	}
 	
@@ -643,6 +644,24 @@ public class Game extends Canvas implements Screen
 	}
 	
 	/**
+	 * Create heat effect (피튀기는 효과)
+	 * 
+	 * @param x X coordinate
+	 * @param y Y coordinate
+	 * @param radius Heat effect radius
+	 */
+	public void createHeatEffect(int x, int y, double radius) {
+		try {
+			org.newdawn.spaceinvaders.gameplay.entity.HeatEffectEntity heatEffect = 
+				new org.newdawn.spaceinvaders.gameplay.entity.HeatEffectEntity(this, x, y);
+			gameStateManager.getEntities().add(heatEffect);
+		} catch (Exception e) {
+			System.err.println("Error creating heat effect: " + e.getMessage());
+			e.printStackTrace();
+		}
+	}
+	
+	/**
 	 * Add score points
 	 * 
 	 * @param points Points to add
@@ -671,17 +690,13 @@ public class Game extends Canvas implements Screen
 			BossEntity boss = new BossEntity(this, 400, 120, round); // Center, slightly lower
 			gameStateManager.getEntities().add(boss);
 			
-			// 보스 좌우에 1round_small.png 몬스터 추가 (조금 띄어서 배치)
-			AlienEntity leftAlien = new AlienEntity(this, 200, 120); // 보스 왼쪽 (더 멀리)
-			AlienEntity rightAlien = new AlienEntity(this, 600, 120); // 보스 오른쪽 (더 멀리)
-			gameStateManager.getEntities().add(leftAlien);
-			gameStateManager.getEntities().add(rightAlien);
-			
 			System.out.println("BOSS SPAWNED! Round " + round + " Boss with " + boss.getMaxHP() + " HP!");
-			System.out.println("Side aliens added to boss fight!");
+			
+			// Set alien count: Boss (1) only
+			gameStateManager.setAlienCount(1);
 			
 			gameStateManager.setMessage("⚠️ BOSS APPEARED! ⚠️");
-			gameStateManager.setWaitingForKeyPress(true);
+			gameStateManager.setWaitingForKeyPress(false); // 보스 등장 시 바로 게임 시작
 		} catch (Exception e) {
 			System.err.println("Error spawning boss: " + e.getMessage());
 			e.printStackTrace();
@@ -880,6 +895,29 @@ public class Game extends Canvas implements Screen
 	 */
 	public void resetMainMenuRequest() {
 		requestMainMenu = false;
+	}
+	
+	/**
+	 * 라운드별 배경 업데이트
+	 */
+	public void updateBackgroundForRound(int round) {
+		String backgroundPath = "sprites/stage_background/" + round + ".png";
+		backgroundRenderer.setResourcePath(backgroundPath);
+		System.out.println("라운드 " + round + " 배경 변경: " + backgroundPath);
+	}
+	
+	/**
+	 * Check if 3 seconds have passed since game start
+	 */
+	public boolean canEnemiesAttack() {
+		return (System.currentTimeMillis() - gameStartTime) >= 3000; // 3초 = 3000ms
+	}
+	
+	/**
+	 * Get the player ship entity
+	 */
+	public ShipEntity getPlayerShip() {
+		return (ShipEntity) ship;
 	}
 	
 	/**

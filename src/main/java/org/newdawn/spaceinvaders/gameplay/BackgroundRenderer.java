@@ -12,7 +12,7 @@ public class BackgroundRenderer {
     private static final int WIDTH = 800;
     private static final int HEIGHT = 600;
 
-    private volatile Image cachedBackground; // 가속화된 이미지
+    private volatile BufferedImage cachedBackground; // 가속화된 이미지
     private String resourcePath = "sprites/backgrounds/Background-2.jpg";
 
     public BackgroundRenderer() { }
@@ -28,6 +28,7 @@ public class BackgroundRenderer {
      */
     public void setResourcePath(String resourcePath) {
         if (resourcePath != null && !resourcePath.isEmpty() && !resourcePath.equals(this.resourcePath)) {
+            System.out.println("BackgroundRenderer: 배경 경로 변경 " + this.resourcePath + " -> " + resourcePath);
             this.resourcePath = resourcePath;
             this.cachedBackground = null; // 다음 그리기 때 다시 로드
         }
@@ -44,6 +45,7 @@ public class BackgroundRenderer {
             // 안전망: 로드 실패 시 블랙 배경
             g.setColor(Color.black);
             g.fillRect(0, 0, WIDTH, HEIGHT);
+            System.err.println("BackgroundRenderer: 배경 로드 실패, 블랙 배경 표시 - " + resourcePath);
         }
     }
 
@@ -54,19 +56,22 @@ public class BackgroundRenderer {
         if (cachedBackground != null) return;
         try (InputStream is = getClass().getClassLoader().getResourceAsStream(resourcePath)) {
             if (is == null) {
+                System.err.println("BackgroundRenderer: 이미지를 찾을 수 없습니다 - " + resourcePath);
                 return;
             }
             BufferedImage src = ImageIO.read(is);
-            GraphicsConfiguration gc = g.getDeviceConfiguration();
-            // 화면 크기에 맞게 사전 스케일링하여 가속 이미지로 저장
-            Image compatible = gc.createCompatibleImage(WIDTH, HEIGHT, Transparency.OPAQUE);
-            Graphics2D ig = (Graphics2D) compatible.getGraphics();
-            ig.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR);
-            ig.drawImage(src, 0, 0, WIDTH, HEIGHT, null);
-            ig.dispose();
-            cachedBackground = compatible;
-        } catch (Exception ignored) {
-            // 상위에서 안전망 배경 처리
+            if (src == null) {
+                System.err.println("BackgroundRenderer: 이미지 로드 실패 - " + resourcePath);
+                return;
+            }
+            System.out.println("BackgroundRenderer: 이미지 로드 성공 - " + resourcePath + " (" + src.getWidth() + "x" + src.getHeight() + ")");
+            
+            // 더 간단한 방법: BufferedImage를 직접 사용
+            cachedBackground = src;
+            System.out.println("BackgroundRenderer: 배경 이미지 캐시 완료 - " + resourcePath);
+        } catch (Exception e) {
+            System.err.println("BackgroundRenderer: 이미지 로드 중 오류 발생 - " + resourcePath + " - " + e.getMessage());
+            e.printStackTrace();
         }
     }
 }

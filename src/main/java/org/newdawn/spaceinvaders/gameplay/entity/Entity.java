@@ -172,4 +172,22 @@ public abstract class Entity {
 	 * @param other The entity with which this entity collided.
 	 */
 	public abstract void collidedWith(Entity other);
+	
+	// Getters and setters for dx and dy
+	public double getDX() {
+		return dx;
+	}
+	
+	public double getDY() {
+		return dy;
+	}
+	
+	public void setDX(double dx) {
+		this.dx = dx;
+	}
+	
+	public void setDY(double dy) {
+		this.dy = dy;
+	}
+	
 }
