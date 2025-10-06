@@ -24,4 +24,8 @@ public interface ScreenNavigator {
 
     /** 특정 roomId 로비 화면을 연다 (이미 GameClient가 JOIN 완료된 상태여야 함) */
     void showRoomLobby(String roomId);
+
+    // ===== 신규: 멀티플레이 게임 시작 (multyplay 패키지) =====
+    /** 새 멀티플레이 전용 캔버스를 띄운다 (싱글 Game 과 분리). */
+    void startMultiplayerGame();
 }

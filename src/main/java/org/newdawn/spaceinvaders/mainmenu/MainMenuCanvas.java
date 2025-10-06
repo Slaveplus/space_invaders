@@ -27,6 +27,10 @@ public class MainMenuCanvas extends Canvas implements Screen {
                 mainMenu.reset();
                 navigator.startNewGame();
             }
+            // 임시: M 키로 멀티플레이 모드 진입 (향후 전용 메뉴 항목으로 대체)
+            if (e.getKeyCode() == KeyEvent.VK_M) {
+                navigator.startMultiplayerGame();
+            }
             if (mainMenu.isLogoutRequested()) {
                 mainMenu.resetLogoutRequest();
                 navigator.showLogin();

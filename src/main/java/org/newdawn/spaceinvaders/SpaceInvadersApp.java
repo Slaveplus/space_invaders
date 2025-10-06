@@ -10,6 +10,8 @@ import org.newdawn.spaceinvaders.mainmenu.MainMenuCanvas;
 import org.newdawn.spaceinvaders.room.GameClient;
 import org.newdawn.spaceinvaders.room.RoomListCanvas;
 import org.newdawn.spaceinvaders.room.RoomLobbyCanvas;
+import org.newdawn.spaceinvaders.multyplay.core.MultiGameCanvas;
+import org.newdawn.spaceinvaders.multyplay.state.MultiGameState;
 
 import javax.swing.*;
 import java.awt.*;
@@ -43,6 +45,7 @@ public class SpaceInvadersApp extends JFrame implements ScreenNavigator {
     private RoomLobbyCanvas roomLobbyCanvas; // 현재 로비
     private GameClient currentClient; // 현재 GameClient 참조
     private Game gameScreen; // Game 자체를 캔버스로 이용
+    private MultiGameCanvas multiGameCanvas; // 멀티플레이 전용 캔버스
 
     private Screen currentScreen; // update/render 가상화
     private volatile boolean running = true;
@@ -235,6 +238,19 @@ public class SpaceInvadersApp extends JFrame implements ScreenNavigator {
         cleanupClient();
         if (gameScreen != null) gameScreen.startNewGame();
         requestSetScreen(gameScreen);
+    }
+
+    @Override
+    public void startMultiplayerGame() {
+        // 기존 멀티 관련 캔버스 정리 (룸 -> 게임 전환시 client 유지 가능하나 현재 MVP 에서는 loopback 기본)
+        // 추후: roomLobbyCanvas 에서 실제 서버 연결 상태를 이용해 MultiNetworkAdapter 교체 가능
+        MultiGameState state = new MultiGameState();
+        multiGameCanvas = new MultiGameCanvas(state);
+        // MultiGameCanvas 내부 controller 인스턴스는 외부에서 직접 접근 불가 -> loopback은 canvas.init() 이후 주입하는 방식으로 변경 필요.
+        // 간단 해결: MultiGameCanvas에 controller 게터 추가하는 대신 생성 시점에만 사용할 팩토리 메서드 제공이 이상적이나, 여기서는
+        // adapter를 null로 두고 init() 내 기본 loopback 생성 경로 사용.
+        // 따라서 명시적 어댑터 설정 제거.
+        requestSetScreen(multiGameCanvas);
     }
 
     @Override
