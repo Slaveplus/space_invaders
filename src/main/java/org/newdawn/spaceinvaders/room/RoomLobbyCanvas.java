@@ -272,7 +272,14 @@ public class RoomLobbyCanvas extends Canvas implements Screen, GameClientListene
         appendChatLine(from+": "+msg);
     }
     @Override public void onHostLeft(String roomId) { appendChatInfo("호스트가 방을 제거했습니다."); infoMessage="호스트 종료 - 목록으로"; infoTimer=180; navigator.showRoomList(client); }
-    @Override public void onGameStart(String roomId) { appendChatInfo("게임 시작!"); navigator.startNewGame(); }
+    @Override public void onGameStart(String roomId) {
+        appendChatInfo("게임 시작!");
+        if (client != null && !client.isCurrentRoomSingle()) {
+            navigator.startMultiGame(roomId);
+        } else {
+            navigator.startNewGame();
+        }
+    }
     @Override public void onInfo(String msg) { if ("NO_ROOM".equals(msg)) return; infoMessage=msg; infoTimer=180; }
     @Override public void onError(String msg) { infoMessage="ERROR:"+msg; infoTimer=240; }
 }

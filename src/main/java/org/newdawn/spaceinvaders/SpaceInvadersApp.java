@@ -7,6 +7,14 @@ import org.newdawn.spaceinvaders.gameplay.ResolutionManager;
 import org.newdawn.spaceinvaders.login.LoginScreenCanvas;
 import org.newdawn.spaceinvaders.login.UserManager;
 import org.newdawn.spaceinvaders.mainmenu.MainMenuCanvas;
+import org.newdawn.spaceinvaders.multyplay.core.MultiGameCanvas;
+import org.newdawn.spaceinvaders.multyplay.core.MultiGameController;
+import org.newdawn.spaceinvaders.multyplay.core.MultiGameRuntime;
+import org.newdawn.spaceinvaders.multyplay.net.MultiClientAdapter;
+import org.newdawn.spaceinvaders.multyplay.state.MultiGameState;
+import org.newdawn.spaceinvaders.multyplay.system.MultiInputManager;
+import org.newdawn.spaceinvaders.multyplay.ui.MultiBackgroundRenderer;
+import org.newdawn.spaceinvaders.multyplay.ui.MultiUIRenderer;
 import org.newdawn.spaceinvaders.room.GameClient;
 import org.newdawn.spaceinvaders.room.RoomListCanvas;
 import org.newdawn.spaceinvaders.room.RoomLobbyCanvas;
@@ -43,6 +51,14 @@ public class SpaceInvadersApp extends JFrame implements ScreenNavigator {
     private RoomLobbyCanvas roomLobbyCanvas; // 현재 로비
     private GameClient currentClient; // 현재 GameClient 참조
     private Game gameScreen; // Game 자체를 캔버스로 이용
+
+    private MultiGameCanvas multiGameCanvas;
+    private MultiGameRuntime multiGameRuntime;
+    private MultiGameController multiGameController;
+    private MultiGameState multiGameState;
+    private MultiInputManager multiInputManager;
+    private MultiBackgroundRenderer multiBackgroundRenderer;
+    private MultiUIRenderer multiUIRenderer;
 
     private Screen currentScreen; // update/render 가상화
     private volatile boolean running = true;
@@ -239,11 +255,13 @@ public class SpaceInvadersApp extends JFrame implements ScreenNavigator {
 
     @Override
     public void exitGame() {
+        cleanupMultiRuntime();
         running = false;
     }
 
     /** 현재 GameClient 및 관련 화면 정리 */
     private void cleanupClient() {
+        cleanupMultiRuntime();
         if (roomListCanvas != null && currentClient != null) {
             currentClient.removeListener(roomListCanvas);
         }
@@ -291,6 +309,25 @@ public class SpaceInvadersApp extends JFrame implements ScreenNavigator {
         requestSetScreen(roomLobbyCanvas);
     }
     
+    private void cleanupMultiRuntime() {
+        if (multiGameRuntime != null) {
+            multiGameRuntime.setSessionEndHandler(reason -> {});
+        }
+        if (multiGameCanvas != null) {
+            multiGameCanvas.onHide();
+        }
+        if (multiGameRuntime != null) {
+            multiGameRuntime.stop();
+        }
+        multiGameRuntime = null;
+        multiGameController = null;
+        multiGameState = null;
+        multiInputManager = null;
+        multiBackgroundRenderer = null;
+        multiUIRenderer = null;
+        multiGameCanvas = null;
+    }
+
     // 해상도 변경 메서드들
     public void changeResolution(int width, int height) {
         this.currentWidth = width;
@@ -311,6 +348,10 @@ public class SpaceInvadersApp extends JFrame implements ScreenNavigator {
         // Game 화면 크기도 업데이트
         if (gameScreen != null) {
             gameScreen.setBounds(0, 0, width, height);  
+        }
+        if (multiGameCanvas != null) {
+            multiGameCanvas.setBounds(0, 0, width, height);
+            multiGameCanvas.setSize(width, height);
         }
         
         // 창 크기 재조정
@@ -334,7 +375,66 @@ public class SpaceInvadersApp extends JFrame implements ScreenNavigator {
     public ResolutionManager getResolutionManager() {
         return resolutionManager;
     }
-    
+
+    @Override
+    public void startMultiGame(String roomId) {
+        if (currentClient == null) {
+            return;
+        }
+        if (roomId == null || roomId.isEmpty()) {
+            roomId = currentClient.getCurrentRoomId();
+        }
+
+        cleanupMultiRuntime();
+
+        String playerId = currentClient.getSelfId();
+        if (playerId == null || playerId.isEmpty()) {
+            playerId = currentClient.getSessionId();
+        }
+        if (playerId == null || playerId.isEmpty()) {
+            playerId = "local";
+        }
+
+        multiGameState = new MultiGameState();
+        multiGameController = new MultiGameController(multiGameState);
+        MultiClientAdapter networkAdapter = new MultiClientAdapter(currentClient, roomId);
+        multiInputManager = new MultiInputManager(playerId);
+        multiGameRuntime = new MultiGameRuntime(multiGameController, networkAdapter, multiInputManager);
+        multiBackgroundRenderer = new MultiBackgroundRenderer("sprites/backgrounds/Background-2.jpg");
+        multiUIRenderer = new MultiUIRenderer();
+        multiGameCanvas = new MultiGameCanvas(multiGameRuntime, multiGameController, multiBackgroundRenderer, multiUIRenderer);
+        multiGameCanvas.setBounds(0, 0, currentWidth, currentHeight);
+        multiGameCanvas.setSize(currentWidth, currentHeight);
+        multiGameRuntime.setSessionEndHandler(reason -> SwingUtilities.invokeLater(() -> handleMultiSessionEnded(reason)));
+
+        requestSetScreen(multiGameCanvas);
+    }
+
+    private void handleMultiSessionEnded(MultiGameRuntime.SessionEndReason reason) {
+        cleanupMultiRuntime();
+        String message;
+        switch (reason) {
+            case HOST_LEFT:
+                message = "호스트가 게임을 종료했습니다.";
+                break;
+            case DISCONNECTED:
+                message = "서버와의 연결이 끊어졌습니다.";
+                break;
+            case ERROR:
+            default:
+                message = "멀티플레이 세션이 종료되었습니다.";
+                break;
+        }
+        if (currentClient != null && currentClient.isRunning()) {
+            currentClient.requestRoomList();
+            showRoomList(currentClient);
+        } else {
+            cleanupClient();
+            showMainMenu();
+        }
+        JOptionPane.showMessageDialog(this, message, "Multiplayer", JOptionPane.INFORMATION_MESSAGE);
+    }
+
     // 미리 정의된 해상도 옵션들
     public static final int[][] RESOLUTION_OPTIONS = {
         {800, 600},   // 기본

@@ -5,6 +5,8 @@ import java.net.ServerSocket;
 import java.net.Socket;
 import java.util.*;
 
+import org.newdawn.spaceinvaders.multyplay.net.MultiServerAdapter;
+
 /** 매우 단순한 스레드형 게임 서버 (학습/프로토타입 용) */
 public class GameServer implements Runnable {
     private final int port;
@@ -12,11 +14,15 @@ public class GameServer implements Runnable {
     private final Set<ClientConnection> connections = Collections.synchronizedSet(new HashSet<>());
     private volatile boolean running = true;
     private Thread maintenanceThread;
+    private MultiServerAdapter multiAdapter;
     // 타임아웃 (ms)
     private static final long SESSION_TIMEOUT = 15000; // 15초 활동 없으면 제거
     private static final long MAINT_INTERVAL = 5000;    // 5초마다 점검
 
-    public GameServer(int port) { this.port = port; }
+    public GameServer(int port) {
+        this.port = port;
+        this.multiAdapter = new MultiServerAdapter(this);
+    }
 
     public void run() {
         try (ServerSocket ss = new ServerSocket(port)) {
@@ -76,12 +82,28 @@ public class GameServer implements Runnable {
     }
     public ServerRoomManager getRoomManager() { return roomManager; }
 
+    public void setMultiAdapter(MultiServerAdapter multiAdapter) {
+        this.multiAdapter = multiAdapter;
+    }
+
+    public MultiServerAdapter getMultiAdapter() {
+        return multiAdapter;
+    }
+
     // 브로드캐스트 유틸
     void sendToRoom(Room room, String line) {
         for (PlayerSession ps : room.getPlayers()) {
             ps.getOut().println(line);
         }
         System.out.println("[Server] Sent to room " + room.getId() + ": " + line);
+    }
+
+    public void broadcastToRoom(String roomId, String line) {
+        if (roomId == null) return;
+        Room room = roomManager.getRoom(roomId);
+        if (room != null) {
+            sendToRoom(room, line);
+        }
     }
 
     public static void main(String[] args) {

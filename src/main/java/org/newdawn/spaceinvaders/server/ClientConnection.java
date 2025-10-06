@@ -2,7 +2,14 @@ package org.newdawn.spaceinvaders.server;
 
 import java.io.*;
 import java.net.Socket;
+import java.util.Base64;
 import java.util.stream.Collectors;
+
+import org.newdawn.spaceinvaders.multyplay.net.GameEventCodec;
+import org.newdawn.spaceinvaders.multyplay.net.MultiServerAdapter;
+import org.newdawn.spaceinvaders.multyplay.net.PlayerInputCodec;
+import org.newdawn.spaceinvaders.multyplay.net.msg.GameEventMsg;
+import org.newdawn.spaceinvaders.multyplay.net.msg.PlayerInputMsg;
 
 import static org.newdawn.spaceinvaders.server.MessageType.*;
 
@@ -102,6 +109,12 @@ class ClientConnection implements Runnable {
                     session.getOut().println(INFO+"|msg=NO_ROOM");
                 }
                 break;
+            case "MULTI_INPUT":
+                handleMultiInput(parts);
+                break;
+            case "MULTI_EVENT":
+                handleMultiEvent(parts);
+                break;
             default:
                 System.out.println("[ClientConnection] UNKNOWN_TYPE: " + type + " from " + session.getUsername());
                 session.getOut().println(ERROR+"|msg=UNKNOWN_TYPE");
@@ -180,6 +193,10 @@ class ClientConnection implements Runnable {
                 }
                 server.getRoomManager().removeRoom(room.getId());
                 System.out.println("[ClientConnection] Room forcibly removed (host left or empty): " + room.getId());
+                MultiServerAdapter adapter = server.getMultiAdapter();
+                if (adapter != null) {
+                    adapter.onRoomEnd(room.getId());
+                }
             } else if (!wasHost && !room.getPlayers().isEmpty()) {
                 // 일반 플레이어 퇴장 -> 상태만 브로드캐스트
                 broadcastRoomState(room, false);
@@ -205,6 +222,10 @@ class ClientConnection implements Runnable {
         room.setStarted(true);
         server.sendToRoom(room, GAME_START+"|roomId="+room.getId());
         System.out.println("[ClientConnection] START_GAME: " + room.getId() + " by " + session.getUsername());
+        MultiServerAdapter adapter = server.getMultiAdapter();
+        if (adapter != null) {
+            adapter.onRoomStart(room.getId());
+        }
     }
 
     private void handleChat(String[] parts) {
@@ -213,6 +234,53 @@ class ClientConnection implements Runnable {
         String msg = parts.length>1? unescape(parts[1]) : "";
         server.sendToRoom(room, CHAT_MSG+"|from="+escape(session.getUsername())+"|msg="+escape(msg));
         System.out.println("[ClientConnection] CHAT: " + session.getUsername() + " in room " + room.getId() + " -> " + msg);
+    }
+
+    private void handleMultiInput(String[] parts) {
+        MultiServerAdapter adapter = server.getMultiAdapter();
+        if (adapter == null) return;
+        String roomId = getValue(parts, "roomId");
+        String payload = getValue(parts, "payload");
+        if (roomId == null || payload == null) return;
+        try {
+            byte[] decoded = Base64.getDecoder().decode(payload);
+            PlayerInputMsg msg = PlayerInputCodec.decode(decoded);
+            adapter.handleInput(roomId, msg);
+        } catch (IllegalArgumentException | IOException e) {
+            System.out.println("[ClientConnection] MULTI_INPUT decode failed: " + e.getMessage());
+        }
+    }
+
+    private void handleMultiEvent(String[] parts) {
+        MultiServerAdapter adapter = server.getMultiAdapter();
+        if (adapter == null) return;
+        String roomId = getValue(parts, "roomId");
+        String payload = getValue(parts, "payload");
+        if (roomId == null || payload == null) return;
+        try {
+            byte[] decoded = Base64.getDecoder().decode(payload);
+            GameEventMsg event = GameEventCodec.decode(decoded);
+            adapter.handleEvent(roomId, event);
+        } catch (IllegalArgumentException | IOException e) {
+            System.out.println("[ClientConnection] MULTI_EVENT decode failed: " + e.getMessage());
+        }
+    }
+
+    private String getValue(String[] parts, String key) {
+        if (parts == null || key == null) {
+            return null;
+        }
+        for (int i = 1; i < parts.length; i++) {
+            String p = parts[i];
+            int idx = p.indexOf('=');
+            if (idx > 0) {
+                String k = p.substring(0, idx);
+                if (key.equals(k)) {
+                    return p.substring(idx + 1);
+                }
+            }
+        }
+        return null;
     }
 
     private void broadcastRoomState(Room room, boolean includeHostJoin) {

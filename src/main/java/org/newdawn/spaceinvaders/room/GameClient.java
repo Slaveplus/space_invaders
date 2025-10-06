@@ -3,6 +3,7 @@ package org.newdawn.spaceinvaders.room;
 import java.io.*;
 import java.net.Socket;
 import java.util.*;
+import java.util.Base64;
 import java.util.concurrent.CopyOnWriteArrayList;
 
 /** 간단 텍스트 프로토콜 클라이언트 */
@@ -17,6 +18,7 @@ public class GameClient implements Runnable {
     private Thread thread;
     private Thread heartbeatThread; // 주기적 PING 전송 스레드
     private final List<GameClientListener> listeners = new CopyOnWriteArrayList<>();
+    private GameClientMultiListener multiListener;
 
     private String currentRoomId;
     private String currentHostId;
@@ -31,6 +33,7 @@ public class GameClient implements Runnable {
 
     public void addListener(GameClientListener l) { if (l!=null) listeners.add(l); }
     public void removeListener(GameClientListener l) { listeners.remove(l); }
+    public void setMultiListener(GameClientMultiListener multiListener) { this.multiListener = multiListener; }
 
     public void connect() throws IOException {
         if (running) {
@@ -64,6 +67,16 @@ public class GameClient implements Runnable {
     public void startGame() { send("START_GAME"); }
     public void chat(String msg) { send("CHAT|"+escape(msg)); }
     public void requestRoomState() { send("GET_ROOM_STATE"); }
+    public void sendMultiInput(String roomId, byte[] payload) {
+        if (roomId == null || payload == null) return;
+        String encoded = Base64.getEncoder().encodeToString(payload);
+        send("MULTI_INPUT|roomId=" + escape(roomId) + "|payload=" + encoded);
+    }
+    public void sendMultiEvent(String roomId, byte[] payload) {
+        if (roomId == null || payload == null) return;
+        String encoded = Base64.getEncoder().encodeToString(payload);
+        send("MULTI_EVENT|roomId=" + escape(roomId) + "|payload=" + encoded);
+    }
 
     private void send(String line) { if (out!=null) out.println(line); }
 
@@ -110,6 +123,12 @@ public class GameClient implements Runnable {
             case "CHAT": handleChat(parts); break;
             case "HOST_LEFT": fireHostLeft(getValue(parts, "roomId")); break;
             case "GAME_START": fireGameStart(getValue(parts, "roomId")); break;
+            case "MULTI_SNAPSHOT":
+                dispatchMultiPayload(parts, true);
+                break;
+            case "MULTI_EVENT":
+                dispatchMultiPayload(parts, false);
+                break;
             default: // ignore
         }
         if ("INFO".equals(type) && "CONNECTED".equals(getValue(parts, "msg"))) {
@@ -170,6 +189,22 @@ public class GameClient implements Runnable {
         String from = getValue(parts, "from");
         String msg = unescape(getValue(parts, "msg"));
         for (GameClientListener l : listeners) l.onChatMessage(from, msg);
+    }
+
+    private void dispatchMultiPayload(String[] parts, boolean snapshot) {
+        if (multiListener == null) return;
+        String roomId = getValue(parts, "roomId");
+        String payload = getValue(parts, "payload");
+        if (payload == null || payload.isEmpty()) return;
+        try {
+            byte[] decoded = Base64.getDecoder().decode(payload);
+            if (snapshot) {
+                multiListener.onSnapshot(roomId, decoded);
+            } else {
+                multiListener.onEvent(roomId, decoded);
+            }
+        } catch (IllegalArgumentException ignored) {
+        }
     }
 
     private String getValue(String[] parts, String key) {

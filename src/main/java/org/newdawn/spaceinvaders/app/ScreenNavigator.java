@@ -24,4 +24,7 @@ public interface ScreenNavigator {
 
     /** 특정 roomId 로비 화면을 연다 (이미 GameClient가 JOIN 완료된 상태여야 함) */
     void showRoomLobby(String roomId);
+
+    /** 멀티플레이 게임 화면으로 전환한다. */
+    void startMultiGame(String roomId);
 }
