@@ -20,6 +20,13 @@ import org.newdawn.spaceinvaders.gameplay.sprite.SpriteStore;
  * @author Kevin Glass
  */
 public abstract class Entity {
+	// ===== 멀티플레이 확장 필드 =====
+	private static final java.util.concurrent.atomic.AtomicLong ID_GENERATOR = new java.util.concurrent.atomic.AtomicLong();
+	/** 전역 유니크 엔티티 ID (동기화/직렬화 용) */
+	private final long entityId = ID_GENERATOR.incrementAndGet();
+	/** 이 엔티티를 소유/생성한 플레이어 ID (탄환 등); 글로벌/중립은 null */
+	private String ownerId;
+
 	/** The current x location of this entity */ 
 	protected double x;
 	/** The current y location of this entity */
@@ -46,6 +53,26 @@ public abstract class Entity {
 		this.sprite = SpriteStore.get().getSprite(ref);
 		this.x = x;
 		this.y = y;
+	}
+
+	// ---- 멀티플레이 편의 메서드 ----
+	public long getEntityId() { return entityId; }
+	public String getOwnerId() { return ownerId; }
+	public void setOwnerId(String ownerId) { this.ownerId = ownerId; }
+
+	/**
+	 * 상태 스냅샷 직렬화용 DTO (간단 버전). 실제 네트워크 전송 시 확장 가능.
+	 */
+	public EntitySnapshot toSnapshot() {
+		return new EntitySnapshot(entityId, ownerId, spriteRef(), x, y, dx, dy, getBounds().width, getBounds().height);
+	}
+
+	/** 서브클래스가 sprite 경로를 알 수 있도록 기본 ref 표시 (SpriteStore 내부 구조 의존 회피) */
+	protected String spriteRef() { return null; /* Sprite 원본 경로 관리 필요시 SpriteStore 개선 후 구현 */ }
+
+	/** 스냅샷으로부터 좌표/속도 등 갱신 (예: 클라이언트 보간) */
+	public void applySnapshot(EntitySnapshot snap) {
+		this.x = snap.x; this.y = snap.y; this.dx = snap.dx; this.dy = snap.dy; // sprite 교체는 필요 시 별도 처리
 	}
 	
 	/**

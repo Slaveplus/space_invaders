@@ -9,24 +9,28 @@ import java.util.ArrayList;
  * - 본 클래스는 게임 내 상태(라운드/스탯/오버레이/엔티티/타이밍)만 관리합니다.
  */
 public class GameStateManager {
-    // 게임플레이 상태
+    // ====== 기본 게임플레이 상태 ======
     private boolean gameRunning = true;
     private boolean waitingForKeyPress = true;
     private String message = "";
 
-    // 라운드 정보
+    // ====== 라운드 정보 ======
     private int currentRound = 1;
     private final int MAX_ROUND = 5;
     private int alienCount;
 
-    // 플레이어 스탯
-    private int attackPower = 1;
-    private double attackSpeed = 1.0;
-    private int maxHP = 3;
-    private int currentHP = 3;
-    private int skillPoints = 0;
+    // ====== 멀티플레이 지원: 플레이어 상태 집합 ======
+    // key: playerId (세션 또는 로컬 식별자)
+    private final java.util.Map<String, PlayerState> players = new java.util.LinkedHashMap<>();
+    // 현재 로컬 플레이어 (싱글 플레이일 경우 하나만 존재)
+    private String localPlayerId = "local"; // 기본값
 
-    // 스킬 메뉴 관련
+    // 레거시 호환을 위한 단일 플레이어 접근 (기존 코드 점진 전환 용)
+    private PlayerState getLocalPlayerState() {
+        return players.computeIfAbsent(localPlayerId, PlayerState::new);
+    }
+
+    // ====== 스킬/오버레이 상태 ======
     private boolean showingSkillMenu = false;
     private int selectedSkill = 0; // 0: Attack Power, 1: Attack Speed, 2: HP Up
 
@@ -66,23 +70,20 @@ public class GameStateManager {
      * 게임 시작 시 초기화
      */
     public void startNewGame() {
-        // Reset player stats
-        attackPower = 1;
-        attackSpeed = 1.0;
-        maxHP = 3;
-        currentHP = 3;
-        skillPoints = 0;
-        
+        // 모든 플레이어 상태 초기화 (현재는 로컬 플레이어만 존재)
+        players.clear();
+        getLocalPlayerState().resetForNewGame();
+
         // Reset round
         currentRound = 1;
-        
+
         // Reset alien firing interval
         alienFiringInterval = baseAlienFiringInterval;
-        
+
         // Clear entities
         entities.clear();
         removeList.clear();
-        
+
         // Reset game state
         waitingForKeyPress = false;
         message = "";
@@ -108,20 +109,28 @@ public class GameStateManager {
     public int getAlienCount() { return alienCount; }
     public void setAlienCount(int alienCount) { this.alienCount = alienCount; }
     
-    public int getAttackPower() { return attackPower; }
-    public void setAttackPower(int attackPower) { this.attackPower = attackPower; }
-    
-    public double getAttackSpeed() { return attackSpeed; }
-    public void setAttackSpeed(double attackSpeed) { this.attackSpeed = attackSpeed; }
-    
-    public int getMaxHP() { return maxHP; }
-    public void setMaxHP(int maxHP) { this.maxHP = maxHP; }
-    
-    public int getCurrentHP() { return currentHP; }
-    public void setCurrentHP(int currentHP) { this.currentHP = currentHP; }
-    
-    public int getSkillPoints() { return skillPoints; }
-    public void setSkillPoints(int skillPoints) { this.skillPoints = skillPoints; }
+    // ---- 레거시 단일 플레이어 getter/setter (점진 제거 예정) ----
+    public int getAttackPower() { return getLocalPlayerState().getAttackPower(); }
+    public void setAttackPower(int v) { getLocalPlayerState().setAttackPower(v); }
+
+    public double getAttackSpeed() { return getLocalPlayerState().getAttackSpeed(); }
+    public void setAttackSpeed(double v) { getLocalPlayerState().setAttackSpeed(v); }
+
+    public int getMaxHP() { return getLocalPlayerState().getMaxHP(); }
+    public void setMaxHP(int v) { getLocalPlayerState().setMaxHP(v); }
+
+    public int getCurrentHP() { return getLocalPlayerState().getCurrentHP(); }
+    public void setCurrentHP(int v) { getLocalPlayerState().setCurrentHP(v); }
+
+    public int getSkillPoints() { return getLocalPlayerState().getSkillPoints(); }
+    public void setSkillPoints(int v) { getLocalPlayerState().setSkillPoints(v); }
+
+    // ---- 멀티플레이 전용 API ----
+    public java.util.Collection<PlayerState> getPlayerStates() { return players.values(); }
+    public PlayerState getPlayerState(String playerId) { return players.get(playerId); }
+    public PlayerState ensurePlayer(String playerId) { return players.computeIfAbsent(playerId, PlayerState::new); }
+    public String getLocalPlayerId() { return localPlayerId; }
+    public void setLocalPlayerId(String localPlayerId) { this.localPlayerId = localPlayerId; }
     
     public long getLastFire() { return lastFire; }
     public void setLastFire(long lastFire) { this.lastFire = lastFire; }
@@ -155,8 +164,9 @@ public class GameStateManager {
      * 플레이어 데미지 처리
      */
     public void takeDamage() {
-        currentHP--;
-        if (currentHP <= 0) {
+        PlayerState ps = getLocalPlayerState();
+        ps.takeDamage(1);
+        if (ps.isDead()) {
             message = "Oh no! They got you, try again?";
             waitingForKeyPress = true;
             isRoundTransition = false; // 게임 오버 시 라운드 전환 플래그 해제
@@ -190,7 +200,7 @@ public class GameStateManager {
      * 스킬 포인트 추가
      */
     public void addSkillPoints(int points) {
-        skillPoints += points;
+        getLocalPlayerState().addSkillPoints(points);
     }
     
     // ========== 스킬 메뉴 관련 메서드 ==========
