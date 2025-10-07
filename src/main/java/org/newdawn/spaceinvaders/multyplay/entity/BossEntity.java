@@ -119,8 +119,9 @@ public class BossEntity extends Entity {
             lastFire = System.currentTimeMillis();
             
             // Get player position for targeted attacks
-            double playerX = game.getShip().getX() + 15; // Center of player ship
-            double playerY = game.getShip().getY();
+            Entity targetShip = game.getShip(null);
+            double playerX = targetShip != null ? targetShip.getX() + 15 : x;
+            double playerY = targetShip != null ? targetShip.getY() : y + 200;
             double bossFireX = x;
             double bossFireY = y + 75; // Fire from bottom of boss
             
@@ -275,7 +276,7 @@ public class BossEntity extends Entity {
      * 
      * @param damage The amount of damage to take
      */
-    public void takeDamage(int damage) {
+    public void takeDamage(int damage, String playerId) {
         try {
             currentHP -= damage;
             
@@ -297,9 +298,9 @@ public class BossEntity extends Entity {
             if (currentHP <= 0) {
                 // Boss defeated
                 createBossExplosion();
-                game.addScore(1000 * round);
-                game.addSkillPoints(5 * round);
-                game.notifyBossDefeated();
+                game.addScore(playerId, 1000 * round);
+                game.addSkillPoints(playerId, 5 * round);
+                game.notifyBossDefeated(playerId);
                 game.removeEntity(this);
                 used = true;
             }

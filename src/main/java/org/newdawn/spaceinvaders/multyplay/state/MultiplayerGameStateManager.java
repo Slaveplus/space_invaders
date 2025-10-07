@@ -164,12 +164,19 @@ public class MultiplayerGameStateManager {
      * 플레이어 데미지 처리
      */
     public void takeDamage() {
-        PlayerState ps = getLocalPlayerState();
+        takeDamage(localPlayerId);
+    }
+
+    public void takeDamage(String playerId) {
+        if (playerId == null) {
+            return;
+        }
+        PlayerState ps = ensurePlayer(playerId);
         ps.takeDamage(1);
-        if (ps.isDead()) {
+        if (playerId.equals(localPlayerId) && ps.isDead()) {
             message = "Oh no! They got you, try again?";
             waitingForKeyPress = true;
-            isRoundTransition = false; // 게임 오버 시 라운드 전환 플래그 해제
+            isRoundTransition = false;
         }
     }
     

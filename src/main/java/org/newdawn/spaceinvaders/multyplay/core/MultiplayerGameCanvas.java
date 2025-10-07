@@ -112,11 +112,14 @@ public class MultiplayerGameCanvas extends Canvas implements Screen, Multiplayer
 		setBounds(0,0,800,600);
 		setFocusable(true);
 		
-		// initialize the game state manager
-		gameStateManager = new MultiplayerGameStateManager();
-		
-		// initialize the skill manager
-		skillManager = new MultiplayerSkillManager(this);
+	// initialize the game state manager
+	gameStateManager = new MultiplayerGameStateManager();
+	localPlayerId = gameStateManager.getLocalPlayerId();
+	gameStateManager.ensurePlayer(localPlayerId);
+	gameStateManager.setLocalPlayerId(localPlayerId);
+	
+	// initialize the skill manager
+	skillManager = new MultiplayerSkillManager(this, localPlayerId);
 		
 		// initialize the UI renderer
 		uiRenderer = new MultiplayerUIRenderer(this);
@@ -169,6 +172,8 @@ public class MultiplayerGameCanvas extends Canvas implements Screen, Multiplayer
 			this.localPlayerId = "local";
 			gameStateManager.ensurePlayer(this.localPlayerId);
 		}
+		gameStateManager.setLocalPlayerId(this.localPlayerId);
+		skillManager.setOwnerId(this.localPlayerId);
 		ship = null;
 	}
 
@@ -184,7 +189,7 @@ public class MultiplayerGameCanvas extends Canvas implements Screen, Multiplayer
 	}
 
 	@Override
-	public MultiplayerSkillManager getSkillManager() {
+	public MultiplayerSkillManager getSkillManager(String playerId) {
 		return skillManager;
 	}
 	
@@ -246,6 +251,7 @@ public class MultiplayerGameCanvas extends Canvas implements Screen, Multiplayer
 	private void initEntities() {
 		// create the player ship and place it roughly in the center of the screen
 		ship = new ShipEntity(this, currentSpaceshipSkin, 370, 550);
+		ship.setOwnerId(localPlayerId);
 		gameStateManager.getEntities().add(ship);
 		
 		// Create aliens based on current round with balanced progression
@@ -306,14 +312,16 @@ public class MultiplayerGameCanvas extends Canvas implements Screen, Multiplayer
 	 * Notification that the player has died. 
 	 */
 	@Override
-	public void notifyDeath() {
-		// Check if player is invincible
-		if (skillManager.isInvincible()) {
-			return; // No damage taken when invincible
+	public void notifyDeath(String playerId) {
+		String targetId = playerId != null ? playerId : gameStateManager.getLocalPlayerId();
+
+		if (targetId != null && targetId.equals(gameStateManager.getLocalPlayerId()) && skillManager.isInvincible()) {
+			return;
 		}
-		
-		gameStateManager.takeDamage();
-		if (gameStateManager.getCurrentHP() <= 0) {
+
+		gameStateManager.takeDamage(targetId);
+		PlayerState targetState = gameStateManager.ensurePlayer(targetId);
+		if (targetId != null && targetId.equals(gameStateManager.getLocalPlayerId()) && targetState.isDead()) {
 			gameStateManager.setMessage("Oh no! They got you, try again?");
 			gameStateManager.setWaitingForKeyPress(true);
 		}
@@ -349,12 +357,15 @@ public class MultiplayerGameCanvas extends Canvas implements Screen, Multiplayer
 	 * Notification that an alien has been killed
 	 */
 	@Override
-	public void notifyAlienKilled() {
+	public void notifyAlienKilled(String killerPlayerId) {
+		String targetId = killerPlayerId != null ? killerPlayerId : gameStateManager.getLocalPlayerId();
+
 		// Give random skill points for killing aliens
 		int earnedPoints = skillManager.getRandomSkillPoints(gameStateManager.getCurrentRound());
-		gameStateManager.addSkillPoints(earnedPoints);
-		
-		// Random chance to drop a skill
+		PlayerState ps = gameStateManager.ensurePlayer(targetId);
+		ps.addSkillPoints(earnedPoints);
+
+		// Random chance to drop a skill (world drop, not player-specific)
 		double dropChance = skillManager.getSkillDropChance(gameStateManager.getCurrentRound());
 		if (Math.random() < dropChance) {
 			skillManager.dropSkill(gameStateManager.getCurrentRound());
@@ -408,12 +419,18 @@ public class MultiplayerGameCanvas extends Canvas implements Screen, Multiplayer
 			ShotEntity shot1 = new ShotEntity(this, currentWeaponSkin, ship.getX()-5, ship.getY()-30);
 			ShotEntity shot2 = new ShotEntity(this, currentWeaponSkin, ship.getX()+10, ship.getY()-30);
 			ShotEntity shot3 = new ShotEntity(this, currentWeaponSkin, ship.getX()+25, ship.getY()-30);
+			String ownerId = localPlayerId != null ? localPlayerId : gameStateManager.getLocalPlayerId();
+			shot1.setOwnerId(ownerId);
+			shot2.setOwnerId(ownerId);
+			shot3.setOwnerId(ownerId);
 			gameStateManager.getEntities().add(shot1);
 			gameStateManager.getEntities().add(shot2);
 			gameStateManager.getEntities().add(shot3);
 		} else {
 			// Fire single shot
 			ShotEntity shot = new ShotEntity(this, currentWeaponSkin, ship.getX()+10, ship.getY()-30);
+			String ownerId = localPlayerId != null ? localPlayerId : gameStateManager.getLocalPlayerId();
+			shot.setOwnerId(ownerId);
 			gameStateManager.getEntities().add(shot);
 		}
 	}
@@ -499,8 +516,10 @@ public class MultiplayerGameCanvas extends Canvas implements Screen, Multiplayer
 	 * @return The player's attack power
 	 */
 	@Override
-	public int getPlayerAttackPower() {
-		return gameStateManager.getAttackPower();
+	public int getPlayerAttackPower(String playerId) {
+		String targetId = playerId != null ? playerId : gameStateManager.getLocalPlayerId();
+		PlayerState ps = gameStateManager.ensurePlayer(targetId);
+		return ps.getAttackPower();
 	}
 	
 	/**
@@ -517,16 +536,24 @@ public class MultiplayerGameCanvas extends Canvas implements Screen, Multiplayer
 	 * Check if player is currently invincible
 	 */
 	@Override
-	public boolean isPlayerInvincible() {
-		return skillManager.isInvincible();
+	public boolean isPlayerInvincible(String playerId) {
+		String targetId = playerId != null ? playerId : gameStateManager.getLocalPlayerId();
+		if (targetId != null && targetId.equals(gameStateManager.getLocalPlayerId())) {
+			return skillManager.isInvincible();
+		}
+		return false;
 	}
 	
 	/**
 	 * Check if player has piercing shots
 	 */
 	@Override
-	public boolean hasPiercingShots() {
-		return skillManager.hasPiercing();
+	public boolean hasPiercingShots(String playerId) {
+		String targetId = playerId != null ? playerId : gameStateManager.getLocalPlayerId();
+		if (targetId != null && targetId.equals(gameStateManager.getLocalPlayerId())) {
+			return skillManager.hasPiercing();
+		}
+		return false;
 	}
 	
 	/**
@@ -540,8 +567,11 @@ public class MultiplayerGameCanvas extends Canvas implements Screen, Multiplayer
 	 * Add skill to inventory
 	 */
 	@Override
-	public void addSkillToInventory(int skillType, int skillValue) {
-		skillManager.addSkillToInventory(skillType, skillValue);
+	public void addSkillToInventory(String playerId, int skillType, int skillValue) {
+		String targetId = playerId != null ? playerId : gameStateManager.getLocalPlayerId();
+		if (targetId != null && targetId.equals(gameStateManager.getLocalPlayerId())) {
+			skillManager.addSkillToInventory(skillType, skillValue);
+		}
 	}
 	
 	/**
@@ -551,11 +581,17 @@ public class MultiplayerGameCanvas extends Canvas implements Screen, Multiplayer
 	 * @param targetY The target y location
 	 */
 	@Override
-	public void fireMissile(double targetX, double targetY) {
+	public void fireMissile(String playerId, double targetX, double targetY) {
 		try {
-			// Fire missile from player position
-			MissileEntity missile = new MissileEntity(this, "sprites/Skill/Missile.png", 
-					(int)ship.getX() + 15, (int)ship.getY(), targetX, targetY);
+			Entity source = getShip(playerId);
+			if (source == null) {
+				return;
+			}
+			MissileEntity missile = new MissileEntity(this, "sprites/Skill/Missile.png",
+					source.getX() + 15, source.getY(), targetX, targetY);
+			if (playerId != null) {
+				missile.setOwnerId(playerId);
+			}
 			gameStateManager.getEntities().add(missile);
 		} catch (Exception e) {
 			System.err.println("Error firing missile: " + e.getMessage());
@@ -951,18 +987,28 @@ public class MultiplayerGameCanvas extends Canvas implements Screen, Multiplayer
 	 * Getter methods for MultiplayerInputManager
 	 */
 	@Override
-	public Entity getShip() {
-		return ship;
+	public Entity getShip(String playerId) {
+		if (playerId == null) {
+			return ship;
+		}
+		for (Entity entity : gameStateManager.getEntities()) {
+			if (entity instanceof ShipEntity && playerId.equals(entity.getOwnerId())) {
+				return entity;
+			}
+		}
+		return null;
 	}
 	
 	@Override
-	public int getShipX() {
-		return ship != null ? (int)ship.getX() : 370;
+	public int getShipX(String playerId) {
+		Entity target = getShip(playerId);
+		return target != null ? target.getX() : 370;
 	}
 	
 	@Override
-	public int getShipY() {
-		return ship != null ? (int)ship.getY() : 550;
+	public int getShipY(String playerId) {
+		Entity target = getShip(playerId);
+		return target != null ? target.getY() : 550;
 	}
 	
 	public double getMoveSpeed() {
@@ -1007,7 +1053,7 @@ public class MultiplayerGameCanvas extends Canvas implements Screen, Multiplayer
 	 */
 	@Deprecated
 	public MultiplayerSkillManager getMultiplayerSkillManager() {
-		return getSkillManager();
+		return getSkillManager(localPlayerId);
 	}
 	
 	/**
@@ -1054,6 +1100,7 @@ public class MultiplayerGameCanvas extends Canvas implements Screen, Multiplayer
 	public void createExplosion(int x, int y, double radius) {
 		try {
 			ExplosionEntity explosion = new ExplosionEntity(this, "sprites/Skill/Explosion.png", x, y, radius);
+			explosion.setOwnerId(localPlayerId);
 			gameStateManager.getEntities().add(explosion);
 		} catch (Exception e) {
 			System.err.println("Error creating explosion: " + e.getMessage());
@@ -1067,7 +1114,7 @@ public class MultiplayerGameCanvas extends Canvas implements Screen, Multiplayer
 	 * @param points Points to add
 	 */
 	@Override
-	public void addScore(int points) {
+	public void addScore(String playerId, int points) {
 		// 점수 추가
 	}
 	
@@ -1077,9 +1124,10 @@ public class MultiplayerGameCanvas extends Canvas implements Screen, Multiplayer
 	 * @param points Skill points to add
 	 */
 	@Override
-	public void addSkillPoints(int points) {
-		int currentPoints = gameStateManager.getSkillPoints();
-		gameStateManager.setSkillPoints(currentPoints + points);
+	public void addSkillPoints(String playerId, int points) {
+		String targetId = playerId != null ? playerId : gameStateManager.getLocalPlayerId();
+		PlayerState ps = gameStateManager.ensurePlayer(targetId);
+		ps.addSkillPoints(points);
 	}
 	
 	/**
@@ -1139,7 +1187,7 @@ public class MultiplayerGameCanvas extends Canvas implements Screen, Multiplayer
 	 * Handle boss defeat
 	 */
 	@Override
-	public void notifyBossDefeated() {
+	public void notifyBossDefeated(String playerId) {
 		// 보스 처치 완료
 		
 		gameStateManager.setMessage("🎉 BOSS DEFEATED! 🎉 Round " + gameStateManager.getCurrentRound() + " Complete!");

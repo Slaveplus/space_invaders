@@ -246,54 +246,39 @@ public class ShotEntity extends Entity {
 		}
 		
 		if (isSkillDrop) {
-			// Skill drop: if we've hit the player ship, add to inventory
 			if (other instanceof ShipEntity) {
-				System.out.println("Skill drop collected! Type: " + skillType + ", Value: " + skillValue);
-				// remove the skill drop
+				ShipEntity shipEntity = (ShipEntity) other;
 				game.removeEntity(this);
-				
-				// add skill to inventory instead of immediately activating
-				game.addSkillToInventory(skillType, skillValue);
+				game.addSkillToInventory(shipEntity.getOwnerId(), skillType, skillValue);
 				used = true;
 			}
 		} else if (isAlienShot) {
-			// Alien shot: if we've hit the player ship, damage it
 			if (other instanceof ShipEntity) {
-				// remove the shot
+				ShipEntity shipEntity = (ShipEntity) other;
 				game.removeEntity(this);
-				
-				// notify the game that the player has been hit
-				game.notifyDeath();
+				game.notifyDeath(shipEntity.getOwnerId());
 				used = true;
 			}
 		} else {
 			// Player shot: if we've hit an alien, damage it!
 			if (other instanceof AlienEntity) {
-				// damage the alien (using player's attack power)
 				AlienEntity alien = (AlienEntity) other;
-				alien.takeDamage(game.getPlayerAttackPower());
-				
-				// Create heat effect at hit location
+				String ownerId = getOwnerId();
+				int attackPower = game.getPlayerAttackPower(ownerId);
+				alien.takeDamage(attackPower);
 				HeatEffectEntity heatEffect = new HeatEffectEntity(game, (int)x, (int)y);
 				game.addEntity(heatEffect);
-				
-				// Check if this shot has piercing ability or player has piercing shots
-				if (!hasPiercing && !game.hasPiercingShots()) {
-					// remove the shot only if not piercing
+				if (!hasPiercing && !game.hasPiercingShots(ownerId)) {
 					game.removeEntity(this);
 					used = true;
 				}
-				// If piercing, the shot continues through aliens
+				game.notifyAlienKilled(ownerId);
 			} else if (other instanceof BossEntity) {
-				// Player shot: if we've hit a boss, damage it!
 				BossEntity boss = (BossEntity) other;
-				boss.takeDamage(game.getPlayerAttackPower());
-				
-				// Create heat effect at hit location
+				String ownerId = getOwnerId();
+				boss.takeDamage(game.getPlayerAttackPower(ownerId), ownerId);
 				HeatEffectEntity heatEffect = new HeatEffectEntity(game, (int)x, (int)y);
 				game.addEntity(heatEffect);
-				
-				// Boss shots are always destroyed on hit (no piercing through boss)
 				game.removeEntity(this);
 				used = true;
 			}

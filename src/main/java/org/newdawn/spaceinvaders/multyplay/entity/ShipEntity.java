@@ -60,7 +60,7 @@ public class ShipEntity extends Entity {
 		Graphics2D g2d = (Graphics2D) g;
 		
 		// Check if player is invincible
-		if (game.isPlayerInvincible()) {
+		if (game.isPlayerInvincible(getOwnerId())) {
 			// Apply transparency effect for invincibility
 			g2d.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, 0.5f));
 		}
@@ -69,7 +69,7 @@ public class ShipEntity extends Entity {
 		sprite.draw(g2d, (int) x, (int) y);
 		
 		// Reset composite if it was changed
-		if (game.isPlayerInvincible()) {
+		if (game.isPlayerInvincible(getOwnerId())) {
 			g2d.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, 1.0f));
 		}
 	}
@@ -83,7 +83,7 @@ public class ShipEntity extends Entity {
 		// if its an alien, notify the game that the player
 		// is dead
 		if (other instanceof AlienEntity) {
-			game.notifyDeath();
+			game.notifyDeath(getOwnerId());
 		}
 	}
 }

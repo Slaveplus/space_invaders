@@ -220,7 +220,7 @@ public class BossShotEntity extends Entity {
             game.removeEntity(this);
             
             // Notify the game that the player has been hit
-            game.notifyDeath();
+            game.notifyDeath(other.getOwnerId());
             used = true;
         }
     }
@@ -261,4 +261,3 @@ public class BossShotEntity extends Entity {
         return used;
     }
 }
-

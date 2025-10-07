@@ -11,32 +11,32 @@ import org.newdawn.spaceinvaders.multyplay.state.MultiplayerGameStateManager;
  */
 public interface MultiplayerGameContext {
     MultiplayerGameStateManager getGameStateManager();
-    MultiplayerSkillManager getSkillManager();
+    MultiplayerSkillManager getSkillManager(String playerId);
 
     void addEntity(Entity entity);
     void removeEntity(Entity entity);
 
     void addAimedAlienShot(int x, int y, int alienX);
-    void addSkillToInventory(int skillType, int skillValue);
+    void addSkillToInventory(String playerId, int skillType, int skillValue);
     void createSkillDrop(int x, int y, int skillType, int skillValue);
     void createExplosion(int x, int y, double radius);
-    void fireMissile(double targetX, double targetY);
+    void fireMissile(String playerId, double targetX, double targetY);
 
-    void notifyAlienKilled();
-    void notifyBossDefeated();
-    void notifyDeath();
+    void notifyAlienKilled(String killerPlayerId);
+    void notifyBossDefeated(String killerPlayerId);
+    void notifyDeath(String playerId);
 
     int getCurrentRound();
-    int getPlayerAttackPower();
-    boolean hasPiercingShots();
-    boolean isPlayerInvincible();
+    int getPlayerAttackPower(String playerId);
+    boolean hasPiercingShots(String playerId);
+    boolean isPlayerInvincible(String playerId);
 
-    Entity getShip();
-    int getShipX();
-    int getShipY();
+    Entity getShip(String playerId);
+    int getShipX(String playerId);
+    int getShipY(String playerId);
 
     List<Entity> getEntities();
 
-    void addScore(int points);
-    void addSkillPoints(int points);
+    void addScore(String playerId, int points);
+    void addSkillPoints(String playerId, int points);
 }

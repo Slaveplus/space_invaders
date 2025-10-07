@@ -1,6 +1,7 @@
 package org.newdawn.spaceinvaders.server.game;
 
 import java.awt.geom.Point2D;
+import java.util.HashMap;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.LinkedHashMap;
@@ -30,7 +31,7 @@ import org.newdawn.spaceinvaders.multyplay.state.PlayerState;
  */
 public class ServerMultiplayerGame implements MultiplayerGameContext {
     private final MultiplayerGameStateManager gameStateManager = new MultiplayerGameStateManager();
-    private final MultiplayerSkillManager skillManager = new MultiplayerSkillManager(this);
+    private final Map<String, MultiplayerSkillManager> skillManagers = new HashMap<>();
     private final Random rng;
 
     private ShipEntity ship;
@@ -48,6 +49,8 @@ public class ServerMultiplayerGame implements MultiplayerGameContext {
         boolean rightPressed;
         boolean firePressed;
         long lastFire;
+        @SuppressWarnings("unused")
+        final Map<Integer, Integer> skillInventory = new HashMap<>(); // 향후 사용 예정
     }
 
     private final Map<String, PlayerRuntime> playerRuntimes = new LinkedHashMap<>();
@@ -62,6 +65,7 @@ public class ServerMultiplayerGame implements MultiplayerGameContext {
         for (String id : playerIds) {
             gameStateManager.ensurePlayer(id);
             playerRuntimes.computeIfAbsent(id, k -> new PlayerRuntime());
+            skillManagers.computeIfAbsent(id, k -> new MultiplayerSkillManager(this, k));
         }
         if (primaryPlayerId == null && !playerIds.isEmpty()) {
             setPrimaryPlayerId(playerIds.iterator().next());
@@ -77,6 +81,20 @@ public class ServerMultiplayerGame implements MultiplayerGameContext {
         }
     }
 
+    // 플레이어별 스킬 매니저 접근
+    private MultiplayerSkillManager skillManager(String playerId) {
+        String resolved = playerId;
+        if (resolved == null) {
+            resolved = primaryPlayerId;
+            if (resolved == null && !playerRuntimes.isEmpty()) {
+                resolved = playerRuntimes.keySet().iterator().next();
+            }
+        }
+        String mapKey = resolved != null ? resolved : "__default__";
+        final String ownerForManager = resolved;
+        return skillManagers.computeIfAbsent(mapKey, id -> new MultiplayerSkillManager(this, ownerForManager));
+    }
+
     @SuppressWarnings("unused")
     private PlayerRuntime runtime(String playerId) {
         return playerRuntimes.computeIfAbsent(playerId, k -> new PlayerRuntime());
@@ -84,7 +102,9 @@ public class ServerMultiplayerGame implements MultiplayerGameContext {
 
     public void startGame() {
         gameStateManager.startNewGame();
-        skillManager.reset();
+        for (String id : playerRuntimes.keySet()) {
+            skillManager(id).reset();
+        }
 
         int playerCount = Math.max(1, playerRuntimes.size());
         int spacing = playerCount > 1 ? 500 / (playerCount - 1) : 0;
@@ -135,7 +155,9 @@ public class ServerMultiplayerGame implements MultiplayerGameContext {
         if (!gameStateManager.isWaitingForKeyPress()
                 && !gameStateManager.isShowingPauseMenu()
                 && !gameStateManager.isShowingSkillMenu()) {
-            skillManager.updateSkillEffects();
+            for (MultiplayerSkillManager mgr : skillManagers.values()) {
+                mgr.updateSkillEffects();
+            }
             ArrayList<Entity> entities = new ArrayList<>(gameStateManager.getEntities());
             for (Entity entity : entities) {
                 entity.move(delta);
@@ -267,7 +289,8 @@ public class ServerMultiplayerGame implements MultiplayerGameContext {
         }
         runtime.lastFire = now;
 
-        if (skillManager.hasTripleShot()) {
+        MultiplayerSkillManager manager = skillManager(playerId);
+        if (manager.hasTripleShot()) {
             ShotEntity shot1 = new ShotEntity(this, currentWeaponSkin, playerShip.getX()-5, playerShip.getY()-30);
             ShotEntity shot2 = new ShotEntity(this, currentWeaponSkin, playerShip.getX()+10, playerShip.getY()-30);
             ShotEntity shot3 = new ShotEntity(this, currentWeaponSkin, playerShip.getX()+25, playerShip.getY()-30);
@@ -341,8 +364,8 @@ public class ServerMultiplayerGame implements MultiplayerGameContext {
     }
 
     @Override
-    public MultiplayerSkillManager getSkillManager() {
-        return skillManager;
+    public MultiplayerSkillManager getSkillManager(String playerId) {
+        return skillManager(playerId);
     }
 
     @Override
@@ -369,8 +392,8 @@ public class ServerMultiplayerGame implements MultiplayerGameContext {
     }
 
     @Override
-    public void addSkillToInventory(int skillType, int skillValue) {
-        skillManager.addSkillToInventory(skillType, skillValue);
+    public void addSkillToInventory(String playerId, int skillType, int skillValue) {
+        skillManager(playerId).addSkillToInventory(skillType, skillValue);
     }
 
     @Override
@@ -387,18 +410,30 @@ public class ServerMultiplayerGame implements MultiplayerGameContext {
     }
 
     @Override
-    public void fireMissile(double targetX, double targetY) {
-        if (ship == null) return;
+    public void fireMissile(String playerId, double targetX, double targetY) {
+        ShipEntity source = playerId != null ? (ShipEntity) getShip(playerId) : ship;
+        if (source == null) {
+            return;
+        }
         MissileEntity missile = new MissileEntity(this, "sprites/Skill/Missile.png",
-                (int) ship.getX() + 15, (int) ship.getY(), targetX, targetY);
-        if (primaryPlayerId != null) {
-            missile.setOwnerId(primaryPlayerId);
+                (int) source.getX() + 15, (int) source.getY(), targetX, targetY);
+        if (playerId != null) {
+            missile.setOwnerId(playerId);
         }
         gameStateManager.getEntities().add(missile);
     }
 
     @Override
-    public void notifyAlienKilled() {
+    public void notifyAlienKilled(String killerPlayerId) {
+        if (killerPlayerId != null) {
+            MultiplayerSkillManager manager = skillManager(killerPlayerId);
+            int earned = manager.getRandomSkillPoints(gameStateManager.getCurrentRound());
+            addSkillPoints(killerPlayerId, earned);
+            double dropChance = manager.getSkillDropChance(gameStateManager.getCurrentRound());
+            if (rng.nextDouble() < dropChance) {
+                manager.dropSkill(gameStateManager.getCurrentRound());
+            }
+        }
         int remainingAliens = 0;
         ArrayList<Entity> entities = gameStateManager.getEntities();
         ArrayList<Entity> removeList = gameStateManager.getRemoveList();
@@ -420,7 +455,7 @@ public class ServerMultiplayerGame implements MultiplayerGameContext {
     }
 
     @Override
-    public void notifyBossDefeated() {
+    public void notifyBossDefeated(String killerPlayerId) {
         gameStateManager.setMessage("BOSS DEFEATED!");
         gameStateManager.setWaitingForKeyPress(true);
         boolean roundAdvanced = gameStateManager.advanceRound();
@@ -434,12 +469,14 @@ public class ServerMultiplayerGame implements MultiplayerGameContext {
     }
 
     @Override
-    public void notifyDeath() {
-        if (skillManager.isInvincible()) {
+    public void notifyDeath(String playerId) {
+        if (playerId != null && isPlayerInvincible(playerId)) {
             return;
         }
-        gameStateManager.takeDamage();
-        if (gameStateManager.getCurrentHP() <= 0) {
+        String targetId = playerId != null ? playerId : gameStateManager.getLocalPlayerId();
+        gameStateManager.takeDamage(targetId);
+        PlayerState ps = gameStateManager.ensurePlayer(targetId);
+        if (ps.isDead()) {
             gameStateManager.setMessage("Player down!");
             gameStateManager.setWaitingForKeyPress(true);
         }
@@ -468,33 +505,43 @@ public class ServerMultiplayerGame implements MultiplayerGameContext {
     }
 
     @Override
-    public int getPlayerAttackPower() {
-        return gameStateManager.getAttackPower();
+    public int getPlayerAttackPower(String playerId) {
+        if (playerId == null) {
+            return gameStateManager.getAttackPower();
+        }
+        PlayerState ps = gameStateManager.ensurePlayer(playerId);
+        return ps.getAttackPower();
     }
 
     @Override
-    public boolean hasPiercingShots() {
-        return skillManager.hasPiercing();
+    public boolean hasPiercingShots(String playerId) {
+        return skillManager(playerId).hasPiercing();
     }
 
     @Override
-    public boolean isPlayerInvincible() {
-        return skillManager.isInvincible();
+    public boolean isPlayerInvincible(String playerId) {
+        return skillManager(playerId).isInvincible();
     }
 
     @Override
-    public Entity getShip() {
-        return ship;
+    public Entity getShip(String playerId) {
+        if (playerId == null) {
+            return ship;
+        }
+        PlayerRuntime runtime = playerRuntimes.get(playerId);
+        return runtime != null ? runtime.ship : null;
     }
 
     @Override
-    public int getShipX() {
-        return ship != null ? ship.getX() : 370;
+    public int getShipX(String playerId) {
+        Entity target = getShip(playerId);
+        return target != null ? target.getX() : 370;
     }
 
     @Override
-    public int getShipY() {
-        return ship != null ? ship.getY() : 550;
+    public int getShipY(String playerId) {
+        Entity target = getShip(playerId);
+        return target != null ? target.getY() : 550;
     }
 
     @Override
@@ -503,18 +550,21 @@ public class ServerMultiplayerGame implements MultiplayerGameContext {
     }
 
     @Override
-    public void addScore(int points) {
-        // 점수 시스템이 서버에서 별도로 필요하다면 여기 구현
-        // 현재는 상태 매니저에 누적하지 않음
+    public void addScore(String playerId, int points) {
+        // 점수 시스템이 필요하다면 구현
     }
 
     @Override
-    public void addSkillPoints(int points) {
-        int current = gameStateManager.getSkillPoints();
-        gameStateManager.setSkillPoints(current + points);
+    public void addSkillPoints(String playerId, int points) {
+        if (playerId == null) {
+            int current = gameStateManager.getSkillPoints();
+            gameStateManager.setSkillPoints(current + points);
+            return;
+        }
+        PlayerState ps = gameStateManager.ensurePlayer(playerId);
+        ps.addSkillPoints(points);
     }
 
-    // 인터페이스에 없는 메서드이므로 @Override 제거
     public void removePlayer(String playerId) {
         PlayerRuntime runtime = playerRuntimes.remove(playerId);
         if (runtime != null && runtime.ship != null) {
@@ -523,6 +573,7 @@ public class ServerMultiplayerGame implements MultiplayerGameContext {
                 ship = null;
             }
         }
+        skillManagers.remove(playerId);
         if (primaryPlayerId != null && primaryPlayerId.equals(playerId)) {
             primaryPlayerId = playerRuntimes.keySet().stream().findFirst().orElse(null);
         }

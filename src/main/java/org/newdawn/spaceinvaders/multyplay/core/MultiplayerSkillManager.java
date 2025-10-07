@@ -4,6 +4,7 @@ import java.util.ArrayList;
 
 import org.newdawn.spaceinvaders.multyplay.entity.AlienEntity;
 import org.newdawn.spaceinvaders.multyplay.entity.Entity;
+import org.newdawn.spaceinvaders.multyplay.state.MultiplayerGameStateManager;
 
 /**
  * 스킬 시스템을 관리하는 클래스
@@ -35,10 +36,32 @@ public class MultiplayerSkillManager {
     private int missileSkills = 0;
     
     // 게임 참조
-    private MultiplayerGameContext game;
+    private final MultiplayerGameContext game;
+    private String ownerId;
 
     public MultiplayerSkillManager(MultiplayerGameContext game) {
+        this(game, null);
+    }
+
+    public MultiplayerSkillManager(MultiplayerGameContext game, String ownerId) {
         this.game = game;
+        this.ownerId = ownerId;
+    }
+
+    public void setOwnerId(String ownerId) {
+        this.ownerId = ownerId;
+    }
+
+    public String getOwnerId() {
+        return ownerId;
+    }
+
+    private String resolveOwnerId() {
+        if (ownerId != null) {
+            return ownerId;
+        }
+        MultiplayerGameStateManager gsm = game != null ? game.getGameStateManager() : null;
+        return gsm != null ? gsm.getLocalPlayerId() : null;
     }
     
     /**
@@ -326,6 +349,7 @@ public class MultiplayerSkillManager {
      * 미사일을 랜덤 적 위치로 발사
      */
     private void fireMissileAtRandomTarget() {
+        String ownerId = resolveOwnerId();
         try {
             // Find a random enemy to target
             java.util.List<Entity> entities = game.getEntities();
@@ -342,18 +366,18 @@ public class MultiplayerSkillManager {
                 Entity target = enemies.get((int)(Math.random() * enemies.size()));
                 
                 // Fire missile at target location
-                game.fireMissile(target.getX() + 15, target.getY() + 15);
+                game.fireMissile(ownerId, target.getX() + 15, target.getY() + 15);
             } else {
                 // No enemies, fire missile at random screen position
                 double randomX = 100 + Math.random() * 600;
                 double randomY = 100 + Math.random() * 300;
-                game.fireMissile(randomX, randomY);
+                game.fireMissile(ownerId, randomX, randomY);
             }
         } catch (Exception e) {
             System.err.println("Error firing missile: " + e.getMessage());
             e.printStackTrace();
             // Fallback: fire missile at center of screen
-            game.fireMissile(400, 300);
+            game.fireMissile(ownerId, 400, 300);
         }
     }
     

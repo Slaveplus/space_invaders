@@ -255,9 +255,7 @@ public class AlienEntity extends Entity {
 	public void takeDamage(int damage) {
 		currentHP -= damage;
 		if (currentHP <= 0) {
-			// Alien is destroyed
 			game.removeEntity(this);
-			game.notifyAlienKilled();
 		}
 	}
 	
@@ -329,13 +327,11 @@ public class AlienEntity extends Entity {
 		}
 	}
 	
-	/**
-<<<<<<< HEAD
-=======
-	 * Check if current round is a boss round
-	 * 
-	 * @return true if current round is a boss round
-	 */
+    /**
+        * Check if current round is a boss round
+        * 
+        * @return true if current round is a boss round
+        */
 	private boolean isBossRound() {
 		// 보스 라운드는 5의 배수 (5, 10, 15, ...)
 		return game.getCurrentRound() % 5 == 0;
@@ -379,9 +375,12 @@ public class AlienEntity extends Entity {
 	 */
 	private void avoidPlayer() {
 		try {
-			// Get player position
-			int playerX = game.getShipX();
-			int playerY = game.getShipY();
+			// Get local player ID and position
+			String localPlayerId = game.getGameStateManager().getLocalPlayerId();
+			if (localPlayerId == null) return;
+			
+			int playerX = game.getShipX(localPlayerId);
+			int playerY = game.getShipY(localPlayerId);
 			
 			// Calculate distance to player
 			double dxToPlayer = playerX - x;

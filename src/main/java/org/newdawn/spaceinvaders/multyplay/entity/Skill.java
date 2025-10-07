@@ -87,7 +87,8 @@ public class Skill extends Entity {
             game.removeEntity(this);
             
             // add skill to inventory
-            game.addSkillToInventory(skillType, skillValue);
+            ShipEntity ship = (ShipEntity) other;
+            game.addSkillToInventory(ship.getOwnerId(), skillType, skillValue);
             used = true;
         }
     }

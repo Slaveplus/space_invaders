@@ -253,8 +253,12 @@ public class ExplosionEntity extends Entity {
             // Then damage all collected aliens
             for (AlienEntity alien : aliensToDamage) {
                 if (alien != null) {
-                    // Damage enemy (high damage for explosion)
-                    alien.takeDamage(game.getPlayerAttackPower() * 3); // 3x damage
+                    String ownerId = getOwnerId();
+                    int damage = game.getPlayerAttackPower(ownerId) * 3;
+                    alien.takeDamage(damage);
+                    if (alien.getCurrentHP() <= 0) {
+                        game.notifyAlienKilled(ownerId);
+                    }
                     damagedEntities.add(alien); // Mark as damaged
                 }
             }

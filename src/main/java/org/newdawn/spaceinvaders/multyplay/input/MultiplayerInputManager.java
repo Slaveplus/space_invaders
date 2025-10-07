@@ -26,7 +26,7 @@ public class MultiplayerInputManager {
     public MultiplayerInputManager(MultiplayerGameStateManager gameStateManager, MultiplayerGameCanvas game) {
         this.gameStateManager = gameStateManager;
         this.game = game;
-        this.skillManager = game.getSkillManager();
+        this.skillManager = game.getSkillManager(gameStateManager.getLocalPlayerId());
     }
     
     /**
@@ -200,15 +200,16 @@ public class MultiplayerInputManager {
      * 게임플레이 입력 상태 업데이트
      */
     public void updateGameplayInput() {
-        if (game.getShip() != null && 
+        String localPlayerId = gameStateManager.getLocalPlayerId();
+        if (localPlayerId != null && game.getShip(localPlayerId) != null && 
             !gameStateManager.isShowingPauseMenu() && !gameStateManager.isShowingSkillMenu()) {
             // 우주선 이동 처리
-            game.getShip().setHorizontalMovement(0);
+            game.getShip(localPlayerId).setHorizontalMovement(0);
             
             if (leftPressed && !rightPressed) {
-                game.getShip().setHorizontalMovement(-game.getMoveSpeed());
+                game.getShip(localPlayerId).setHorizontalMovement(-game.getMoveSpeed());
             } else if (rightPressed && !leftPressed) {
-                game.getShip().setHorizontalMovement(game.getMoveSpeed());
+                game.getShip(localPlayerId).setHorizontalMovement(game.getMoveSpeed());
             }
             
             // 발사 처리

@@ -68,8 +68,9 @@ public class MissileEntity extends Entity {
         
         if (distanceToTarget < 30 || y < -100 || y > 700 || x < -100 || x > 800) {
             // Create explosion at target location
-            ExplosionEntity explosion = new ExplosionEntity(game, "sprites/Skill/Explosion.png", 
+            ExplosionEntity explosion = new ExplosionEntity(game, "sprites/Skill/Explosion.png",
                     (int)targetX - 25, (int)targetY - 25, 100.0);
+            explosion.setOwnerId(getOwnerId());
             game.addEntity(explosion);
             
             // Remove missile
@@ -117,21 +118,17 @@ public class MissileEntity extends Entity {
         
         // if we've hit an alien, kill it!
         if (other instanceof AlienEntity) {
-            // remove the affected entities
+            String ownerId = getOwnerId();
             game.removeEntity(this);
             game.removeEntity(other);
-            
-            // notify the game that the alien has been killed
-            game.notifyAlienKilled();
+            game.notifyAlienKilled(ownerId);
             used = true;
         }
-        
-        // if we've hit a boss, damage it
+
         if (other instanceof BossEntity) {
             BossEntity boss = (BossEntity) other;
-            boss.takeDamage(50); // Missile deals 50 damage
-            
-            // remove the missile
+            String ownerId = getOwnerId();
+            boss.takeDamage(game.getPlayerAttackPower(ownerId), ownerId);
             game.removeEntity(this);
             used = true;
         }
