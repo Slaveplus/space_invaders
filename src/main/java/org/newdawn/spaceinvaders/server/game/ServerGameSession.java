@@ -71,7 +71,6 @@ public class ServerGameSession implements Runnable {
         } else if (!players.isEmpty()) {
             game.setPrimaryPlayerId(players.keySet().iterator().next());
         }
-        game.startGame();
     }
 
     public void startHandshake() {
@@ -143,6 +142,7 @@ public class ServerGameSession implements Runnable {
 
     private void startLoop() {
         if (running) return;
+        game.startGame();
         running = true;
         lastTickTimestamp = System.currentTimeMillis();
         scheduler.scheduleAtFixedRate(this, 0, TICK_INTERVAL_MS, TimeUnit.MILLISECONDS);

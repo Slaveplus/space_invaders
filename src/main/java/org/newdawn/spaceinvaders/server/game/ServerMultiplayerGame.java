@@ -5,6 +5,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Random;
 
 import org.newdawn.spaceinvaders.multyplay.core.MultiplayerGameContext;
@@ -32,7 +33,7 @@ public class ServerMultiplayerGame implements MultiplayerGameContext {
     private final MultiplayerSkillManager skillManager = new MultiplayerSkillManager(this);
     private final Random rng;
 
-    private Entity ship;
+    private ShipEntity ship;
     private double moveSpeed = 300;
     private int alienCount;
 
@@ -92,7 +93,7 @@ public class ServerMultiplayerGame implements MultiplayerGameContext {
         for (Map.Entry<String, PlayerRuntime> entry : playerRuntimes.entrySet()) {
             String playerId = entry.getKey();
             PlayerRuntime runtime = entry.getValue();
-            int spawnX = 150 + index * spacing;
+            int spawnX = (playerCount == 1) ? 370 : 150 + index * spacing;
             runtime.ship = new ShipEntity(this, currentSpaceshipSkin, spawnX, 550);
             runtime.ship.setOwnerId(playerId);
             runtime.leftPressed = runtime.rightPressed = runtime.firePressed = false;
@@ -101,14 +102,24 @@ public class ServerMultiplayerGame implements MultiplayerGameContext {
             index++;
         }
 
+        ShipEntity fallbackShip = playerRuntimes.values().stream()
+                .map(r -> r.ship)
+                .filter(Objects::nonNull)
+                .findFirst()
+                .orElse(null);
         ship = primaryPlayerId != null && playerRuntimes.containsKey(primaryPlayerId)
                 ? playerRuntimes.get(primaryPlayerId).ship
-                : playerRuntimes.values().stream().map(r -> r.ship).findFirst().orElse(null);
+                : fallbackShip;
 
         initEntities();
     }
 
     public void applyInputs(Map<String, PlayerInput> inputs) {
+        for (PlayerRuntime runtime : playerRuntimes.values()) {
+            runtime.leftPressed = false;
+            runtime.rightPressed = false;
+            runtime.firePressed = false;
+        }
         for (Map.Entry<String, PlayerInput> entry : inputs.entrySet()) {
             PlayerRuntime runtime = playerRuntimes.get(entry.getKey());
             if (runtime == null) continue;
@@ -151,9 +162,14 @@ public class ServerMultiplayerGame implements MultiplayerGameContext {
             }
         }
 
+        ShipEntity fallbackShip = playerRuntimes.values().stream()
+                .map(r -> r.ship)
+                .filter(Objects::nonNull)
+                .findFirst()
+                .orElse(null);
         ship = primaryPlayerId != null && playerRuntimes.containsKey(primaryPlayerId)
                 ? playerRuntimes.get(primaryPlayerId).ship
-            : playerRuntimes.values().stream().map(r -> r.ship).findFirst().orElse(ship instanceof ShipEntity ? (ShipEntity) ship : null);
+                : fallbackShip;
 
         ArrayList<Entity> entities = gameStateManager.getEntities();
         if (!gameStateManager.isShowingPauseMenu()
@@ -282,13 +298,22 @@ public class ServerMultiplayerGame implements MultiplayerGameContext {
         if (aliens.isEmpty()) return;
 
         AlienEntity alien = aliens.get(rng.nextInt(aliens.size()));
-        Entity originalShip = ship;
+        ShipEntity previousShip = ship;
         ShipEntity target = findClosestShip(alien.getX(), alien.getY());
         if (target != null) {
             ship = target;
         }
         alien.tryToFire();
-        ship = originalShip != null ? originalShip : ship;
+        ShipEntity fallbackShip = playerRuntimes.values().stream()
+                .map(r -> r.ship)
+                .filter(Objects::nonNull)
+                .findFirst()
+                .orElse(null);
+        if (previousShip != null) {
+            ship = previousShip;
+        } else {
+            ship = fallbackShip;
+        }
         gameStateManager.setLastAlienFire(System.currentTimeMillis());
     }
 
@@ -372,7 +397,7 @@ public class ServerMultiplayerGame implements MultiplayerGameContext {
     }
 
     @Override
-    public void notifyAlienKilled() {
+    public void notifyAlienKilled(String killerId) {
         int remainingAliens = 0;
         ArrayList<Entity> entities = gameStateManager.getEntities();
         ArrayList<Entity> removeList = gameStateManager.getRemoveList();
@@ -380,6 +405,19 @@ public class ServerMultiplayerGame implements MultiplayerGameContext {
         for (Entity entity : entities) {
             if (entity instanceof AlienEntity && !removeList.contains(entity)) {
                 remainingAliens++;
+            }
+        }
+
+        PlayerRuntime runtime = playerRuntimes.get(killerId);
+        if (runtime != null) {
+            PlayerState ps = gameStateManager.ensurePlayer(killerId);
+            int earnedPoints = skillManager.getRandomSkillPoints(gameStateManager.getCurrentRound());
+            ps.addSkillPoints(earnedPoints);
+            double dropChance = skillManager.getSkillDropChance(gameStateManager.getCurrentRound());
+            if (rng.nextDouble() < dropChance) {
+                int skillType = skillManager.getRandomSkillType();
+                int skillValue = skillManager.getRandomSkillValue(skillType, gameStateManager.getCurrentRound());
+                createSkillDrop(runtime.ship != null ? runtime.ship.getX() : 400, runtime.ship != null ? runtime.ship.getY() : 300, skillType, skillValue);
             }
         }
 
@@ -480,15 +518,7 @@ public class ServerMultiplayerGame implements MultiplayerGameContext {
     }
 
     @Override
-    public void addScore(int points) {
-        // 서버에서 점수 로직 필요 시 구현
-    }
-
     @Override
-    public void addSkillPoints(int points) {
-        int currentPoints = gameStateManager.getSkillPoints();
-        gameStateManager.setSkillPoints(currentPoints + points);
-    }
 
     public void removePlayer(String playerId) {
         PlayerRuntime runtime = playerRuntimes.remove(playerId);
