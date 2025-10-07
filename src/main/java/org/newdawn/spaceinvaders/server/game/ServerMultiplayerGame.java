@@ -77,6 +77,7 @@ public class ServerMultiplayerGame implements MultiplayerGameContext {
         }
     }
 
+    @SuppressWarnings("unused")
     private PlayerRuntime runtime(String playerId) {
         return playerRuntimes.computeIfAbsent(playerId, k -> new PlayerRuntime());
     }
@@ -397,34 +398,18 @@ public class ServerMultiplayerGame implements MultiplayerGameContext {
     }
 
     @Override
-    public void notifyAlienKilled(String killerId) {
+    public void notifyAlienKilled() {
         int remainingAliens = 0;
         ArrayList<Entity> entities = gameStateManager.getEntities();
         ArrayList<Entity> removeList = gameStateManager.getRemoveList();
-
         for (Entity entity : entities) {
             if (entity instanceof AlienEntity && !removeList.contains(entity)) {
                 remainingAliens++;
             }
         }
-
-        PlayerRuntime runtime = playerRuntimes.get(killerId);
-        if (runtime != null) {
-            PlayerState ps = gameStateManager.ensurePlayer(killerId);
-            int earnedPoints = skillManager.getRandomSkillPoints(gameStateManager.getCurrentRound());
-            ps.addSkillPoints(earnedPoints);
-            double dropChance = skillManager.getSkillDropChance(gameStateManager.getCurrentRound());
-            if (rng.nextDouble() < dropChance) {
-                int skillType = skillManager.getRandomSkillType();
-                int skillValue = skillManager.getRandomSkillValue(skillType, gameStateManager.getCurrentRound());
-                createSkillDrop(runtime.ship != null ? runtime.ship.getX() : 400, runtime.ship != null ? runtime.ship.getY() : 300, skillType, skillValue);
-            }
-        }
-
         if (remainingAliens == 0) {
             notifyWin();
         }
-
         for (Entity entity : entities) {
             if (entity instanceof AlienEntity) {
                 double speedMultiplier = 1.015 + (gameStateManager.getCurrentRound() * 0.01);
@@ -518,8 +503,18 @@ public class ServerMultiplayerGame implements MultiplayerGameContext {
     }
 
     @Override
-    @Override
+    public void addScore(int points) {
+        // 점수 시스템이 서버에서 별도로 필요하다면 여기 구현
+        // 현재는 상태 매니저에 누적하지 않음
+    }
 
+    @Override
+    public void addSkillPoints(int points) {
+        int current = gameStateManager.getSkillPoints();
+        gameStateManager.setSkillPoints(current + points);
+    }
+
+    // 인터페이스에 없는 메서드이므로 @Override 제거
     public void removePlayer(String playerId) {
         PlayerRuntime runtime = playerRuntimes.remove(playerId);
         if (runtime != null && runtime.ship != null) {
