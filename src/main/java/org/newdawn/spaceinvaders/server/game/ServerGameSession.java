@@ -101,6 +101,7 @@ public class ServerGameSession implements Runnable {
     public void handleReady(PlayerSession session, String seedAck) {
         if (session == null) return;
         readyPlayers.add(session.getId());
+        game.registerPlayers(Collections.singleton(session.getId()));
         if (readyPlayers.size() == players.size()) {
             startLoop();
         }
@@ -134,6 +135,7 @@ public class ServerGameSession implements Runnable {
         readyPlayers.remove(session.getId());
         latestInputs.remove(session.getId());
         players.remove(session.getId());
+        game.removePlayer(session.getId());
         if (players.isEmpty()) {
             shutdown();
         }
@@ -156,7 +158,7 @@ public class ServerGameSession implements Runnable {
         lastTickTimestamp = now;
         tickCounter++;
 
-                game.applyInputs(new HashMap<>(latestInputs));
+        game.applyInputs(new HashMap<>(latestInputs));
         game.update(delta);
         GameSnapshot snapshot = game.createSnapshot(tickCounter, now, delta);
         broadcastSnapshot(snapshot);

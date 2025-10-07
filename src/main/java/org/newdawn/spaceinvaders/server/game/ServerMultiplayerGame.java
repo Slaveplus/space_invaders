@@ -1,8 +1,8 @@
 package org.newdawn.spaceinvaders.server.game;
 
+import java.awt.geom.Point2D;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Random;
@@ -39,12 +39,17 @@ public class ServerMultiplayerGame implements MultiplayerGameContext {
     private String currentSpaceshipSkin = "sprites/ship.gif";
     private String currentWeaponSkin = "sprites/shot.gif";
 
-    private boolean leftPressed;
-    private boolean rightPressed;
-    private boolean firePressed;
-
     private String primaryPlayerId;
-    private final Map<String, PlayerInput> lastInputs = new HashMap<>();
+
+    private static class PlayerRuntime {
+        ShipEntity ship;
+        boolean leftPressed;
+        boolean rightPressed;
+        boolean firePressed;
+        long lastFire;
+    }
+
+    private final Map<String, PlayerRuntime> playerRuntimes = new LinkedHashMap<>();
 
     public ServerMultiplayerGame(long seed) {
         rng = new Random(seed);
@@ -55,6 +60,7 @@ public class ServerMultiplayerGame implements MultiplayerGameContext {
     public void registerPlayers(Collection<String> playerIds) {
         for (String id : playerIds) {
             gameStateManager.ensurePlayer(id);
+            playerRuntimes.computeIfAbsent(id, k -> new PlayerRuntime());
         }
         if (primaryPlayerId == null && !playerIds.isEmpty()) {
             setPrimaryPlayerId(playerIds.iterator().next());
@@ -66,26 +72,50 @@ public class ServerMultiplayerGame implements MultiplayerGameContext {
         if (playerId != null) {
             gameStateManager.setLocalPlayerId(playerId);
             gameStateManager.ensurePlayer(playerId);
+            playerRuntimes.computeIfAbsent(playerId, k -> new PlayerRuntime());
         }
+    }
+
+    private PlayerRuntime runtime(String playerId) {
+        return playerRuntimes.computeIfAbsent(playerId, k -> new PlayerRuntime());
     }
 
     public void startGame() {
         gameStateManager.startNewGame();
         skillManager.reset();
+
+        int playerCount = Math.max(1, playerRuntimes.size());
+        int spacing = playerCount > 1 ? 500 / (playerCount - 1) : 0;
+        int index = 0;
+
+        gameStateManager.getEntities().clear();
+        for (Map.Entry<String, PlayerRuntime> entry : playerRuntimes.entrySet()) {
+            String playerId = entry.getKey();
+            PlayerRuntime runtime = entry.getValue();
+            int spawnX = 150 + index * spacing;
+            runtime.ship = new ShipEntity(this, currentSpaceshipSkin, spawnX, 550);
+            runtime.ship.setOwnerId(playerId);
+            runtime.leftPressed = runtime.rightPressed = runtime.firePressed = false;
+            runtime.lastFire = 0;
+            gameStateManager.getEntities().add(runtime.ship);
+            index++;
+        }
+
+        ship = primaryPlayerId != null && playerRuntimes.containsKey(primaryPlayerId)
+                ? playerRuntimes.get(primaryPlayerId).ship
+                : playerRuntimes.values().stream().map(r -> r.ship).findFirst().orElse(null);
+
         initEntities();
     }
 
     public void applyInputs(Map<String, PlayerInput> inputs) {
-        lastInputs.clear();
-        lastInputs.putAll(inputs);
-        leftPressed = rightPressed = firePressed = false;
-        if (primaryPlayerId != null) {
-            PlayerInput pi = inputs.get(primaryPlayerId);
-            if (pi != null) {
-                leftPressed = pi.left;
-                rightPressed = pi.right;
-                firePressed = pi.fire;
-            }
+        for (Map.Entry<String, PlayerInput> entry : inputs.entrySet()) {
+            PlayerRuntime runtime = playerRuntimes.get(entry.getKey());
+            if (runtime == null) continue;
+            PlayerInput pi = entry.getValue();
+            runtime.leftPressed = pi.left;
+            runtime.rightPressed = pi.right;
+            runtime.firePressed = pi.fire;
         }
     }
 
@@ -101,19 +131,29 @@ public class ServerMultiplayerGame implements MultiplayerGameContext {
             tryAlienFire();
         }
 
-        if (ship != null
-                && !gameStateManager.isShowingPauseMenu()
+        if (!gameStateManager.isShowingPauseMenu()
                 && !gameStateManager.isShowingSkillMenu()) {
-            ship.setHorizontalMovement(0);
-            if (leftPressed && !rightPressed) {
-                ship.setHorizontalMovement(-moveSpeed);
-            } else if (rightPressed && !leftPressed) {
-                ship.setHorizontalMovement(moveSpeed);
-            }
-            if (firePressed) {
-                tryToFire();
+            for (Map.Entry<String, PlayerRuntime> entry : playerRuntimes.entrySet()) {
+                PlayerRuntime runtime = entry.getValue();
+                ShipEntity playerShip = runtime.ship;
+                if (playerShip == null) {
+                    continue;
+                }
+                playerShip.setHorizontalMovement(0);
+                if (runtime.leftPressed && !runtime.rightPressed) {
+                    playerShip.setHorizontalMovement(-moveSpeed);
+                } else if (runtime.rightPressed && !runtime.leftPressed) {
+                    playerShip.setHorizontalMovement(moveSpeed);
+                }
+                if (runtime.firePressed) {
+                    tryToFire(entry.getKey(), runtime);
+                }
             }
         }
+
+        ship = primaryPlayerId != null && playerRuntimes.containsKey(primaryPlayerId)
+                ? playerRuntimes.get(primaryPlayerId).ship
+            : playerRuntimes.values().stream().map(r -> r.ship).findFirst().orElse(ship instanceof ShipEntity ? (ShipEntity) ship : null);
 
         ArrayList<Entity> entities = gameStateManager.getEntities();
         if (!gameStateManager.isShowingPauseMenu()
@@ -163,11 +203,9 @@ public class ServerMultiplayerGame implements MultiplayerGameContext {
     // ===== 내부 로직 재사용 =====
 
     private void initEntities() {
-        ship = new ShipEntity(this, currentSpaceshipSkin, 370, 550);
-        if (primaryPlayerId != null) {
-            ship.setOwnerId(primaryPlayerId);
-        }
-        gameStateManager.getEntities().add(ship);
+        ship = primaryPlayerId != null && playerRuntimes.containsKey(primaryPlayerId)
+                ? playerRuntimes.get(primaryPlayerId).ship
+                : playerRuntimes.values().stream().map(r -> r.ship).findFirst().orElse(null);
 
         alienCount = 0;
         int rows, cols;
@@ -199,30 +237,32 @@ public class ServerMultiplayerGame implements MultiplayerGameContext {
         gameStateManager.setAlienCount(alienCount);
     }
 
-    private void tryToFire() {
-        long currentFiringInterval = (long) (gameStateManager.getFiringInterval() / gameStateManager.getAttackSpeed());
-        if (System.currentTimeMillis() - gameStateManager.getLastFire() < currentFiringInterval) {
+    private void tryToFire(String playerId, PlayerRuntime runtime) {
+        ShipEntity playerShip = runtime.ship;
+        if (playerShip == null) {
             return;
         }
-        gameStateManager.setLastFire(System.currentTimeMillis());
+        PlayerState ps = gameStateManager.ensurePlayer(playerId);
+        long firingInterval = (long) (gameStateManager.getFiringInterval() / ps.getAttackSpeed());
+        long now = System.currentTimeMillis();
+        if (now - runtime.lastFire < firingInterval) {
+            return;
+        }
+        runtime.lastFire = now;
 
         if (skillManager.hasTripleShot()) {
-            ShotEntity shot1 = new ShotEntity(this, currentWeaponSkin, ship.getX()-5, ship.getY()-30);
-            ShotEntity shot2 = new ShotEntity(this, currentWeaponSkin, ship.getX()+10, ship.getY()-30);
-            ShotEntity shot3 = new ShotEntity(this, currentWeaponSkin, ship.getX()+25, ship.getY()-30);
-            if (primaryPlayerId != null) {
-                shot1.setOwnerId(primaryPlayerId);
-                shot2.setOwnerId(primaryPlayerId);
-                shot3.setOwnerId(primaryPlayerId);
-            }
+            ShotEntity shot1 = new ShotEntity(this, currentWeaponSkin, playerShip.getX()-5, playerShip.getY()-30);
+            ShotEntity shot2 = new ShotEntity(this, currentWeaponSkin, playerShip.getX()+10, playerShip.getY()-30);
+            ShotEntity shot3 = new ShotEntity(this, currentWeaponSkin, playerShip.getX()+25, playerShip.getY()-30);
+            shot1.setOwnerId(playerId);
+            shot2.setOwnerId(playerId);
+            shot3.setOwnerId(playerId);
             gameStateManager.getEntities().add(shot1);
             gameStateManager.getEntities().add(shot2);
             gameStateManager.getEntities().add(shot3);
         } else {
-            ShotEntity shot = new ShotEntity(this, currentWeaponSkin, ship.getX()+10, ship.getY()-30);
-            if (primaryPlayerId != null) {
-                shot.setOwnerId(primaryPlayerId);
-            }
+            ShotEntity shot = new ShotEntity(this, currentWeaponSkin, playerShip.getX()+10, playerShip.getY()-30);
+            shot.setOwnerId(playerId);
             gameStateManager.getEntities().add(shot);
         }
     }
@@ -242,8 +282,29 @@ public class ServerMultiplayerGame implements MultiplayerGameContext {
         if (aliens.isEmpty()) return;
 
         AlienEntity alien = aliens.get(rng.nextInt(aliens.size()));
+        Entity originalShip = ship;
+        ShipEntity target = findClosestShip(alien.getX(), alien.getY());
+        if (target != null) {
+            ship = target;
+        }
         alien.tryToFire();
+        ship = originalShip != null ? originalShip : ship;
         gameStateManager.setLastAlienFire(System.currentTimeMillis());
+    }
+
+    private ShipEntity findClosestShip(double x, double y) {
+        ShipEntity closest = null;
+        double best = Double.MAX_VALUE;
+        for (PlayerRuntime runtime : playerRuntimes.values()) {
+            ShipEntity candidate = runtime.ship;
+            if (candidate == null) continue;
+            double dist = Point2D.distance(x, y, candidate.getX(), candidate.getY());
+            if (dist < best) {
+                best = dist;
+                closest = candidate;
+            }
+        }
+        return closest;
     }
 
     // ===== MultiplayerGameContext 구현 =====
@@ -427,6 +488,24 @@ public class ServerMultiplayerGame implements MultiplayerGameContext {
     public void addSkillPoints(int points) {
         int currentPoints = gameStateManager.getSkillPoints();
         gameStateManager.setSkillPoints(currentPoints + points);
+    }
+
+    public void removePlayer(String playerId) {
+        PlayerRuntime runtime = playerRuntimes.remove(playerId);
+        if (runtime != null && runtime.ship != null) {
+            gameStateManager.getEntities().remove(runtime.ship);
+            if (ship == runtime.ship) {
+                ship = null;
+            }
+        }
+        if (primaryPlayerId != null && primaryPlayerId.equals(playerId)) {
+            primaryPlayerId = playerRuntimes.keySet().stream().findFirst().orElse(null);
+        }
+        if (primaryPlayerId != null && playerRuntimes.containsKey(primaryPlayerId)) {
+            ship = playerRuntimes.get(primaryPlayerId).ship;
+        } else {
+            ship = playerRuntimes.values().stream().map(r -> r.ship).findFirst().orElse(null);
+        }
     }
 
     private void spawnBoss() {
