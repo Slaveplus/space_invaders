@@ -13,6 +13,7 @@ import java.util.Deque;
 import java.util.List;
 import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
+import org.newdawn.spaceinvaders.room.GameInitInfo;
 import java.io.InputStream;
 import java.io.IOException;
 
@@ -35,6 +36,7 @@ public class RoomLobbyCanvas extends Canvas implements Screen, GameClientListene
     private int infoTimer = 0;
     private String infoMessage = "";
     private long statePollAccumulator = 0; // ms 누적
+    private boolean launchedMultiplayerGame = false;
 
     private BufferedImage backgroundImage;
     private String lastChatComposite = null; // 중복 방지 키(from+msg)
@@ -66,6 +68,7 @@ public class RoomLobbyCanvas extends Canvas implements Screen, GameClientListene
     public void onShow() {
         addKeyListener(keyAdapter);
         requestFocusInWindow();
+        launchedMultiplayerGame = false;
         appendChatInfo("방에 입장했습니다.");
     }
 
@@ -75,13 +78,16 @@ public class RoomLobbyCanvas extends Canvas implements Screen, GameClientListene
         if (client != null) client.removeListener(this);
     }
 
-    @Override
-    public void update(long deltaMillis) {
-        if (infoTimer > 0) { infoTimer--; if (infoTimer==0) infoMessage=""; }
-        statePollAccumulator += deltaMillis;
-        if (statePollAccumulator >= 1500) { // 1.5초 폴링
-            statePollAccumulator = 0;
-            if (client != null) client.requestRoomState();
+	@Override
+	public void update(long deltaMillis) {
+		if (launchedMultiplayerGame) {
+			return;
+		}
+		if (infoTimer > 0) { infoTimer--; if (infoTimer==0) infoMessage=""; }
+		statePollAccumulator += deltaMillis;
+		if (statePollAccumulator >= 1500) { // 1.5초 폴링
+			statePollAccumulator = 0;
+			if (client != null) client.requestRoomState();
         }
     }
 
@@ -272,7 +278,14 @@ public class RoomLobbyCanvas extends Canvas implements Screen, GameClientListene
         appendChatLine(from+": "+msg);
     }
     @Override public void onHostLeft(String roomId) { appendChatInfo("호스트가 방을 제거했습니다."); infoMessage="호스트 종료 - 목록으로"; infoTimer=180; navigator.showRoomList(client); }
-    @Override public void onGameStart(String roomId) { appendChatInfo("게임 시작!"); navigator.startNewGame(); }
+    @Override public void onGameInit(GameInitInfo info) {
+        if (!launchedMultiplayerGame) {
+            launchedMultiplayerGame = true;
+            navigator.startMultiplayerGame(client, info);
+        }
+    }
+
+    @Override public void onGameStart(String roomId) { appendChatInfo("게임 시작!"); }
     @Override public void onInfo(String msg) { if ("NO_ROOM".equals(msg)) return; infoMessage=msg; infoTimer=180; }
     @Override public void onError(String msg) { infoMessage="ERROR:"+msg; infoTimer=240; }
 }

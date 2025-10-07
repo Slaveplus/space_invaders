@@ -4,6 +4,9 @@ import org.newdawn.spaceinvaders.app.Screen;
 import org.newdawn.spaceinvaders.app.ScreenNavigator;
 import org.newdawn.spaceinvaders.gameplay.Game;
 import org.newdawn.spaceinvaders.gameplay.ResolutionManager;
+import org.newdawn.spaceinvaders.multyplay.core.MultiplayerGameCanvas;
+import org.newdawn.spaceinvaders.multyplay.net.client.RoomGameNetworkAdapter;
+import org.newdawn.spaceinvaders.room.GameInitInfo;
 import org.newdawn.spaceinvaders.login.LoginScreenCanvas;
 import org.newdawn.spaceinvaders.login.UserManager;
 import org.newdawn.spaceinvaders.mainmenu.MainMenuCanvas;
@@ -43,6 +46,8 @@ public class SpaceInvadersApp extends JFrame implements ScreenNavigator {
     private RoomLobbyCanvas roomLobbyCanvas; // 현재 로비
     private GameClient currentClient; // 현재 GameClient 참조
     private Game gameScreen; // Game 자체를 캔버스로 이용
+    private MultiplayerGameCanvas multiplayerGameCanvas;
+    private RoomGameNetworkAdapter multiplayerNetworkAdapter;
 
     private Screen currentScreen; // update/render 가상화
     private volatile boolean running = true;
@@ -250,6 +255,17 @@ public class SpaceInvadersApp extends JFrame implements ScreenNavigator {
         if (roomLobbyCanvas != null && currentClient != null) {
             currentClient.removeListener(roomLobbyCanvas);
         }
+        if (multiplayerNetworkAdapter != null && currentClient != null) {
+            currentClient.removeListener(multiplayerNetworkAdapter);
+        }
+        if (multiplayerGameCanvas != null) {
+            multiplayerGameCanvas.shutdownNetwork();
+            multiplayerGameCanvas = null;
+        }
+        if (multiplayerNetworkAdapter != null) {
+            multiplayerNetworkAdapter.shutdown();
+            multiplayerNetworkAdapter = null;
+        }
         if (currentClient != null) {
             currentClient.shutdown();
             currentClient = null;
@@ -279,17 +295,41 @@ public class SpaceInvadersApp extends JFrame implements ScreenNavigator {
         requestSetScreen(roomListCanvas);
     }
 
-    @Override
-    public void showRoomLobby(String roomId) {
-        if (currentClient == null) {
-            // 예외 상황: 클라이언트 없으면 목록으로
-            showRoomList(null);
-            return;
-        }
-        roomLobbyCanvas = new RoomLobbyCanvas(this, currentClient, roomId);
-        roomLobbyCanvas.init();
-        requestSetScreen(roomLobbyCanvas);
-    }
+	@Override
+	public void showRoomLobby(String roomId) {
+		if (currentClient == null) {
+			// 예외 상황: 클라이언트 없으면 목록으로
+			showRoomList(null);
+			return;
+		}
+		roomLobbyCanvas = new RoomLobbyCanvas(this, currentClient, roomId);
+		roomLobbyCanvas.init();
+		requestSetScreen(roomLobbyCanvas);
+	}
+	
+	@Override
+	public void startMultiplayerGame(GameClient client, GameInitInfo initInfo) {
+		if (client == null || initInfo == null) {
+			return;
+		}
+		currentClient = client;
+		if (roomLobbyCanvas != null) {
+			client.removeListener(roomLobbyCanvas);
+			roomLobbyCanvas = null;
+		}
+		if (multiplayerNetworkAdapter != null) {
+			multiplayerNetworkAdapter.shutdown();
+		}
+		multiplayerNetworkAdapter = new RoomGameNetworkAdapter(client);
+		multiplayerNetworkAdapter.onGameInit(initInfo);
+		
+		multiplayerGameCanvas = new MultiplayerGameCanvas();
+		multiplayerGameCanvas.setUserManager(userManager);
+		multiplayerGameCanvas.setResolutionManager(resolutionManager);
+		multiplayerGameCanvas.configureForRemote(multiplayerNetworkAdapter,
+				client.getSelfId(), initInfo);
+		requestSetScreen(multiplayerGameCanvas);
+	}
     
     // 해상도 변경 메서드들
     public void changeResolution(int width, int height) {

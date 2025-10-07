@@ -10,6 +10,9 @@ public interface GameClientListener {
     default void onChatMessage(String from, String msg) {}
     default void onHostLeft(String roomId) {}
     default void onGameStart(String roomId) {}
+    default void onGameInit(GameInitInfo info) {}
+    default void onGameState(GameStatePayload state) {}
+    default void onGameEvent(GameEventPayload event) {}
     default void onInfo(String msg) {}
     default void onError(String msg) {}
 }

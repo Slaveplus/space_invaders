@@ -19,6 +19,13 @@ public final class MessageType {
     public static final String PING = "PING"; // 클라이언트 -> 서버
     public static final String PONG = "PONG"; // 서버 -> 클라이언트
 
+    // Multiplayer (Client -> Server)
+    public static final String GAME_READY = "GAME_READY"; // roomId, seedAck
+    public static final String GAME_INPUT = "GAME_INPUT"; // roomId, playerId, seq, mask, time
+    public static final String GAME_ACTION = "GAME_ACTION"; // roomId, playerId, action=...,data=...
+    public static final String STATE_ACK = "STATE_ACK"; // roomId, tick
+    public static final String STATE_REQUEST = "STATE_REQUEST"; // roomId, fromTick
+
     // Server -> Client
     public static final String ROOMS = "ROOMS"; // list=roomId,name,type,cur,max;...
     public static final String ROOM_JOINED = "ROOM_JOINED"; // roomId,hostId
@@ -26,6 +33,10 @@ public final class MessageType {
     public static final String CHAT_MSG = "CHAT"; // from=,msg=
     public static final String HOST_LEFT = "HOST_LEFT"; // roomId
     public static final String GAME_START = "GAME_START"; // roomId
+    public static final String GAME_INIT = "GAME_INIT"; // roomId, seed, tick
+    public static final String GAME_STATE = "GAME_STATE"; // roomId, tick, dt, payload
+    public static final String GAME_EVENT = "GAME_EVENT"; // roomId, tick, type, data
+    public static final String GAME_ABORT = "GAME_ABORT"; // roomId, reason
     public static final String INFO = "INFO"; // msg
     public static final String ERROR = "ERROR"; // msg
 }

@@ -1,9 +1,13 @@
 package org.newdawn.spaceinvaders.server;
 
-import java.io.*;
+import java.io.IOException;
 import java.net.ServerSocket;
 import java.net.Socket;
-import java.util.*;
+import java.util.Collections;
+import java.util.HashSet;
+import java.util.Set;
+
+import org.newdawn.spaceinvaders.server.game.ServerGameManager;
 
 /** 매우 단순한 스레드형 게임 서버 (학습/프로토타입 용) */
 public class GameServer implements Runnable {
@@ -12,6 +16,7 @@ public class GameServer implements Runnable {
     private final Set<ClientConnection> connections = Collections.synchronizedSet(new HashSet<>());
     private volatile boolean running = true;
     private Thread maintenanceThread;
+    private final ServerGameManager gameManager = new ServerGameManager(this);
     // 타임아웃 (ms)
     private static final long SESSION_TIMEOUT = 15000; // 15초 활동 없으면 제거
     private static final long MAINT_INTERVAL = 5000;    // 5초마다 점검
@@ -45,7 +50,10 @@ public class GameServer implements Runnable {
                     roomManager.getRoomsInternal().entrySet().removeIf(e -> {
                         Room r = e.getValue();
                         boolean remove = r.getPlayers().isEmpty() || r.getHost()==null;
-                        if (remove) System.out.println("[Maint] Removing stale/empty room " + r.getId());
+                        if (remove) {
+                            System.out.println("[Maint] Removing stale/empty room " + r.getId());
+                            gameManager.removeSession(r.getId());
+                        }
                         return remove;
                     });
                 }
@@ -75,6 +83,7 @@ public class GameServer implements Runnable {
         System.out.println("[Server] Connection removed: " + cc);
     }
     public ServerRoomManager getRoomManager() { return roomManager; }
+    public ServerGameManager getGameManager() { return gameManager; }
 
     // 브로드캐스트 유틸
     void sendToRoom(Room room, String line) {

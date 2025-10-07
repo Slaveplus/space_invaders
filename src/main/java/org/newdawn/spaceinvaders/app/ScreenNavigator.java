@@ -2,6 +2,7 @@ package org.newdawn.spaceinvaders.app;
 
 import org.newdawn.spaceinvaders.gameplay.ResolutionManager;
 import org.newdawn.spaceinvaders.room.GameClient;
+import org.newdawn.spaceinvaders.room.GameInitInfo;
 
 /**
  * 화면 전환을 위한 네비게이터. 구현체는 SpaceInvadersApp이 담당합니다.
@@ -24,4 +25,7 @@ public interface ScreenNavigator {
 
     /** 특정 roomId 로비 화면을 연다 (이미 GameClient가 JOIN 완료된 상태여야 함) */
     void showRoomLobby(String roomId);
+
+    /** 멀티플레이 게임 화면으로 전환 */
+    void startMultiplayerGame(GameClient client, GameInitInfo initInfo);
 }

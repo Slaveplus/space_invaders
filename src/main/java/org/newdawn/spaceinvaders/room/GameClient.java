@@ -5,6 +5,8 @@ import java.net.Socket;
 import java.util.*;
 import java.util.concurrent.CopyOnWriteArrayList;
 
+import org.newdawn.spaceinvaders.multyplay.net.protocol.TextMessage;
+
 /** 간단 텍스트 프로토콜 클라이언트 */
 public class GameClient implements Runnable {
     private final String host;
@@ -110,10 +112,40 @@ public class GameClient implements Runnable {
             case "CHAT": handleChat(parts); break;
             case "HOST_LEFT": fireHostLeft(getValue(parts, "roomId")); break;
             case "GAME_START": fireGameStart(getValue(parts, "roomId")); break;
+            case "GAME_INIT": handleGameInit(line); break;
+            case "GAME_STATE": handleGameState(line); break;
+            case "GAME_EVENT": handleGameEvent(line); break;
             default: // ignore
         }
         if ("INFO".equals(type) && "CONNECTED".equals(getValue(parts, "msg"))) {
             fireConnected();
+        }
+    }
+
+    private void handleGameInit(String line) {
+        GameInitInfo info = GameInitInfo.fromLine(line);
+        if (info != null) {
+            for (GameClientListener l : listeners) {
+                l.onGameInit(info);
+            }
+        }
+    }
+
+    private void handleGameState(String line) {
+        GameStatePayload payload = GameStatePayload.fromLine(line);
+        if (payload != null) {
+            for (GameClientListener l : listeners) {
+                l.onGameState(payload);
+            }
+        }
+    }
+
+    private void handleGameEvent(String line) {
+        GameEventPayload payload = GameEventPayload.fromLine(line);
+        if (payload != null) {
+            for (GameClientListener l : listeners) {
+                l.onGameEvent(payload);
+            }
         }
     }
 
@@ -186,7 +218,56 @@ public class GameClient implements Runnable {
 
     private int parseIntSafe(String s) { try { return Integer.parseInt(s); } catch (Exception e) { return 0; } }
     private String escape(String s) { return s==null?"":s.replace("|","%7C").replace(";","%3B"); }
+    private long parseLongSafe(String s) { try { return Long.parseLong(s); } catch (Exception e) { return 0L; } }
     private String unescape(String s) { return s==null?"":s.replace("%7C","|").replace("%3B",";"); }
+
+    public void sendGameReady(String roomId, long seedAck) {
+        if (roomId == null) roomId = currentRoomId;
+        if (roomId == null) return;
+        send(TextMessage.builder("GAME_READY")
+                .put("roomId", roomId)
+                .put("seedAck", seedAck)
+                .toLine());
+    }
+
+    public void sendGameInput(String roomId, int sequence, int mask, long clientTime) {
+        if (roomId == null) roomId = currentRoomId;
+        if (roomId == null) return;
+        send(TextMessage.builder("GAME_INPUT")
+                .put("roomId", roomId)
+                .put("seq", sequence)
+                .put("mask", mask)
+                .put("clientTime", clientTime)
+                .toLine());
+    }
+
+    public void sendStateAck(String roomId, long tick) {
+        if (roomId == null) roomId = currentRoomId;
+        if (roomId == null) return;
+        send(TextMessage.builder("STATE_ACK")
+                .put("roomId", roomId)
+                .put("tick", tick)
+                .toLine());
+    }
+
+    public void sendStateRequest(String roomId, long fromTick) {
+        if (roomId == null) roomId = currentRoomId;
+        if (roomId == null) return;
+        send(TextMessage.builder("STATE_REQUEST")
+                .put("roomId", roomId)
+                .put("fromTick", fromTick)
+                .toLine());
+    }
+    
+    public void sendGameAction(String roomId, String action, String data) {
+        if (roomId == null) roomId = currentRoomId;
+        if (roomId == null) return;
+        TextMessage.Builder builder = TextMessage.builder("GAME_ACTION")
+                .put("roomId", roomId);
+        if (action != null) builder.put("action", action);
+        if (data != null) builder.put("data", data);
+        send(builder.toLine());
+    }
 
     private void fireConnected(){ for (GameClientListener l: listeners) l.onConnected(); }
     private void fireInfo(String m){ for (GameClientListener l: listeners) l.onInfo(m); }

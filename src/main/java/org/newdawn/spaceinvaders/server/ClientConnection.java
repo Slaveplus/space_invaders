@@ -4,6 +4,8 @@ import java.io.*;
 import java.net.Socket;
 import java.util.stream.Collectors;
 
+import org.newdawn.spaceinvaders.server.game.ServerGameSession;
+
 import static org.newdawn.spaceinvaders.server.MessageType.*;
 
 /** 클라이언트 개별 처리 스레드 */
@@ -102,10 +104,97 @@ class ClientConnection implements Runnable {
                     session.getOut().println(INFO+"|msg=NO_ROOM");
                 }
                 break;
+            case GAME_READY:
+                handleGameReady(parts);
+                break;
+            case GAME_INPUT:
+                handleGameInput(parts);
+                break;
+            case STATE_ACK:
+                handleStateAck(parts);
+                break;
+            case STATE_REQUEST:
+                handleStateRequest(parts);
+                break;
+            case GAME_ACTION:
+                handleGameAction(parts);
+                break;
             default:
                 System.out.println("[ClientConnection] UNKNOWN_TYPE: " + type + " from " + session.getUsername());
                 session.getOut().println(ERROR+"|msg=UNKNOWN_TYPE");
                 break;
+        }
+    }
+
+    private void handleGameReady(String[] parts) {
+        String roomId = getValue(parts, "roomId");
+        if (roomId == null) {
+            Room room = session.getCurrentRoom();
+            if (room != null) roomId = room.getId();
+        }
+        if (roomId == null) return;
+        ServerGameSession gs = server.getGameManager().getSession(roomId);
+        if (gs != null) {
+            String seedAck = getValue(parts, "seedAck");
+            gs.handleReady(session, seedAck);
+        }
+    }
+
+    private void handleGameInput(String[] parts) {
+        String roomId = getValue(parts, "roomId");
+        if (roomId == null) {
+            Room room = session.getCurrentRoom();
+            if (room != null) roomId = room.getId();
+        }
+        if (roomId == null) return;
+        ServerGameSession gs = server.getGameManager().getSession(roomId);
+        if (gs == null) return;
+        int seq = parseIntSafe(getValue(parts, "seq"));
+        int mask = parseIntSafe(getValue(parts, "mask"));
+        long clientTime = parseLongSafe(getValue(parts, "clientTime"));
+        gs.handleInput(session, seq, mask, clientTime);
+    }
+
+    private void handleStateAck(String[] parts) {
+        String roomId = getValue(parts, "roomId");
+        if (roomId == null) {
+            Room room = session.getCurrentRoom();
+            if (room != null) roomId = room.getId();
+        }
+        if (roomId == null) return;
+        ServerGameSession gs = server.getGameManager().getSession(roomId);
+        if (gs != null) {
+            long tick = parseLongSafe(getValue(parts, "tick"));
+            gs.handleStateAck(session, tick);
+        }
+    }
+
+    private void handleStateRequest(String[] parts) {
+        String roomId = getValue(parts, "roomId");
+        if (roomId == null) {
+            Room room = session.getCurrentRoom();
+            if (room != null) roomId = room.getId();
+        }
+        if (roomId == null) return;
+        ServerGameSession gs = server.getGameManager().getSession(roomId);
+        if (gs != null) {
+            long fromTick = parseLongSafe(getValue(parts, "fromTick"));
+            gs.handleStateRequest(session, fromTick);
+        }
+    }
+
+    private void handleGameAction(String[] parts) {
+        String roomId = getValue(parts, "roomId");
+        if (roomId == null) {
+            Room room = session.getCurrentRoom();
+            if (room != null) roomId = room.getId();
+        }
+        if (roomId == null) return;
+        ServerGameSession gs = server.getGameManager().getSession(roomId);
+        if (gs != null) {
+            String action = getValue(parts, "action");
+            String data = getValue(parts, "data");
+            gs.handleAction(session, action, data);
         }
     }
 
@@ -172,6 +261,7 @@ class ClientConnection implements Runnable {
         synchronized (room) {
             wasHost = room.getHost() == session;
             room.removePlayer(session);
+            server.getGameManager().handlePlayerDeparture(session, room);
             // 호스트가 나갔거나 플레이어가 없어졌으면 방 제거 (요구사항: 호스트 나가면 즉시 삭제)
             if (wasHost || room.getPlayers().isEmpty()) {
                 // 남아있는 인원에게 호스트/방 종료 알림
@@ -179,6 +269,7 @@ class ClientConnection implements Runnable {
                     ps.getOut().println(HOST_LEFT+"|roomId="+room.getId());
                 }
                 server.getRoomManager().removeRoom(room.getId());
+                server.getGameManager().removeSession(room.getId());
                 System.out.println("[ClientConnection] Room forcibly removed (host left or empty): " + room.getId());
             } else if (!wasHost && !room.getPlayers().isEmpty()) {
                 // 일반 플레이어 퇴장 -> 상태만 브로드캐스트
@@ -203,6 +294,9 @@ class ClientConnection implements Runnable {
         boolean allReady = room.isSingle() || room.getPlayers().stream().allMatch(p -> p == room.getHost() || p.isReady());
         if (!allReady) { session.getOut().println(ERROR+"|msg=NOT_ALL_READY"); return; }
         room.setStarted(true);
+        if (!room.isSingle()) {
+            server.getGameManager().createSession(room);
+        }
         server.sendToRoom(room, GAME_START+"|roomId="+room.getId());
         System.out.println("[ClientConnection] START_GAME: " + room.getId() + " by " + session.getUsername());
     }
@@ -224,6 +318,21 @@ class ClientConnection implements Runnable {
         if (includeHostJoin) {
             // 갱신 직후 방 목록 새로고침 힌트 용 (클라이언트가 LIST_ROOMS 재요청 가능)
         }
+    }
+    private int parseIntSafe(String s) { try { return Integer.parseInt(s); } catch (Exception e) { return 0; } }
+    private long parseLongSafe(String s) { try { return Long.parseLong(s); } catch (Exception e) { return 0L; } }
+
+    /** parts 배열에서 key에 해당하는 값을 반환 (key=value 형태) */
+    private String getValue(String[] parts, String key) {
+        for (int i = 1; i < parts.length; i++) {
+            String p = parts[i];
+            int idx = p.indexOf('=');
+            if (idx > 0) {
+                String k = p.substring(0, idx);
+                if (k.equals(key)) return p.substring(idx + 1);
+            }
+        }
+        return null;
     }
 
     private String escape(String s) { return s==null?"":s.replace("|","%7C").replace(";","%3B"); }
