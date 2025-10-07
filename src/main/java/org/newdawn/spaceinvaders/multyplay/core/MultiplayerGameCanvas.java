@@ -2,16 +2,23 @@ package org.newdawn.spaceinvaders.multyplay.core;
 
 import java.awt.Canvas;
 import java.awt.Color;
+import java.awt.Font;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
 import java.awt.image.BufferedImage;
 // no direct AWT listeners here; handled via MultiplayerInputManager
+import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Deque;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
 import javax.imageio.ImageIO;
+
+import java.awt.event.KeyEvent;
 
 import org.newdawn.spaceinvaders.multyplay.entity.AlienEntity;
 import org.newdawn.spaceinvaders.multyplay.entity.BossEntity;
@@ -26,6 +33,7 @@ import org.newdawn.spaceinvaders.shop.ShopCategory;
 import org.newdawn.spaceinvaders.shop.ShopItem;
 import org.newdawn.spaceinvaders.app.Screen;
 import org.newdawn.spaceinvaders.multyplay.input.MultiplayerInputManager;
+import org.newdawn.spaceinvaders.multyplay.net.GameEvent;
 import org.newdawn.spaceinvaders.multyplay.net.GameNetworkAdapter;
 import org.newdawn.spaceinvaders.multyplay.net.GameSnapshot;
 import org.newdawn.spaceinvaders.multyplay.net.PlayerInput;
@@ -35,6 +43,7 @@ import org.newdawn.spaceinvaders.multyplay.state.MultiplayerGameStateManager;
 import org.newdawn.spaceinvaders.multyplay.state.PlayerState;
 import org.newdawn.spaceinvaders.multyplay.ui.MultiplayerUIRenderer;
 import org.newdawn.spaceinvaders.room.GameInitInfo;
+import org.newdawn.spaceinvaders.multyplay.net.client.RoomGameNetworkAdapter;
 
 /**
  * The main hook of our game. This class with both act as a manager
@@ -94,7 +103,6 @@ public class MultiplayerGameCanvas extends Canvas implements Screen, Multiplayer
 	/** 네트워크 어댑터 (싱글: LocalLoopback 기본) */
 	private GameNetworkAdapter networkAdapter;
 	private boolean remoteMode = false;
-	private String remoteRoomId;
 	private String localPlayerId;
 	private long inputSequence;
 	private long lastInputSendTime;
@@ -103,6 +111,15 @@ public class MultiplayerGameCanvas extends Canvas implements Screen, Multiplayer
 	private boolean lastSentFire;
 	private final Map<Long, Entity> remoteEntities = new HashMap<>();
 	private final ArrayList<Entity> snapshotEntitiesBuffer = new ArrayList<>();
+	private GameSnapshot.Phase remotePhase = GameSnapshot.Phase.ACTIVE;
+	private boolean remoteWaitingForPlayers;
+	private final Map<String, Boolean> remoteReadyStates = new LinkedHashMap<>();
+	private final Map<String, String> playerDisplayNames = new LinkedHashMap<>();
+	private final Deque<String> intermissionChatLines = new ArrayDeque<>();
+	private String intermissionChatInput = "";
+	private boolean intermissionChatFocus = false;
+	private boolean localReady = false;
+	private String intermissionMessage = "";
 	
 	/**
 	 * Construct our game and set it running.
@@ -150,7 +167,6 @@ public class MultiplayerGameCanvas extends Canvas implements Screen, Multiplayer
 		setNetworkAdapter(adapter);
 		this.remoteMode = adapter != null && adapter.getMode() != GameNetworkAdapter.Mode.LOCAL;
 		this.localPlayerId = localPlayerId;
-		this.remoteRoomId = initInfo != null ? initInfo.roomId : null;
 		this.inputSequence = 0;
 		this.lastInputSendTime = 0;
 		this.lastSentLeft = false;
@@ -158,19 +174,33 @@ public class MultiplayerGameCanvas extends Canvas implements Screen, Multiplayer
 		this.lastSentFire = false;
 		this.remoteEntities.clear();
 		this.snapshotEntitiesBuffer.clear();
+		this.remoteReadyStates.clear();
+		this.playerDisplayNames.clear();
+		this.intermissionChatLines.clear();
+		this.intermissionChatInput = "";
+		this.intermissionChatFocus = false;
+		this.localReady = false;
+		this.intermissionMessage = "";
+		this.remotePhase = GameSnapshot.Phase.ACTIVE;
+		this.remoteWaitingForPlayers = false;
 		gameStateManager.getEntities().clear();
 		gameStateManager.getRemoveList().clear();
 		gameStateManager.setWaitingForKeyPress(false);
 		if (initInfo != null && initInfo.players != null) {
 			for (GameInitInfo.Player p : initInfo.players) {
 				gameStateManager.ensurePlayer(p.id);
+				playerDisplayNames.put(p.id, p.username != null && !p.username.isEmpty() ? p.username : p.id);
 				if (this.localPlayerId == null) {
 					this.localPlayerId = p.id;
 				}
 			}
 		} else if (this.localPlayerId == null) {
 			this.localPlayerId = "local";
+			playerDisplayNames.put(this.localPlayerId, this.localPlayerId);
 			gameStateManager.ensurePlayer(this.localPlayerId);
+		}
+		if (this.localPlayerId != null && !playerDisplayNames.containsKey(this.localPlayerId)) {
+			playerDisplayNames.put(this.localPlayerId, this.localPlayerId);
 		}
 		gameStateManager.setLocalPlayerId(this.localPlayerId);
 		skillManager.setOwnerId(this.localPlayerId);
@@ -633,7 +663,10 @@ public class MultiplayerGameCanvas extends Canvas implements Screen, Multiplayer
 				applyRemoteSnapshot(snapshot);
 			}
 			if (networkAdapter != null) {
-				networkAdapter.drainEvents();
+				List<GameEvent> events = networkAdapter.drainEvents();
+				if (events != null && !events.isEmpty()) {
+					handleRemoteEvents(events);
+				}
 			}
 			return;
 		}
@@ -685,6 +718,12 @@ public class MultiplayerGameCanvas extends Canvas implements Screen, Multiplayer
 
 	private void handleRemoteInput(long now) {
 		if (networkAdapter == null || localPlayerId == null) {
+			return;
+		}
+		if (remotePhase != GameSnapshot.Phase.ACTIVE) {
+			lastSentLeft = false;
+			lastSentRight = false;
+			lastSentFire = false;
 			return;
 		}
 		boolean left = inputManager.isLeftPressed();
@@ -739,9 +778,31 @@ public class MultiplayerGameCanvas extends Canvas implements Screen, Multiplayer
 				ps.setAttackPower(state.atk);
 				ps.setAttackSpeed(state.aspd);
 				ps.setSkillPoints(state.skillPts);
+				playerDisplayNames.putIfAbsent(entry.getKey(), entry.getKey());
 			}
 		}
 		gameStateManager.setCurrentRound(snapshot.round);
+		remotePhase = snapshot.phase != null ? snapshot.phase : GameSnapshot.Phase.ACTIVE;
+		remoteWaitingForPlayers = snapshot.waitingForPlayers;
+		intermissionMessage = snapshot.message != null ? snapshot.message : "";
+		remoteReadyStates.clear();
+		remoteReadyStates.putAll(snapshot.readyStates != null ? snapshot.readyStates : Collections.emptyMap());
+		if (localPlayerId != null && !remoteReadyStates.containsKey(localPlayerId)) {
+			remoteReadyStates.put(localPlayerId, localReady);
+		}
+		if (localPlayerId != null) {
+			Boolean serverReady = remoteReadyStates.get(localPlayerId);
+			if (serverReady != null) {
+				localReady = serverReady;
+			}
+		}
+		if (remotePhase != GameSnapshot.Phase.INTERMISSION) {
+			intermissionChatFocus = false;
+			intermissionChatInput = "";
+			if (remotePhase == GameSnapshot.Phase.ACTIVE) {
+				localReady = false;
+			}
+		}
 		gameStateManager.setWaitingForKeyPress(false);
 	}
 
@@ -768,6 +829,128 @@ public class MultiplayerGameCanvas extends Canvas implements Screen, Multiplayer
 		}
 	}
 
+	private void handleRemoteEvents(List<GameEvent> events) {
+		for (GameEvent event : events) {
+			if (event == null) {
+				continue;
+			}
+			switch (event.type) {
+				case CHAT: {
+					String senderId = event.fromPlayerId != null ? event.fromPlayerId : "";
+					String display = playerDisplayNames.getOrDefault(senderId, senderId.isEmpty() ? "" : senderId);
+					String line = (display == null || display.isEmpty() ? "" : display + ": ") + (event.message != null ? event.message : "");
+					appendIntermissionChat(line);
+					break;
+				}
+				case SYSTEM:
+					appendIntermissionChat("* " + (event.message != null ? event.message : ""));
+					break;
+				default:
+					break;
+			}
+		}
+	}
+
+	private void appendIntermissionChat(String line) {
+		if (line == null) {
+			return;
+		}
+		String trimmed = line.trim();
+		if (trimmed.isEmpty()) {
+			return;
+		}
+		intermissionChatLines.addLast(trimmed);
+		while (intermissionChatLines.size() > 50) {
+			intermissionChatLines.pollFirst();
+		}
+	}
+
+	public boolean handleIntermissionKeyPressed(KeyEvent e) {
+		if (!isIntermissionOverlayVisible()) {
+			return false;
+		}
+		switch (e.getKeyCode()) {
+			case KeyEvent.VK_R:
+				if (remotePhase == GameSnapshot.Phase.INTERMISSION) {
+					toggleReadyStatus();
+				}
+				return true;
+			case KeyEvent.VK_ENTER:
+				if (intermissionChatFocus) {
+					sendIntermissionChatMessage();
+				} else {
+					intermissionChatFocus = true;
+				}
+				return true;
+			case KeyEvent.VK_ESCAPE:
+				if (intermissionChatFocus) {
+					intermissionChatFocus = false;
+					return true;
+				}
+				break;
+			case KeyEvent.VK_BACK_SPACE:
+				if (intermissionChatFocus && !intermissionChatInput.isEmpty()) {
+					intermissionChatInput = intermissionChatInput.substring(0, intermissionChatInput.length() - 1);
+					return true;
+				}
+				break;
+			default:
+				break;
+		}
+		return false;
+	}
+
+	public boolean handleIntermissionKeyTyped(KeyEvent e) {
+		if (!intermissionChatFocus || !isIntermissionOverlayVisible()) {
+			return false;
+		}
+		char ch = e.getKeyChar();
+		if (Character.isISOControl(ch)) {
+			return true;
+		}
+		if (intermissionChatInput.length() >= 200) {
+			return true;
+		}
+		intermissionChatInput += ch;
+		return true;
+	}
+
+	public boolean isIntermissionOverlayVisible() {
+		return remoteMode && (remotePhase == GameSnapshot.Phase.INTERMISSION || remotePhase == GameSnapshot.Phase.COMPLETED);
+	}
+
+	public boolean isIntermissionChatFocused() {
+		return intermissionChatFocus;
+	}
+
+	public void toggleReadyStatus() {
+		if (!remoteMode || localPlayerId == null || networkAdapter == null || remotePhase != GameSnapshot.Phase.INTERMISSION) {
+			return;
+		}
+		localReady = !localReady;
+		remoteReadyStates.put(localPlayerId, localReady);
+		if (networkAdapter instanceof RoomGameNetworkAdapter) {
+			((RoomGameNetworkAdapter) networkAdapter).sendRoundReady(localReady);
+		}
+	}
+
+	private void sendIntermissionChatMessage() {
+		String message = intermissionChatInput.trim();
+		if (message.isEmpty()) {
+			intermissionChatInput = "";
+			intermissionChatFocus = false;
+			return;
+		}
+		if (remoteMode && networkAdapter != null) {
+			GameEvent chat = new GameEvent(GameEvent.Type.CHAT, localPlayerId, message, System.currentTimeMillis());
+			networkAdapter.sendEvent(chat);
+		}
+		String display = playerDisplayNames.getOrDefault(localPlayerId, localPlayerId != null ? localPlayerId : "나");
+		appendIntermissionChat((display == null || display.isEmpty() ? "나" : display) + ": " + message);
+		intermissionChatInput = "";
+		intermissionChatFocus = false;
+	}
+
 	private static class RemoteSpriteEntity extends Entity {
 		RemoteSpriteEntity(String spritePath, double x, double y) {
 			super(spritePath, (int) x, (int) y);
@@ -789,7 +972,6 @@ public class MultiplayerGameCanvas extends Canvas implements Screen, Multiplayer
 		private boolean isAlienShot;
 		private boolean isSkillDrop;
 		private int skillType;
-		private int skillValue;
 
 		RemoteShotEntity(EntitySnapshot snapshot, Map<String, String> meta) {
 			super(resolveShotSprite(snapshot), (int) snapshot.x, (int) snapshot.y);
@@ -806,8 +988,6 @@ public class MultiplayerGameCanvas extends Canvas implements Screen, Multiplayer
 			isSkillDrop = "1".equals(meta.get("skill"));
 			try { skillType = Integer.parseInt(meta.getOrDefault("skillType", "-1")); }
 			catch (NumberFormatException ignore) { skillType = -1; }
-			try { skillValue = Integer.parseInt(meta.getOrDefault("skillValue", "0")); }
-			catch (NumberFormatException ignore) { skillValue = 0; }
 		}
 
 		@Override
@@ -897,7 +1077,6 @@ public class MultiplayerGameCanvas extends Canvas implements Screen, Multiplayer
 	private static class RemoteExplosionEntity extends Entity {
 		private static BufferedImage cachedImage;
 		private double currentRadius;
-		private double maxRadius;
 
 		RemoteExplosionEntity(EntitySnapshot snapshot, Map<String, String> meta) {
 			super(snapshot.sprite != null && !snapshot.sprite.isEmpty() ? snapshot.sprite : "sprites/Skill/Explosion.png", (int) snapshot.x, (int) snapshot.y);
@@ -909,8 +1088,6 @@ public class MultiplayerGameCanvas extends Canvas implements Screen, Multiplayer
 			if (meta == null) return;
 			try { currentRadius = Double.parseDouble(meta.getOrDefault("radius", "0")); }
 			catch (NumberFormatException ignore) { currentRadius = 0; }
-			try { maxRadius = Double.parseDouble(meta.getOrDefault("maxRadius", "0")); }
-			catch (NumberFormatException ignore) { maxRadius = 0; }
 		}
 
 		@Override
@@ -974,12 +1151,15 @@ public class MultiplayerGameCanvas extends Canvas implements Screen, Multiplayer
 		ArrayList<Entity> entities = gameStateManager.getEntities();
 		for (Entity entity : entities) entity.draw(g);
 		// UI & overlays
-		uiRenderer.drawGameUI(g, gameStateManager, skillManager);
-		if (gameStateManager.isShowingPauseMenu()) { drawPauseMenu(g); }
-		if (gameStateManager.isShowingSkillMenu()) { drawSkillMenu(g); }
-		if (gameStateManager.isWaitingForKeyPress()) {
-			uiRenderer.drawMessage(g, gameStateManager.getMessage());
-		}
+	uiRenderer.drawGameUI(g, gameStateManager, skillManager);
+	if (gameStateManager.isShowingPauseMenu()) { drawPauseMenu(g); }
+	if (gameStateManager.isShowingSkillMenu()) { drawSkillMenu(g); }
+	if (gameStateManager.isWaitingForKeyPress()) {
+		uiRenderer.drawMessage(g, gameStateManager.getMessage());
+	}
+	if (isIntermissionOverlayVisible()) {
+		drawIntermissionOverlay(g);
+	}
 	}
 	
 	
@@ -1021,6 +1201,99 @@ public class MultiplayerGameCanvas extends Canvas implements Screen, Multiplayer
 	
 	public void setWaitingForKeyPress(boolean waiting) {
 		gameStateManager.setWaitingForKeyPress(waiting);
+	}
+
+	private void drawIntermissionOverlay(Graphics2D g) {
+		int panelWidth = 620;
+		int panelHeight = 360;
+		int panelX = (getWidth() - panelWidth) / 2;
+		int panelY = (getHeight() - panelHeight) / 2;
+
+		g.setColor(new Color(0, 0, 0, 180));
+		g.fillRoundRect(panelX, panelY, panelWidth, panelHeight, 18, 18);
+		g.setColor(new Color(255, 255, 255, 90));
+		g.drawRoundRect(panelX, panelY, panelWidth, panelHeight, 18, 18);
+
+		String title = remotePhase == GameSnapshot.Phase.COMPLETED ? "게임 종료" : "라운드 준비";
+		Font titleFont = new Font("Arial", Font.BOLD, 24);
+		g.setFont(titleFont);
+		g.setColor(Color.WHITE);
+		g.drawString(title, panelX + 24, panelY + 40);
+
+		if (intermissionMessage != null && !intermissionMessage.isEmpty()) {
+			g.setFont(new Font("Arial", Font.PLAIN, 16));
+			g.setColor(new Color(220, 220, 220));
+			g.drawString(intermissionMessage, panelX + 24, panelY + 70);
+		}
+
+		int listX = panelX + 24;
+		int listY = panelY + 100;
+		g.setFont(new Font("Arial", Font.BOLD, 16));
+		int lineHeight = 24;
+		Map<String, String> displayMap = new LinkedHashMap<>(playerDisplayNames);
+		for (String id : remoteReadyStates.keySet()) {
+			displayMap.putIfAbsent(id, id);
+		}
+		int i = 0;
+		for (Map.Entry<String, String> entry : displayMap.entrySet()) {
+			String playerId = entry.getKey();
+			String name = entry.getValue();
+			boolean ready = Boolean.TRUE.equals(remoteReadyStates.get(playerId));
+			boolean isLocal = playerId != null && playerId.equals(localPlayerId);
+			g.setColor(ready ? new Color(120, 255, 140) : new Color(200, 200, 200));
+			String status = ready ? "READY" : ".....";
+			String label = String.format("%s %s", name != null && !name.isEmpty() ? name : playerId, status);
+			g.drawString(label, listX, listY + i * lineHeight);
+			if (isLocal) {
+				g.setColor(new Color(255, 215, 0));
+				g.drawString("← You", listX + g.getFontMetrics().stringWidth(label) + 8, listY + i * lineHeight);
+			}
+			i++;
+		}
+
+		int chatX = panelX + panelWidth / 2 + 10;
+		int chatY = panelY + 100;
+		int chatWidth = panelWidth / 2 - 34;
+		int chatHeight = panelHeight - 160;
+		g.setColor(new Color(20, 20, 20, 200));
+		g.fillRoundRect(chatX, chatY, chatWidth, chatHeight, 12, 12);
+		g.setColor(new Color(80, 80, 80, 180));
+		g.drawRoundRect(chatX, chatY, chatWidth, chatHeight, 12, 12);
+		g.setFont(new Font("Monospaced", Font.PLAIN, 13));
+		int availableLines = Math.max(1, (chatHeight - 16) / 16);
+		Object[] lines = intermissionChatLines.toArray();
+		int start = Math.max(0, lines.length - availableLines);
+		for (int idx = start; idx < lines.length; idx++) {
+			String text = (String) lines[idx];
+			g.setColor(text.startsWith("* ") ? new Color(160, 220, 255) : Color.WHITE);
+			g.drawString(text, chatX + 10, chatY + 18 + (idx - start) * 16);
+		}
+
+		int inputY = chatY + chatHeight + 12;
+		g.setColor(new Color(0, 0, 0, 210));
+		g.fillRoundRect(chatX, inputY, chatWidth, 32, 10, 10);
+		g.setColor(intermissionChatFocus ? Color.YELLOW : Color.GRAY);
+		g.drawRoundRect(chatX, inputY, chatWidth, 32, 10, 10);
+		g.setFont(new Font("Monospaced", Font.PLAIN, 14));
+		String inputDisplay = intermissionChatInput;
+		if (intermissionChatFocus && (System.currentTimeMillis() / 400) % 2 == 0) {
+			inputDisplay += "_";
+		}
+		g.setColor(Color.WHITE);
+		g.drawString(inputDisplay, chatX + 12, inputY + 21);
+
+		g.setFont(new Font("Arial", Font.PLAIN, 13));
+		g.setColor(new Color(200, 200, 200));
+		int infoY = panelY + panelHeight - 40;
+		if (remotePhase == GameSnapshot.Phase.INTERMISSION) {
+			String info = "R: 준비 토글   Enter: 채팅" + (intermissionChatFocus ? " (입력중 ESC 취소)" : "");
+			g.drawString(info, panelX + 24, infoY);
+			if (remoteWaitingForPlayers) {
+				g.drawString("모든 플레이어가 READY가 되면 다음 라운드가 시작됩니다.", panelX + 24, infoY + 18);
+			}
+		} else {
+			g.drawString("ESC: 로비로 돌아가기", panelX + 24, infoY);
+		}
 	}
 	
 	/**

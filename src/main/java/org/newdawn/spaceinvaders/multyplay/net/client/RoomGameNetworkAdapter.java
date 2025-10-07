@@ -81,15 +81,22 @@ public class RoomGameNetworkAdapter implements GameNetworkAdapter, GameClientLis
         eventQueue.clear();
     }
 
-    @Override
-    public void sendEvent(GameEvent event) {
-        if (roomId == null || event == null) {
-            return;
-        }
-        String action = event.type.name();
-        String data = event.message;
-        client.sendGameAction(roomId, action, data);
-    }
+	@Override
+	public void sendEvent(GameEvent event) {
+		if (roomId == null || event == null) {
+			return;
+		}
+		String action = event.type.name();
+		String data = event.message;
+		client.sendGameAction(roomId, action, data);
+	}
+
+	public void sendRoundReady(boolean ready) {
+		if (roomId == null) {
+			return;
+		}
+		client.sendGameAction(roomId, "ROUND_READY", ready ? "1" : "0");
+	}
 
     @Override
     public List<GameEvent> drainEvents() {

@@ -50,6 +50,9 @@ public class MultiplayerInputManager {
          * 키가 타이핑되었을 때 처리
          */
         public void keyTyped(KeyEvent e) {
+            if (game.handleIntermissionKeyTyped(e)) {
+                return;
+            }
             // 게임플레이 중 "any key" 대기 상태일 때
             if (gameStateManager.isWaitingForKeyPress()) {
                 // 스킬 메뉴가 열려있고 waitingForKeyPress가 true인 경우 (스킬 포인트 부족 메시지)
@@ -89,6 +92,9 @@ public class MultiplayerInputManager {
          * 게임플레이 중 키 눌림 처리
          */
         private void handleGameplayKeyPressed(KeyEvent e) {
+            if (game.handleIntermissionKeyPressed(e)) {
+                return;
+            }
             // "any key" 대기 중이면 키 입력 무시 (스킬 메뉴에서 메시지 대기 중이 아닌 경우)
             if (gameStateManager.isWaitingForKeyPress() && !gameStateManager.isShowingSkillMenu()) {
                 return;

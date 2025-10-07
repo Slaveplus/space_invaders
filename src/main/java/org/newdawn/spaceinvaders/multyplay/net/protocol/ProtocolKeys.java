@@ -15,6 +15,10 @@ public final class ProtocolKeys {
     public static final String ROUND = "round";
     public static final String ENTITIES = "entities";
     public static final String PLAYERS = "players";
+    public static final String PHASE = "phase";
+    public static final String WAITING = "waiting";
+    public static final String READY = "ready";
+    public static final String MESSAGE = "msg";
     public static final String EVENTS = "events";
     public static final String INPUT_SEQ = "seq";
     public static final String INPUT_MASK = "mask";

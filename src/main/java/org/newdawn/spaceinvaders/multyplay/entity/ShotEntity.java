@@ -266,13 +266,16 @@ public class ShotEntity extends Entity {
 				String ownerId = getOwnerId();
 				int attackPower = game.getPlayerAttackPower(ownerId);
 				alien.takeDamage(attackPower);
+				boolean killed = alien.getCurrentHP() <= 0;
 				HeatEffectEntity heatEffect = new HeatEffectEntity(game, (int)x, (int)y);
 				game.addEntity(heatEffect);
 				if (!hasPiercing && !game.hasPiercingShots(ownerId)) {
 					game.removeEntity(this);
 					used = true;
 				}
-				game.notifyAlienKilled(ownerId);
+				if (killed) {
+					game.notifyAlienKilled(ownerId);
+				}
 			} else if (other instanceof BossEntity) {
 				BossEntity boss = (BossEntity) other;
 				String ownerId = getOwnerId();

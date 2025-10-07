@@ -48,7 +48,8 @@ public class LocalLoopbackNetworkAdapter implements GameNetworkAdapter {
         for (PlayerState ps : gsm.getPlayerStates()) {
             pmap.put(ps.getPlayerId(), new GameSnapshot.PlayerScalarState(ps.getCurrentHP(), ps.getMaxHP(), ps.getAttackPower(), ps.getAttackSpeed(), ps.getSkillPoints()));
         }
-        latest = new GameSnapshot(tickCounter, nowMillis, delta, gsm.getCurrentRound(), entitySnaps, pmap);
+        latest = new GameSnapshot(tickCounter, nowMillis, delta, gsm.getCurrentRound(), entitySnaps, pmap,
+                GameSnapshot.Phase.ACTIVE, false, Collections.emptyMap(), null);
         lastReceivedTick = tickCounter;
     }
 

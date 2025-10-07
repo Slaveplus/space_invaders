@@ -42,6 +42,26 @@ public class ServerMultiplayerGame implements MultiplayerGameContext {
     private String currentWeaponSkin = "sprites/shot.gif";
 
     private String primaryPlayerId;
+    private RoundTransition pendingTransition;
+    private Runnable pendingRoundInitializer;
+    private boolean inIntermission;
+
+    public static class RoundTransition {
+        public enum Type { WAVE_CLEARED, BOSS_DEFEATED, GAME_COMPLETED }
+        public final Type type;
+        public final int completedRound;
+        public final int nextRound;
+        public final boolean bossNext;
+        public final String message;
+
+        private RoundTransition(Type type, int completedRound, int nextRound, boolean bossNext, String message) {
+            this.type = type;
+            this.completedRound = completedRound;
+            this.nextRound = nextRound;
+            this.bossNext = bossNext;
+            this.message = message;
+        }
+    }
 
     private static class PlayerRuntime {
         ShipEntity ship;
@@ -78,6 +98,42 @@ public class ServerMultiplayerGame implements MultiplayerGameContext {
             gameStateManager.setLocalPlayerId(playerId);
             gameStateManager.ensurePlayer(playerId);
             playerRuntimes.computeIfAbsent(playerId, k -> new PlayerRuntime());
+        }
+    }
+
+    public RoundTransition pollRoundTransition() {
+        RoundTransition transition = pendingTransition;
+        pendingTransition = null;
+        return transition;
+    }
+
+    public boolean isInIntermission() {
+        return inIntermission;
+    }
+
+    public void startPendingRound() {
+        if (pendingRoundInitializer != null) {
+            pendingRoundInitializer.run();
+        }
+        pendingRoundInitializer = null;
+        inIntermission = false;
+        gameStateManager.setRoundTransition(false);
+        gameStateManager.setWaitingForKeyPress(false);
+        gameStateManager.setMessage("");
+    }
+
+    public boolean hasPendingRoundStart() {
+        return pendingRoundInitializer != null;
+    }
+
+    private void scheduleIntermission(RoundTransition transition, Runnable nextRoundInitializer) {
+        this.pendingTransition = transition;
+        this.pendingRoundInitializer = nextRoundInitializer;
+        this.inIntermission = true;
+        gameStateManager.setRoundTransition(true);
+        gameStateManager.setWaitingForKeyPress(true);
+        if (transition.message != null) {
+            gameStateManager.setMessage(transition.message);
         }
     }
 
@@ -218,7 +274,13 @@ public class ServerMultiplayerGame implements MultiplayerGameContext {
         }
     }
 
-    public GameSnapshot createSnapshot(long tick, long serverTime, long delta) {
+    public GameSnapshot createSnapshot(long tick,
+                                       long serverTime,
+                                       long delta,
+                                       GameSnapshot.Phase phase,
+                                       boolean waitingForPlayers,
+                                       Map<String, Boolean> readyStates,
+                                       String message) {
         ArrayList<EntitySnapshot> snaps = new ArrayList<>();
         for (Entity e : gameStateManager.getEntities()) {
             snaps.add(e.toSnapshot());
@@ -236,7 +298,11 @@ public class ServerMultiplayerGame implements MultiplayerGameContext {
         return new GameSnapshot(tick, serverTime, delta,
                 gameStateManager.getCurrentRound(),
                 snaps,
-                players);
+                players,
+                phase,
+                waitingForPlayers,
+                readyStates,
+                message);
     }
 
     // ===== 내부 로직 재사용 =====
@@ -274,6 +340,10 @@ public class ServerMultiplayerGame implements MultiplayerGameContext {
         }
 
         gameStateManager.setAlienCount(alienCount);
+    }
+
+    private boolean isBossRound(int round) {
+        return round == 2 || round == 4 || round == 6 || (round > 6 && round % 2 == 0);
     }
 
     private void tryToFire(String playerId, PlayerRuntime runtime) {
@@ -456,15 +526,39 @@ public class ServerMultiplayerGame implements MultiplayerGameContext {
 
     @Override
     public void notifyBossDefeated(String killerPlayerId) {
-        gameStateManager.setMessage("BOSS DEFEATED!");
-        gameStateManager.setWaitingForKeyPress(true);
+        if (inIntermission || pendingRoundInitializer != null) {
+            return;
+        }
+        int completedRound = gameStateManager.getCurrentRound();
         boolean roundAdvanced = gameStateManager.advanceRound();
         if (roundAdvanced) {
-            gameStateManager.getEntities().clear();
-            initEntities();
+            int nextRound = gameStateManager.getCurrentRound();
+            boolean bossNext = isBossRound(nextRound);
+            Runnable initializer = () -> {
+                gameStateManager.getEntities().clear();
+                if (bossNext) {
+                    spawnBoss(false);
+                } else {
+                    initEntities();
+                }
+            };
+            scheduleIntermission(
+                    new RoundTransition(
+                            RoundTransition.Type.BOSS_DEFEATED,
+                            completedRound,
+                            nextRound,
+                            bossNext,
+                            "보스를 처치했습니다! 다음 라운드를 준비하세요."),
+                    initializer);
         } else {
-            gameStateManager.setMessage("GAME COMPLETED!");
-            gameStateManager.setWaitingForKeyPress(true);
+            scheduleIntermission(
+                    new RoundTransition(
+                            RoundTransition.Type.GAME_COMPLETED,
+                            completedRound,
+                            completedRound,
+                            false,
+                            "모든 보스를 물리쳤습니다!"),
+                    null);
         }
     }
 
@@ -483,19 +577,39 @@ public class ServerMultiplayerGame implements MultiplayerGameContext {
     }
 
     private void notifyWin() {
+        if (inIntermission || pendingRoundInitializer != null) {
+            return;
+        }
+        int completedRound = gameStateManager.getCurrentRound();
         boolean roundAdvanced = gameStateManager.advanceRound();
         if (roundAdvanced) {
-            if (gameStateManager.getCurrentRound() == 2
-                    || gameStateManager.getCurrentRound() == 4
-                    || gameStateManager.getCurrentRound() == 6) {
-                spawnBoss();
-            } else {
+            int nextRound = gameStateManager.getCurrentRound();
+            boolean bossNext = isBossRound(nextRound);
+            Runnable initializer = () -> {
                 gameStateManager.getEntities().clear();
-                initEntities();
-            }
+                if (bossNext) {
+                    spawnBoss(false);
+                } else {
+                    initEntities();
+                }
+            };
+            scheduleIntermission(
+                    new RoundTransition(
+                            RoundTransition.Type.WAVE_CLEARED,
+                            completedRound,
+                            nextRound,
+                            bossNext,
+                            "라운드 " + completedRound + " 클리어! 모든 플레이어 준비 후 다음 라운드가 시작됩니다."),
+                    initializer);
         } else {
-            gameStateManager.setMessage("Well done! You Win!");
-            gameStateManager.setWaitingForKeyPress(true);
+            scheduleIntermission(
+                    new RoundTransition(
+                            RoundTransition.Type.GAME_COMPLETED,
+                            completedRound,
+                            completedRound,
+                            false,
+                            "축하합니다! 모든 라운드를 클리어했습니다."),
+                    null);
         }
     }
 
@@ -585,13 +699,19 @@ public class ServerMultiplayerGame implements MultiplayerGameContext {
     }
 
     private void spawnBoss() {
+        spawnBoss(true);
+    }
+
+    private void spawnBoss(boolean announce) {
         BossEntity boss = new BossEntity(this, 400, 120, gameStateManager.getCurrentRound());
         gameStateManager.getEntities().add(boss);
         AlienEntity leftAlien = new AlienEntity(this, 200, 120);
         AlienEntity rightAlien = new AlienEntity(this, 600, 120);
         gameStateManager.getEntities().add(leftAlien);
         gameStateManager.getEntities().add(rightAlien);
-        gameStateManager.setMessage("BOSS APPEARED!");
-        gameStateManager.setWaitingForKeyPress(true);
+        if (announce) {
+            gameStateManager.setMessage("BOSS APPEARED!");
+            gameStateManager.setWaitingForKeyPress(true);
+        }
     }
 }

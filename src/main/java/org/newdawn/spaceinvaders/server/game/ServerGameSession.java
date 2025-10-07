@@ -40,6 +40,11 @@ public class ServerGameSession implements Runnable {
 
     private final Map<String, PlayerInput> latestInputs = new ConcurrentHashMap<>();
     private final Set<String> readyPlayers = ConcurrentHashMap.newKeySet();
+    private enum Phase { HANDSHAKE, ACTIVE, INTERMISSION, COMPLETED }
+    private Phase phase = Phase.HANDSHAKE;
+    private final Map<String, Boolean> roundReady = new ConcurrentHashMap<>();
+    private ServerMultiplayerGame.RoundTransition currentTransition;
+    private long intermissionStartedAt;
 
     private final ScheduledExecutorService scheduler; // 생성자에서 room 할당 후 초기화
 
@@ -126,17 +131,77 @@ public class ServerGameSession implements Runnable {
     }
 
     public void handleAction(PlayerSession session, String action, String data) {
-        // Placeholder for skill activations or other discrete commands.
-    }
+        if (session == null || action == null) {
+            return;
+        }
+			switch (action) {
+				case "ROUND_READY":
+					boolean ready = data == null || !data.equals("0");
+					setPlayerReady(session.getId(), ready);
+					break;
+				case "CHAT":
+					if (data != null && !data.isEmpty()) {
+						GameEvent chatEvent = new GameEvent(GameEvent.Type.CHAT, session.getId(), data, System.currentTimeMillis());
+						broadcastGameEvent(chatEvent);
+					}
+					break;
+				default:
+					// other actions can be handled here later
+					break;
+			}
+		}
 
     public void handlePlayerLeft(PlayerSession session) {
         if (session == null) return;
         readyPlayers.remove(session.getId());
         latestInputs.remove(session.getId());
         players.remove(session.getId());
+        roundReady.remove(session.getId());
         game.removePlayer(session.getId());
         if (players.isEmpty()) {
             shutdown();
+            return;
+        }
+        if (phase == Phase.INTERMISSION) {
+            maybeStartNextRound();
+        }
+    }
+
+    private void setPlayerReady(String playerId, boolean ready) {
+        if (phase != Phase.INTERMISSION || playerId == null || !players.containsKey(playerId)) {
+            return;
+        }
+        if (ready) {
+            roundReady.put(playerId, true);
+        } else {
+            roundReady.remove(playerId);
+        }
+        maybeStartNextRound();
+    }
+
+    private void maybeStartNextRound() {
+        if (phase != Phase.INTERMISSION) {
+            return;
+        }
+        if (!game.hasPendingRoundStart()) {
+            return;
+        }
+        if (players.isEmpty()) {
+            return;
+        }
+        boolean allReady = true;
+        for (String id : players.keySet()) {
+            if (!Boolean.TRUE.equals(roundReady.get(id))) {
+                allReady = false;
+                break;
+            }
+        }
+        if (allReady) {
+            game.startPendingRound();
+            roundReady.clear();
+            currentTransition = null;
+            intermissionStartedAt = 0L;
+            phase = Phase.ACTIVE;
         }
     }
 
@@ -144,6 +209,10 @@ public class ServerGameSession implements Runnable {
         if (running) return;
         game.startGame();
         running = true;
+        phase = Phase.ACTIVE;
+        currentTransition = null;
+        roundReady.clear();
+        intermissionStartedAt = 0L;
         lastTickTimestamp = System.currentTimeMillis();
         scheduler.scheduleAtFixedRate(this, 0, TICK_INTERVAL_MS, TimeUnit.MILLISECONDS);
     }
@@ -160,14 +229,41 @@ public class ServerGameSession implements Runnable {
 
         game.applyInputs(new HashMap<>(latestInputs));
         game.update(delta);
-        GameSnapshot snapshot = game.createSnapshot(tickCounter, now, delta);
+
+        if (phase == Phase.INTERMISSION && !game.isInIntermission()) {
+            phase = Phase.ACTIVE;
+            currentTransition = null;
+            roundReady.clear();
+        }
+
+        ServerMultiplayerGame.RoundTransition transition = game.pollRoundTransition();
+        if (transition != null) {
+            currentTransition = transition;
+            intermissionStartedAt = now;
+            roundReady.clear();
+            if (transition.type == ServerMultiplayerGame.RoundTransition.Type.GAME_COMPLETED) {
+                phase = Phase.COMPLETED;
+            } else {
+                phase = Phase.INTERMISSION;
+            }
+        }
+
+        boolean waitingForPlayers = phase == Phase.INTERMISSION && game.hasPendingRoundStart();
+        Map<String, Boolean> readyStatesView = buildReadyStates();
+
+        GameSnapshot snapshot = game.createSnapshot(tickCounter, now, delta,
+                mapPhase(phase),
+                waitingForPlayers,
+                readyStatesView,
+                currentTransition != null ? currentTransition.message : null);
         broadcastSnapshot(snapshot);
     }
 
     private void broadcastSnapshot(GameSnapshot snapshot) {
         String entities = GameSnapshotCodec.encodeEntities(snapshot.entities);
         String playersPayload = GameSnapshotCodec.encodePlayers(snapshot.players);
-        String line = TextMessage.builder(GAME_STATE)
+        String readyPayload = encodeReady(snapshot.readyStates);
+        TextMessage.Builder builder = TextMessage.builder(GAME_STATE)
                 .put(ProtocolKeys.ROOM_ID, room.getId())
                 .put(ProtocolKeys.TICK, snapshot.tick)
                 .put(ProtocolKeys.DELTA, snapshot.deltaMillis)
@@ -175,7 +271,15 @@ public class ServerGameSession implements Runnable {
                 .put(ProtocolKeys.ROUND, snapshot.round)
                 .put(ProtocolKeys.ENTITIES, entities)
                 .put(ProtocolKeys.PLAYERS, playersPayload)
-                .toLine();
+                .put(ProtocolKeys.PHASE, snapshot.phase.name())
+                .put(ProtocolKeys.WAITING, snapshot.waitingForPlayers ? "1" : "0");
+        if (!readyPayload.isEmpty()) {
+            builder.put(ProtocolKeys.READY, readyPayload);
+        }
+        if (snapshot.message != null && !snapshot.message.isEmpty()) {
+            builder.put(ProtocolKeys.MESSAGE, snapshot.message);
+        }
+        String line = builder.toLine();
         sendToAll(line);
 
         // Events are currently empty; placeholder for future use.
@@ -193,6 +297,50 @@ public class ServerGameSession implements Runnable {
     private void sendToAll(String line) {
         for (PlayerSession ps : players.values()) {
             ps.getOut().println(line);
+        }
+    }
+
+    private void broadcastGameEvent(GameEvent event) {
+        if (event == null) {
+            return;
+        }
+        String payload = GameEventCodec.encode(Collections.singletonList(event));
+        if (payload.isEmpty()) {
+            return;
+        }
+        String line = TextMessage.builder(GAME_EVENT)
+                .put(ProtocolKeys.ROOM_ID, room.getId())
+                .put(ProtocolKeys.TICK, tickCounter)
+                .put(ProtocolKeys.EVENTS, payload)
+                .toLine();
+        sendToAll(line);
+    }
+
+    private Map<String, Boolean> buildReadyStates() {
+        Map<String, Boolean> view = new LinkedHashMap<>();
+        for (String id : players.keySet()) {
+            view.put(id, Boolean.TRUE.equals(roundReady.get(id)));
+        }
+        return view;
+    }
+
+    private String encodeReady(Map<String, Boolean> readyStates) {
+        if (readyStates == null || readyStates.isEmpty()) {
+            return "";
+        }
+        StringBuilder sb = new StringBuilder();
+        readyStates.forEach((id, ready) -> {
+            if (sb.length() > 0) sb.append(';');
+            sb.append(TextMessage.escapeComponent(id)).append('=').append(ready ? '1' : '0');
+        });
+        return sb.toString();
+    }
+
+    private GameSnapshot.Phase mapPhase(Phase p) {
+        switch (p) {
+            case INTERMISSION: return GameSnapshot.Phase.INTERMISSION;
+            case COMPLETED: return GameSnapshot.Phase.COMPLETED;
+            default: return GameSnapshot.Phase.ACTIVE;
         }
     }
 

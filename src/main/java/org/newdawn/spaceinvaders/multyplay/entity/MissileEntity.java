@@ -118,10 +118,14 @@ public class MissileEntity extends Entity {
         
         // if we've hit an alien, kill it!
         if (other instanceof AlienEntity) {
+            AlienEntity alien = (AlienEntity) other;
             String ownerId = getOwnerId();
+            int damage = Math.max(alien.getCurrentHP(), game.getPlayerAttackPower(ownerId) * 4);
+            alien.takeDamage(damage);
+            if (alien.getCurrentHP() <= 0) {
+                game.notifyAlienKilled(ownerId);
+            }
             game.removeEntity(this);
-            game.removeEntity(other);
-            game.notifyAlienKilled(ownerId);
             used = true;
         }
 

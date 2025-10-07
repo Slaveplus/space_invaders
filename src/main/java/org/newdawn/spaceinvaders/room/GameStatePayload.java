@@ -1,12 +1,14 @@
 package org.newdawn.spaceinvaders.room;
 
 import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import org.newdawn.spaceinvaders.multyplay.entity.EntitySnapshot;
 
 import org.newdawn.spaceinvaders.multyplay.net.GameSnapshot;
 import org.newdawn.spaceinvaders.multyplay.net.protocol.GameSnapshotCodec;
+import org.newdawn.spaceinvaders.multyplay.net.protocol.ProtocolKeys;
 import org.newdawn.spaceinvaders.multyplay.net.protocol.TextMessage;
 /**
  * 
@@ -26,7 +28,24 @@ public final class GameStatePayload {
         this.entities = entities;
         this.players = players;
     }
-    
+
+    private static Map<String, Boolean> decodeReady(String payload) {
+        if (payload == null || payload.isEmpty()) {
+            return Collections.emptyMap();
+        }
+        Map<String, Boolean> map = new LinkedHashMap<>();
+        String[] entries = payload.split(";");
+        for (String entry : entries) {
+            if (entry.isEmpty()) continue;
+            int idx = entry.indexOf('=');
+            if (idx <= 0) continue;
+            String id = TextMessage.unescapeComponent(entry.substring(0, idx));
+            boolean ready = idx + 1 < entry.length() && entry.charAt(idx + 1) == '1';
+            map.put(id, ready);
+        }
+        return map;
+    }
+
     public static GameStatePayload fromLine(String line) {
         try {
             TextMessage msg = TextMessage.parse(line);
@@ -38,7 +57,14 @@ public final class GameStatePayload {
     
             List<EntitySnapshot> entities = GameSnapshotCodec.decodeEntities(msg.get("entities"));
             Map<String, GameSnapshot.PlayerScalarState> players = GameSnapshotCodec.decodePlayers(msg.get("players"));
-            GameSnapshot snapshot = new GameSnapshot(tick, serverTime, delta, round, entities, players);
+            String phaseStr = msg.get(ProtocolKeys.PHASE);
+            GameSnapshot.Phase phase = phaseStr != null ? GameSnapshot.Phase.valueOf(phaseStr) : GameSnapshot.Phase.ACTIVE;
+            boolean waitingForPlayers = "1".equals(msg.get(ProtocolKeys.WAITING));
+            Map<String, Boolean> readyStates = decodeReady(msg.get(ProtocolKeys.READY));
+            String message = msg.get(ProtocolKeys.MESSAGE);
+
+            GameSnapshot snapshot = new GameSnapshot(tick, serverTime, delta, round, entities, players,
+                    phase, waitingForPlayers, readyStates, message);
             return new GameStatePayload(roomId, snapshot,
                     Collections.unmodifiableList(entities),
                     Collections.unmodifiableMap(players));
