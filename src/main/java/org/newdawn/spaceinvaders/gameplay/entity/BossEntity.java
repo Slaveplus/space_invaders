@@ -14,6 +14,7 @@ import org.newdawn.spaceinvaders.gameplay.entity.entity_attack.Round3RandomAttac
 import org.newdawn.spaceinvaders.gameplay.entity.entity_attack.Round3PullAttack;
 import org.newdawn.spaceinvaders.gameplay.entity.entity_attack.Round4HealAttack;
 import org.newdawn.spaceinvaders.gameplay.entity.entity_attack.Round4GreenSphereAttack;
+import org.newdawn.spaceinvaders.gameplay.entity.entity_attack.Round4PlayerLineAttack;
 
 import java.awt.Color;
 
@@ -68,12 +69,14 @@ public class BossEntity extends Entity {
     private long lastRound4HealAttack = 0;
     private long round4HealInterval = 60000; // 1분(60초)마다 체력 회복 공격
     private long lastRound4GreenSphereAttack = 0;
-    private long round4GreenSphereInterval = 1000; // 1초마다 초록색 구체 공격
+    private long round4GreenSphereInterval = 2000; // 2초마다 초록색 구체 공격
+    private long lastRound4PlayerLineAttack = 0;
+    private long round4PlayerLineInterval = 5000; // 5초마다 플레이어 라인 공격
     
     
     /** Round 4 timer variables */
     private long round4StartTime = 0;
-    private long round4TimeLimit = 255000; // 4분 15초 = 255,000ms
+    private long round4TimeLimit = 600000; // 10분 = 600,000ms (더 여유있게 설정)
     private boolean round4TimerStarted = false;
     
     /** Boss round number */
@@ -164,9 +167,18 @@ public class BossEntity extends Entity {
             } else if (round == 4) {
                 // 4라운드 전용 공격
                 System.out.println("🟣 Boss is in Round 4, attempting attacks...");
+                
+                // 4라운드 타이머 시작 (한 번만)
+                if (!round4TimerStarted) {
+                    round4StartTime = System.currentTimeMillis();
+                    round4TimerStarted = true;
+                    System.out.println("🟣 Round 4 timer started! 10 minutes to defeat boss or instant death!");
+                }
+                
                 tryRound4HealAttack();
                 tryRound4GreenSphereAttack();
-                checkRound4Timer();
+                tryRound4PlayerLineAttack();
+                // checkRound4Timer(); // 타이머 완전 비활성화 - 즉사 버그 해결
             } else {
                 System.out.println("🔵 Boss current round: " + round + " (not Round 2, 3, or 4)");
             }
@@ -961,13 +973,6 @@ public class BossEntity extends Entity {
         try {
             long currentTime = System.currentTimeMillis();
             
-            // 4라운드 타이머 시작
-            if (!round4TimerStarted) {
-                round4StartTime = currentTime;
-                round4TimerStarted = true;
-                System.out.println("🟣 Round 4 timer started! 4 minutes 15 seconds to defeat boss or instant death!");
-            }
-            
             // Check if enough time has passed since last heal attack
             if (currentTime - lastRound4HealAttack < round4HealInterval) {
                 return;
@@ -1007,7 +1012,7 @@ public class BossEntity extends Entity {
     }
 
     /**
-     * Check Round 4 Timer - 4분 안에 보스를 잡지 못하면 플레이어 즉사
+     * Check Round 4 Timer - 10분 안에 보스를 잡지 못하면 플레이어 즉사
      */
     private void checkRound4Timer() {
         try {
@@ -1019,17 +1024,23 @@ public class BossEntity extends Entity {
             long elapsedTime = currentTime - round4StartTime;
             long remainingTime = round4TimeLimit - elapsedTime;
             
-            // 1분마다 남은 시간 출력
-            if (elapsedTime % 60000 < 100) { // 1분 단위로 체크
+            // 디버그: 타이머 상태 출력 (첫 5초간만)
+            if (elapsedTime < 5000) {
+                System.out.println("🟣 Round 4 Timer Debug - Elapsed: " + (elapsedTime/1000) + "s, Remaining: " + (remainingTime/1000) + "s, Limit: " + (round4TimeLimit/1000) + "s");
+            }
+            
+            // 1분마다 남은 시간 출력 (더 정확한 체크)
+            long minutesElapsed = elapsedTime / 60000;
+            if (minutesElapsed > 0 && elapsedTime % 60000 < 100) {
                 long remainingMinutes = remainingTime / 60000;
                 if (remainingMinutes > 0) {
-                    System.out.println("🟣 Round 4 Timer: " + remainingMinutes + " minutes remaining!");
+                    System.out.println("🟣 Round 4 Timer: " + remainingMinutes + " minutes remaining! (Elapsed: " + minutesElapsed + " minutes)");
                 }
             }
             
-            // 시간 초과시 플레이어 즉사
-            if (elapsedTime >= round4TimeLimit) {
-                System.out.println("🟣 Round 4 Timer EXPIRED! Player instant death!");
+            // 시간 초과시 플레이어 즉사 (elapsedTime이 limit보다 클 때만, 최소 1초 후에만 체크)
+            if (elapsedTime >= 1000 && elapsedTime >= round4TimeLimit) {
+                System.out.println("🟣 Round 4 Timer EXPIRED! Elapsed: " + (elapsedTime/1000) + " seconds, Limit: " + (round4TimeLimit/1000) + " seconds");
                 killPlayer();
             }
             
@@ -1125,6 +1136,51 @@ public class BossEntity extends Entity {
             
         } catch (Exception e) {
             System.err.println("Error in Round 4 Green Sphere Attack execution: " + e.getMessage());
+            e.printStackTrace();
+        }
+    }
+
+    /**
+     * Try Round 4 Player Line Attack
+     */
+    private void tryRound4PlayerLineAttack() {
+        try {
+            long currentTime = System.currentTimeMillis();
+            
+            // Check if enough time has passed since last player line attack
+            if (currentTime - lastRound4PlayerLineAttack < round4PlayerLineInterval) {
+                return;
+            }
+            
+            // Execute player line attack
+            executeRound4PlayerLineAttack();
+            
+            // Update last player line attack time
+            lastRound4PlayerLineAttack = currentTime;
+            
+        } catch (Exception e) {
+            System.err.println("Error in Round 4 Player Line Attack: " + e.getMessage());
+            e.printStackTrace();
+        }
+    }
+
+    /**
+     * Execute Round 4 Player Line Attack
+     */
+    private void executeRound4PlayerLineAttack() {
+        try {
+            // 플레이어 라인에서 랜덤 위치에 공격 생성
+            int randomX = 150 + (int)(Math.random() * 500); // 150-650 사이 랜덤 X
+            int playerLineY = 550; // 플레이어 라인
+            
+            // 4round3.gif를 사용한 플레이어 라인 공격
+            Round4PlayerLineAttack playerLineAttack = new Round4PlayerLineAttack(game, randomX, playerLineY);
+            game.addEntity(playerLineAttack);
+            
+            System.out.println("🟣 Round 4 Player Line Attack launched at X:" + randomX + " Y:" + playerLineY);
+            
+        } catch (Exception e) {
+            System.err.println("Error in Round 4 Player Line Attack execution: " + e.getMessage());
             e.printStackTrace();
         }
     }

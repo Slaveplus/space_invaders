@@ -8,6 +8,7 @@ import java.util.ArrayList;
 import org.newdawn.spaceinvaders.gameplay.entity.AlienEntity;
 import org.newdawn.spaceinvaders.gameplay.entity.BossEntity;
 import org.newdawn.spaceinvaders.gameplay.entity.Entity;
+import org.newdawn.spaceinvaders.gameplay.entity.NearEntity;
 import org.newdawn.spaceinvaders.gameplay.entity.ExplosionEntity;
 import org.newdawn.spaceinvaders.gameplay.entity.entity_attack.IceAttack;
 import org.newdawn.spaceinvaders.gameplay.entity.MissileEntity;
@@ -105,6 +106,7 @@ public class Game extends Canvas implements Screen
 		
 		// initialise the entities in our game so there's something
 		// to see at startup
+		System.out.println("🎮 Game constructor calling initEntities()...");
 		initEntities();
 	}
 
@@ -114,6 +116,8 @@ public class Game extends Canvas implements Screen
 	 * create a new set.
 	 */
 	public void startGame() {
+		System.out.println("🎮 startGame() called!");
+		
 		// 게임플레이 상태 초기화 (entities.clear() 포함)
 		gameStateManager.startNewGame();
 		
@@ -148,14 +152,21 @@ public class Game extends Canvas implements Screen
 	 * entitiy will be added to the overall list of entities in the game.
 	 */
 	private void initEntities() {
+		System.out.println("🎮 initEntities() called for Round " + gameStateManager.getCurrentRound());
+		
 		// create the player ship and place it roughly in the center of the screen
 		ship = new ShipEntity(this, currentSpaceshipSkin, 370, 550);
 		gameStateManager.getEntities().add(ship);
 		
-		// All rounds (1-5) now spawn bosses instead of regular aliens
-		spawnBoss();
-		
-		// alienCount is set in spawnBoss() method (Boss + 2 side aliens = 3)
+		// Check if this is a near monster round (1,3,5,7) or boss round (2,4,6,8)
+		int currentRound = gameStateManager.getCurrentRound();
+		if (isNearRound(currentRound)) {
+			System.out.println("🎮 Spawning Near Monsters for Round " + currentRound);
+			spawnNearMonsters();
+		} else {
+			System.out.println("🎮 Spawning Boss for Round " + currentRound);
+			spawnBoss();
+		}
 	}
 	
 	/**
@@ -202,14 +213,13 @@ public class Game extends Canvas implements Screen
 			return; // No damage taken when invincible
 		}
 		
-		// Apply damage multiple times based on attack damage value
-		for (int i = 0; i < damage; i++) {
-			gameStateManager.takeDamage();
-			if (gameStateManager.getCurrentHP() <= 0) {
-				gameStateManager.setMessage("Oh no! Boss attack got you, try again?");
-				gameStateManager.setWaitingForKeyPress(true);
-				break;
-			}
+		// Apply damage only once (not multiple times)
+		// 이전: for (int i = 0; i < damage; i++) - 데미지 값만큼 반복 (위험!)
+		// 수정: 한 번만 데미지 적용
+		gameStateManager.takeDamage();
+		if (gameStateManager.getCurrentHP() <= 0) {
+			gameStateManager.setMessage("Oh no! Boss attack got you, try again?");
+			gameStateManager.setWaitingForKeyPress(true);
 		}
 	}
 	
@@ -224,8 +234,13 @@ public class Game extends Canvas implements Screen
 			// Update background for new round
 			updateBackgroundForRound(gameStateManager.getCurrentRound());
 			
-			// All rounds are now boss rounds (1~5라운드 모두 보스)
-			spawnBoss();
+			// Check if next round is near or boss round
+			int nextRound = gameStateManager.getCurrentRound();
+			if (isNearRound(nextRound)) {
+				spawnNearMonsters();
+			} else {
+				spawnBoss();
+			}
 		} else {
 			// Game completed
 			gameStateManager.setMessage("Well done! You Win!");
@@ -257,13 +272,18 @@ public class Game extends Canvas implements Screen
 			if (entity instanceof AlienEntity && !removeList.contains(entity)) {
 				remainingAliens++;
 			}
+			// Check for NearEntity as well
+			if (entity.getClass().getSimpleName().equals("NearEntity") && !removeList.contains(entity)) {
+				remainingAliens++;
+			}
 			if (entity instanceof BossEntity && !removeList.contains(entity)) {
 				bossAlive = true;
 			}
 		}
 		
 		// Only advance round if all aliens are dead AND boss is also dead
-		if (remainingAliens == 0 && !bossAlive) {
+		// AND it's not a near monster round (near rounds are handled by checkAllNearMonstersDefeated)
+		if (remainingAliens == 0 && !bossAlive && !isNearRound(gameStateManager.getCurrentRound())) {
 			notifyWin();
 		}
 		
@@ -348,9 +368,30 @@ public class Game extends Canvas implements Screen
 	 * @param skillValue The value/duration of the skill
 	 */
 	public void createSkillDrop(int x, int y, int skillType, int skillValue) {
+		System.out.println("🎁 createSkillDrop called: type=" + skillType + ", value=" + skillValue + " at (" + x + ", " + y + ")");
+		
 		// Create skill drop using ShotEntity with skill drop functionality
-		ShotEntity skillDrop = new ShotEntity(this, "sprites/shot.gif", x, y, skillType, skillValue);
+		// 스킬 타입에 따라 다른 이미지 사용
+		String spritePath;
+		switch (skillType) {
+			case 0: // Invincible (무적)
+				spritePath = "sprites/Skill/1.png";
+				break;
+			case 2: // Triple Shot (3연발)
+				spritePath = "sprites/Skill/3.png";
+				break;
+			case 3: // Missile (미사일)
+				spritePath = "sprites/Skill/4.png";
+				break;
+			default:
+				spritePath = "sprites/shot.gif";
+				break;
+		}
+		
+		System.out.println("🎁 Using sprite: " + spritePath);
+		ShotEntity skillDrop = new ShotEntity(this, spritePath, x, y, skillType, skillValue);
 		gameStateManager.getEntities().add(skillDrop);
+		System.out.println("🎁 Skill drop entity added to game. Total entities: " + gameStateManager.getEntities().size());
 	}
 	
 	/**
@@ -410,10 +451,10 @@ public class Game extends Canvas implements Screen
 	}
 	
 	/**
-	 * Check if player has piercing shots
+	 * Check if player has piercing shots (관통 스킬 제거됨)
 	 */
 	public boolean hasPiercingShots() {
-		return skillManager.hasPiercing();
+		return false; // 관통 스킬 제거됨
 	}
 	
 	/**
@@ -570,7 +611,10 @@ public class Game extends Canvas implements Screen
 	/**
 	 * 새 게임 시작 (gameplay 패키지용)
 	 */
-	public void startNewGame() { startGame(); }
+	public void startNewGame() { 
+		System.out.println("🎮 startNewGame() called!");
+		startGame(); 
+	}
 	
 	/**
 	 * 엔티티 리스트 반환 (gameplay 패키지용)
@@ -680,6 +724,129 @@ public class Game extends Canvas implements Screen
 		gameStateManager.setSkillPoints(currentPoints + points);
 		System.out.println("Skill points added: " + points + " (Total: " + (currentPoints + points) + ")");
 	}
+
+	/**
+	 * Drop random skill at specified location
+	 */
+	public void dropRandomSkill(int x, int y) {
+		try {
+			System.out.println("🎁 dropRandomSkill called at (" + x + ", " + y + ")");
+			
+			// Random skill type (0: Invincible, 1: Triple Shot, 2: Missile) - 관통 스킬 제거
+			double random = Math.random();
+			int skillType;
+			int skillValue;
+			
+			if (random < 0.33) {
+				skillType = 0; // Invincible (무적)
+				skillValue = 5; // 5 seconds
+				System.out.println("🎁 Dropping Invincible skill");
+			} else if (random < 0.66) {
+				skillType = 2; // Triple Shot (3연발)
+				skillValue = 8; // 8 seconds
+				System.out.println("🎁 Dropping Triple Shot skill");
+			} else {
+				skillType = 3; // Missile (미사일)
+				skillValue = 1; // 1 missile
+				System.out.println("🎁 Dropping Missile skill");
+			}
+			
+			// Create skill drop entity
+			createSkillDrop(x, y, skillType, skillValue);
+			System.out.println("🎁 Skill drop created successfully");
+			
+		} catch (Exception e) {
+			System.err.println("Error dropping random skill: " + e.getMessage());
+			e.printStackTrace();
+		}
+	}
+
+	/**
+	 * Drop random skill points at specified location
+	 */
+	public void dropRandomSkillPoints(int x, int y) {
+		try {
+			// Random skill points amount (1-5)
+			int skillPoints = 1 + (int)(Math.random() * 5);
+			
+			// Add skill points directly
+			addSkillPoints(skillPoints);
+			
+			System.out.println("Skill points dropped: " + skillPoints);
+			
+		} catch (Exception e) {
+			System.err.println("Error dropping skill points: " + e.getMessage());
+			e.printStackTrace();
+		}
+	}
+
+	/**
+	 * Check if the current round is a near monster round
+	 * 
+	 * @param round The round number
+	 * @return true if it's a near monster round (1,3,5,7), false if it's a boss round (2,4,6,8,9)
+	 */
+	private boolean isNearRound(int round) {
+		boolean isNear = round == 1 || round == 3 || round == 5 || round == 7;
+		System.out.println("🎮 isNearRound(" + round + ") = " + isNear);
+		return isNear;
+	}
+
+	/**
+	 * Get the boss round number from near round number
+	 * 
+	 * @param nearRound The near round number (1,3,5,7)
+	 * @return The corresponding boss round number (1,2,3,4)
+	 */
+	private int getBossRoundFromNearRound(int nearRound) {
+		switch (nearRound) {
+			case 1:
+				return 1; // 1라운드 보스 전
+			case 3:
+				return 2; // 2라운드 보스 전
+			case 5:
+				return 3; // 3라운드 보스 전
+			case 7:
+				return 4; // 4라운드 보스 전
+			default:
+				return 1;
+		}
+	}
+	
+	/**
+	 * Spawn near monsters for the current round
+	 */
+	public void spawnNearMonsters() {
+		try {
+			int round = gameStateManager.getCurrentRound();
+			
+			// Spawn 6 near monsters per round with unique IDs
+			NearEntity near1 = new NearEntity(this, 150, 120, round, 0);
+			NearEntity near2 = new NearEntity(this, 250, 120, round, 1);
+			NearEntity near3 = new NearEntity(this, 350, 120, round, 2);
+			NearEntity near4 = new NearEntity(this, 450, 120, round, 3);
+			NearEntity near5 = new NearEntity(this, 550, 120, round, 4);
+			NearEntity near6 = new NearEntity(this, 650, 120, round, 5);
+			
+			gameStateManager.getEntities().add(near1);
+			gameStateManager.getEntities().add(near2);
+			gameStateManager.getEntities().add(near3);
+			gameStateManager.getEntities().add(near4);
+			gameStateManager.getEntities().add(near5);
+			gameStateManager.getEntities().add(near6);
+			
+			// Set alien count: 6 near monsters
+			gameStateManager.setAlienCount(6);
+			
+			System.out.println("NEAR MONSTERS SPAWNED! Round " + round + " - 6 Near Monsters with " + near1.getMaxHP() + " HP each!");
+			
+			gameStateManager.setMessage("🎯 NEAR MONSTERS APPEARED! 🎯");
+			gameStateManager.setWaitingForKeyPress(false); // Near monsters 등장 시 바로 게임 시작
+		} catch (Exception e) {
+			System.err.println("Error spawning near monsters: " + e.getMessage());
+			e.printStackTrace();
+		}
+	}
 	
 	/**
 	 * Spawn a boss for the current round
@@ -687,10 +854,24 @@ public class Game extends Canvas implements Screen
 	public void spawnBoss() {
 		try {
 			int round = gameStateManager.getCurrentRound();
-			BossEntity boss = new BossEntity(this, 400, 120, round); // Center, slightly lower
+			int bossRound;
+			
+			// Determine boss round number
+			if (isNearRound(round)) {
+				// This shouldn't happen, but handle it gracefully
+				bossRound = getBossRoundFromNearRound(round);
+			} else {
+				// Boss rounds: 2,4,6,8 -> boss types: 1,2,3,4
+				if (round == 2) bossRound = 1;
+				else if (round == 4) bossRound = 2;
+				else if (round == 6) bossRound = 3;
+				else bossRound = 4; // Round 8 = final boss
+			}
+			
+			BossEntity boss = new BossEntity(this, 400, 120, bossRound); // Center, slightly lower
 			gameStateManager.getEntities().add(boss);
 			
-			System.out.println("BOSS SPAWNED! Round " + round + " Boss with " + boss.getMaxHP() + " HP!");
+			System.out.println("BOSS SPAWNED! Round " + round + " -> Boss Type " + bossRound + " with " + boss.getMaxHP() + " HP!");
 			
 			// Set alien count: Boss (1) only
 			gameStateManager.setAlienCount(1);
@@ -731,6 +912,7 @@ public class Game extends Canvas implements Screen
 		return null;
 	}
 	
+
 	/**
 	 * Handle boss defeat
 	 */
@@ -745,11 +927,83 @@ public class Game extends Canvas implements Screen
 		if (roundAdvanced) {
 			// Clear entities and start next round
 			gameStateManager.getEntities().clear();
-			initEntities();
+			
+			// Re-add player ship
+			ship = new ShipEntity(this, currentSpaceshipSkin, 370, 550);
+			gameStateManager.getEntities().add(ship);
+			
+			// Check if next round is near or boss round
+			int nextRound = gameStateManager.getCurrentRound();
+			if (isNearRound(nextRound)) {
+				spawnNearMonsters();
+			} else {
+				spawnBoss();
+			}
 		} else {
 			// Game completed
 			gameStateManager.setMessage("🏆 GAME COMPLETED! 🏆 Congratulations!");
 			gameStateManager.setWaitingForKeyPress(true);
+		}
+	}
+
+	/**
+	 * Check if all near monsters are defeated and advance to boss round
+	 */
+	public void checkAllNearMonstersDefeated() {
+		try {
+			System.out.println("🎯 checkAllNearMonstersDefeated() called!");
+			
+			// Count remaining near monsters
+			int nearMonsterCount = 0;
+			int totalEntities = gameStateManager.getEntities().size();
+			System.out.println("🎯 Total entities in game: " + totalEntities);
+			
+		for (Entity entity : gameStateManager.getEntities()) {
+			// System.out.println("🎯 Entity type: " + entity.getClass().getSimpleName());
+			if (entity instanceof org.newdawn.spaceinvaders.gameplay.entity.NearEntity && !gameStateManager.getRemoveList().contains(entity)) {
+				nearMonsterCount++;
+			}
+		}
+			
+			System.out.println("🎯 Near monsters remaining: " + nearMonsterCount);
+			
+		// If no near monsters left, advance to boss round
+		if (nearMonsterCount == 0) {
+			System.out.println("🎯 All near monsters defeated! Advancing to boss round...");
+			gameStateManager.setMessage("🎯 ALL NEAR MONSTERS DEFEATED! 🎯");
+			
+			// Advance to boss round
+			boolean roundAdvanced = gameStateManager.advanceRound();
+			System.out.println("🎯 Round advanced: " + roundAdvanced + ", Current round: " + gameStateManager.getCurrentRound());
+			
+			if (roundAdvanced) {
+				// Clear entities except player
+				gameStateManager.getEntities().clear();
+				
+				// Re-add player ship
+				ship = new ShipEntity(this, currentSpaceshipSkin, 370, 550);
+				gameStateManager.getEntities().add(ship);
+				
+				// Update background for new round
+				updateBackgroundForRound(gameStateManager.getCurrentRound());
+				
+				// Spawn boss for current round
+				System.out.println("🎯 Spawning boss for round " + gameStateManager.getCurrentRound());
+				spawnBoss();
+				
+				// Continue game without waiting for key press
+				gameStateManager.setWaitingForKeyPress(false);
+			} else {
+				// Game completed
+				gameStateManager.setMessage("🏆 GAME COMPLETED! 🏆 Congratulations!");
+				gameStateManager.setWaitingForKeyPress(true);
+			}
+		} else {
+			System.out.println("🎯 Still " + nearMonsterCount + " near monsters remaining, waiting...");
+		}
+		} catch (Exception e) {
+			System.err.println("Error checking near monsters: " + e.getMessage());
+			e.printStackTrace();
 		}
 	}
 	
@@ -901,7 +1155,22 @@ public class Game extends Canvas implements Screen
 	 * 라운드별 배경 업데이트
 	 */
 	public void updateBackgroundForRound(int round) {
-		String backgroundPath = "sprites/stage_background/" + round + ".png";
+		String backgroundFileName;
+		
+		// 라운드별 배경 파일 매핑 (수정된 버전)
+		if (round == 1 || round == 2) {
+			backgroundFileName = "1.png";
+		} else if (round == 3 || round == 4) {
+			backgroundFileName = "2.png";
+		} else if (round == 5 || round == 6) {
+			backgroundFileName = "3.png";
+		} else if (round == 7 || round == 8) {
+			backgroundFileName = "4.png";  // 5.png에서 4.png로 변경
+		} else {
+			backgroundFileName = "1.png"; // 기본값
+		}
+		
+		String backgroundPath = "sprites/stage_background/" + backgroundFileName;
 		backgroundRenderer.setResourcePath(backgroundPath);
 		System.out.println("라운드 " + round + " 배경 변경: " + backgroundPath);
 	}

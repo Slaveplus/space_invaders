@@ -16,7 +16,7 @@ public class GameStateManager {
 
     // 라운드 정보
     private int currentRound = 1;
-    private final int MAX_ROUND = 5;
+    private final int MAX_ROUND = 8; // 1-4라운드: Near + Boss, 5라운드: Boss only
     private int alienCount;
 
     // 플레이어 스탯
@@ -66,6 +66,8 @@ public class GameStateManager {
      * 게임 시작 시 초기화
      */
     public void startNewGame() {
+        System.out.println("🎮 GameStateManager.startNewGame() called!");
+        
         // Reset player stats
         attackPower = 10;
         attackSpeed = 1.0;
@@ -75,6 +77,7 @@ public class GameStateManager {
         
         // Reset round
         currentRound = 1;
+        System.out.println("🎮 GameStateManager: Set currentRound = " + currentRound);
         
         // Reset alien firing interval
         alienFiringInterval = baseAlienFiringInterval;

@@ -19,9 +19,9 @@ public class Round4HealAttack extends Entity {
     private long healDuration = 3000; // 3초간 유지
     /** Start time */
     private long startTime;
-    /** Heal attack size - 매우 큰 회복 공격 */
-    private int healWidth = 400;
-    private int healHeight = 400;
+    /** Heal attack size - 회복 공격 */
+    private int healWidth = 300;
+    private int healHeight = 300;
 
     /**
      * Create a new heal attack entity

@@ -1,8 +1,11 @@
 package org.newdawn.spaceinvaders.gameplay.entity;
 
 import java.awt.Color;
+import java.awt.Font;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
+import java.awt.BasicStroke;
+import java.awt.image.BufferedImage;
 
 import org.newdawn.spaceinvaders.gameplay.Game;
 
@@ -28,6 +31,8 @@ public class ShotEntity extends Entity {
 	private int skillValue = 0;
 	/** True if this shot has piercing ability */
 	private boolean hasPiercing = false;
+	/** True if this is a near monster shot (needs smaller size) */
+	private boolean isNearMonsterShot = false;
 	
 	/**
 	 * Create a new shot from the player
@@ -80,12 +85,17 @@ public class ShotEntity extends Entity {
 	public ShotEntity(Game game,String sprite,int x,int y,int skillType,int skillValue) {
 		super(sprite,x,y);
 		
+		System.out.println("🎁 ShotEntity skill drop created: sprite=" + sprite + ", type=" + skillType + ", value=" + skillValue + " at (" + x + ", " + y + ")");
+		
 		this.game = game;
 		this.isSkillDrop = true;
 		this.skillType = skillType;
 		this.skillValue = skillValue;
 		
-		dy = moveSpeed;
+		// 스킬 드롭은 천천히 떨어지도록 속도 조정
+		dy = 100; // 기본 moveSpeed 대신 100으로 고정 (천천히 떨어짐)
+		
+		System.out.println("🎁 ShotEntity initialized: isSkillDrop=" + isSkillDrop + ", skillType=" + this.skillType + ", skillValue=" + this.skillValue + ", dy=" + dy);
 	}
 	
 	/**
@@ -98,9 +108,38 @@ public class ShotEntity extends Entity {
 		// proceed with normal move
 		super.move(delta);
 		
+		// Debug skill drop movement (reduced for performance)
+		// if (isSkillDrop) {
+		//	System.out.println("🎁 Skill drop moving: y=" + y + ", delta=" + delta);
+		// }
+		
 		// if we shot off the screen, remove ourselfs
-		if (y < -100 || y > 600) {
+		// 스킬 드롭은 더 오래 화면에 남아있도록 경계 조정
+		if (y < -50 || y > 700) { // y > 600을 700으로 변경
+			if (isSkillDrop) {
+				System.out.println("🎁 Skill drop removed (off screen): y=" + y);
+			}
 			game.removeEntity(this);
+		}
+	}
+	
+	/**
+	 * Load skill image for skill drop display
+	 */
+	private BufferedImage loadSkillImageForDrop(int skillType) {
+		String imagePath;
+		switch (skillType) {
+			case 0: imagePath = "sprites/Skill/1.png"; break; // Invincible
+			case 2: imagePath = "sprites/Skill/3.png"; break; // Triple Shot
+			case 3: imagePath = "sprites/Skill/4.png"; break; // Missile
+			default: imagePath = "sprites/Skill/1.png"; break;
+		}
+		
+		try {
+			return javax.imageio.ImageIO.read(getClass().getClassLoader().getResourceAsStream(imagePath));
+		} catch (Exception e) {
+			System.err.println("Failed to load skill image: " + imagePath);
+			return null;
 		}
 	}
 	
@@ -117,14 +156,12 @@ public class ShotEntity extends Entity {
 			return;
 		}
 		
-		// Debug: Log collision detection
-		System.out.println("ShotEntity collidedWith called - other entity: " + other.getClass().getSimpleName());
-		System.out.println("Full class name: " + other.getClass().getName());
-		System.out.println("Is BossEntity? " + other.getClass().getSimpleName().equals("BossEntity"));
+		// Debug: Log collision detection (reduced for performance)
+		// System.out.println("ShotEntity collidedWith called - other entity: " + other.getClass().getSimpleName());
 		
 		// if we've hit an alien, kill it!
 		if (other instanceof AlienEntity) {
-			System.out.println("Shot hit AlienEntity! Removing entities...");
+			// System.out.println("Shot hit AlienEntity! Removing entities...");
 			
 			// Create heat effect at impact point
 			game.createHeatEffect((int)other.getX(), (int)other.getY(), 50.0);
@@ -138,9 +175,33 @@ public class ShotEntity extends Entity {
 			used = true;
 		}
 		
+		// if we've hit a near monster, damage it! (but not if this is a near monster shot)
+		if (other.getClass().getSimpleName().equals("NearEntity") && !isNearMonsterShot) {
+			// System.out.println("🎯 Shot hit NearEntity! Damaging near monster...");
+			
+			// Create heat effect at impact point
+			game.createHeatEffect((int)other.getX(), (int)other.getY(), 60.0);
+			
+			// remove the shot
+			game.removeEntity(this);
+			
+			// damage the near monster
+			try {
+				// Cast to NearEntity and call takeDamage directly
+				org.newdawn.spaceinvaders.gameplay.entity.NearEntity nearEntity = (org.newdawn.spaceinvaders.gameplay.entity.NearEntity) other;
+				nearEntity.takeDamage(game.getPlayerAttackPower());
+				// System.out.println("🎯 Near Monster took " + game.getPlayerAttackPower() + " damage!");
+			} catch (Exception e) {
+				System.out.println("🎯 Could not damage near monster: " + e.getMessage());
+				e.printStackTrace();
+			}
+			
+			used = true;
+		}
+		
 		// if we've hit a boss, damage it!
 		if (other.getClass().getSimpleName().equals("BossEntity")) {
-			System.out.println("Shot hit BossEntity! Damaging boss...");
+			// System.out.println("Shot hit BossEntity! Damaging boss...");
 			
 			// Create heat effect at impact point
 			game.createHeatEffect((int)other.getX(), (int)other.getY(), 80.0);
@@ -153,7 +214,7 @@ public class ShotEntity extends Entity {
 				// Use reflection to call takeDamage method if it exists
 				java.lang.reflect.Method takeDamageMethod = other.getClass().getMethod("takeDamage", int.class);
 				takeDamageMethod.invoke(other, game.getPlayerAttackPower());
-				System.out.println("Boss took " + game.getPlayerAttackPower() + " damage!");
+				// System.out.println("Boss took " + game.getPlayerAttackPower() + " damage!");
 			} catch (Exception e) {
 				System.out.println("Could not damage boss: " + e.getMessage());
 			}
@@ -189,15 +250,65 @@ public class ShotEntity extends Entity {
 	 */
 	public void draw(Graphics g) {
 		if (isSkillDrop) {
-			// Draw skill drop with special color
-			g.setColor(Color.CYAN);
-			g.fillOval((int)x - 5, (int)y - 5, 10, 10);
-			g.setColor(Color.WHITE);
-			g.drawOval((int)x - 5, (int)y - 5, 10, 10);
+			// Draw skill drop with same style as in-game skill UI
+			Graphics2D g2d = (Graphics2D) g;
+			int itemSize = 24; // 스킬 드롭 크기
+			int drawX = (int)x - itemSize / 2;
+			int drawY = (int)y - itemSize / 2;
+			
+			// Load skill image based on skill type
+			BufferedImage skillImage = loadSkillImageForDrop(skillType);
+			if (skillImage != null) {
+				// 진한 그림자 효과 (오른쪽 아래로 이동, 더 진한 색상)
+				g2d.setColor(new Color(0, 0, 0, 200)); // 더 진한 그림자
+				g2d.fillRect(drawX + 2, drawY + 2, itemSize, itemSize);
+				
+				// 추가 그림자 (더 깊이감)
+				g2d.setColor(new Color(0, 0, 0, 150));
+				g2d.fillRect(drawX + 1, drawY + 1, itemSize, itemSize);
+				
+				// 실제 스킬 이미지
+				g2d.drawImage(skillImage, drawX, drawY, itemSize, itemSize, null);
+				
+				// 진한 테두리 효과 (선명도 향상)
+				g2d.setColor(new Color(255, 255, 255, 200)); // 더 진한 테두리
+				g2d.setStroke(new BasicStroke(2));
+				g2d.drawRect(drawX, drawY, itemSize, itemSize);
+				
+				// 스킬 개수 표시 (스킬 드롭이므로 항상 1개)
+				int circleX = drawX + itemSize - 4;
+				int circleY = drawY + itemSize - 4;
+				int circleRadius = 6;
+				
+				// 배경 원
+				g2d.setColor(new Color(0, 0, 0, 180));
+				g2d.fillOval(circleX - circleRadius, circleY - circleRadius, circleRadius * 2, circleRadius * 2);
+				
+				// 개수 텍스트
+				g2d.setColor(Color.YELLOW);
+				g2d.setFont(new Font("Arial", Font.BOLD, 8));
+				String countText = "1";
+				int textWidth = g2d.getFontMetrics().stringWidth(countText);
+				int textHeight = g2d.getFontMetrics().getHeight();
+				int textX = circleX - textWidth / 2;
+				int textY = circleY + textHeight / 4;
+				g2d.drawString(countText, textX, textY);
+			} else {
+				// Fallback: Draw simple colored circle
+				g.setColor(Color.CYAN);
+				g.fillOval(drawX, drawY, itemSize, itemSize);
+				g.setColor(Color.WHITE);
+				g.drawOval(drawX, drawY, itemSize, itemSize);
+			}
 		} else if (hasPiercing) {
 			// Draw piercing shot with special color
 			g.setColor(Color.YELLOW);
 			g.fillRect((int)x - 2, (int)y - 10, 4, 20);
+		} else if (isNearMonsterShot) {
+			// Draw near monster shot with 50x50 size
+			int smallWidth = 50;  // 50x50 크기로 키움
+			int smallHeight = 50;
+			sprite.draw(g, (int)x - smallWidth/2, (int)y - smallHeight/2, smallWidth, smallHeight);
 		} else {
 			// Draw normal shot
 			super.draw(g);
@@ -256,5 +367,30 @@ public class ShotEntity extends Entity {
 	 */
 	public int getSkillValue() {
 		return skillValue;
+	}
+	
+	/**
+	 * Set whether this is a near monster shot (for size adjustment)
+	 * 
+	 * @param isNearMonsterShot True if this is a near monster shot
+	 */
+	public void setNearMonsterShot(boolean isNearMonsterShot) {
+		this.isNearMonsterShot = isNearMonsterShot;
+	}
+	
+	/**
+	 * Override getBounds to provide smaller hitbox for near monster shots
+	 * 
+	 * @return The bounds of the shot entity
+	 */
+	public java.awt.Rectangle getBounds() {
+		if (isNearMonsterShot) {
+			// Near monster shots have smaller hitbox (20x20) than display size (50x50)
+			int hitboxSize = 20;
+			return new java.awt.Rectangle((int)x - hitboxSize/2, (int)y - hitboxSize/2, hitboxSize, hitboxSize);
+		} else {
+			// Normal shots use default bounds
+			return super.getBounds();
+		}
 	}
 }

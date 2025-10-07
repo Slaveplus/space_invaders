@@ -17,6 +17,7 @@ public class UIRenderer {
     private static final Font FONT_TEXT_14_B = new Font("Arial", Font.BOLD, 14);
     private static final Font FONT_TEXT_12_P = new Font("Arial", Font.PLAIN, 12);
     private static final Font FONT_TEXT_14_P = new Font("Arial", Font.PLAIN, 14);
+    private static final Font FONT_TEXT_10_P = new Font("Arial", Font.PLAIN, 10);
     private static final BasicStroke STROKE_2PX = new BasicStroke(2);
 
     public UIRenderer(Game game) {
@@ -40,24 +41,16 @@ public class UIRenderer {
         // HP bar
         drawHPBar(g, gameStateManager);
 
-        // Skill points display
-        g.setColor(Color.YELLOW);
-        g.setFont(FONT_TEXT_16_B);
-        g.drawString("스킬 포인트: " + gameStateManager.getSkillPoints(), 20, 100);
-
-        // Stats display
-        g.setColor(Color.WHITE);
-        g.setFont(FONT_TEXT_12_P);
-        g.drawString("공격력: " + gameStateManager.getAttackPower(), 20, 120);
-        g.drawString("공격속도: " + String.format("%.1f", gameStateManager.getAttackSpeed()) + "x", 20, 135);
+        // Skill UI below HP bar (same size as HP bar)
+        drawSkillUI(g, skillManager, gameStateManager);
 
         // Skill effects display
         drawSkillEffects(g, skillManager);
 
-        // Skill inventory display
-        drawSkillInventory(g, skillManager);
-        
-        // Instructions moved to drawSkillInventory to avoid overlap
+        // Q로 강화창이 열렸을 때만 스킬포인트와 스탯 표시
+        if (gameStateManager.isShowingSkillMenu()) {
+            drawUpgradeStats(g, gameStateManager);
+        }
     }
 
     /**
@@ -139,15 +132,7 @@ public class UIRenderer {
             }
         }
 
-        if (skillManager.hasPiercing()) {
-            g.setColor(Color.RED);
-            g.setFont(FONT_TEXT_14_B);
-            long remainingTime = skillManager.getRemainingTime(skillManager.getPiercingEndTime());
-            if (remainingTime > 0) {
-                g.drawString("관통: " + remainingTime + "초", 20, effectY);
-                effectY += 20;
-            }
-        }
+        // 관통 스킬 제거됨
 
         if (skillManager.hasTripleShot()) {
             g.setColor(Color.BLUE);
@@ -186,17 +171,14 @@ public class UIRenderer {
         g.setFont(new Font("Arial", Font.BOLD, 14));
         g.drawString("스킬:", startX, startY - 5);
         
-        // Skill 1: Attack Power (무적)
+        // Skill 1: Invincible (무적)
         drawSkillIconWithCount(g, 0, startX, startY + 5, iconSize, skillManager.getInvincibleSkills());
         
-        // Skill 2: Attack Speed (관통)
-        drawSkillIconWithCount(g, 1, startX + spacing, startY + 5, iconSize, skillManager.getPiercingSkills());
+        // Skill 2: Triple Shot (3줄공격)
+        drawSkillIconWithCount(g, 2, startX + spacing, startY + 5, iconSize, skillManager.getTripleShotSkills());
         
-        // Skill 3: HP Recovery (3줄공격)
-        drawSkillIconWithCount(g, 2, startX + spacing * 2, startY + 5, iconSize, skillManager.getTripleShotSkills());
-        
-        // Skill 4: Missile (미사일)
-        drawSkillIconWithCount(g, 3, startX + spacing * 3, startY + 5, iconSize, skillManager.getMissileSkills());
+        // Skill 3: Missile (미사일)
+        drawSkillIconWithCount(g, 3, startX + spacing * 2, startY + 5, iconSize, skillManager.getMissileSkills());
         
         // Instructions (위쪽으로 이동)
         g.setColor(Color.CYAN);
@@ -242,10 +224,9 @@ public class UIRenderer {
      */
     private Color getSkillColor(int skillType) {
         switch (skillType) {
-            case 0: return new Color(255, 215, 0); // Gold
-            case 1: return new Color(255, 0, 0);   // Red
-            case 2: return new Color(0, 100, 255); // Blue
-            case 3: return new Color(255, 165, 0); // Orange
+            case 0: return new Color(255, 215, 0); // Gold (무적)
+            case 2: return new Color(0, 100, 255); // Blue (3줄공격)
+            case 3: return new Color(255, 165, 0); // Orange (미사일)
             default: return Color.GRAY;
         }
     }
@@ -380,5 +361,158 @@ public class UIRenderer {
         int sx = x + (w - g.getFontMetrics().stringWidth(sub)) / 2;
         g.setColor(Color.YELLOW);
         g.drawString(sub, sx, y + 80);
+    }
+
+    /**
+     * 스킬 UI 그리기 (HP바 아래, HP바와 같은 크기)
+     */
+    private void drawSkillUI(Graphics2D g, SkillManager skillManager, GameStateManager gameStateManager) {
+        int barWidth = 240; // 스킬 UI 너비를 늘림 (200 → 240)
+        int barHeight = 35; // 스킬 UI 높이를 늘림 (20 → 35)
+        int barX = 20;
+        int barY = 85; // HP바 아래 (HP바 Y=60, 높이=20이므로 60+20+5=85)
+        
+        // 반투명 상자 제거 - 그림자 효과만 사용
+        
+        // 스킬 아이템들 표시 (item_box.png 기반)
+        drawSkillItems(g, skillManager, barX, barY, barWidth, barHeight);
+        
+        // Q키 안내를 스킬 UI 아래로 이동
+        g.setColor(Color.CYAN);
+        g.setFont(FONT_TEXT_10_P);
+        g.drawString("Q: 강화창", barX + 5, barY + barHeight + 15);
+    }
+
+    /**
+     * 스킬 아이템들 그리기 (item_box.png 기반)
+     */
+    private void drawSkillItems(Graphics2D g, SkillManager skillManager, int x, int y, int width, int height) {
+        // 스킬 아이템 크기를 키우고 간격 조정
+        int itemSize = 18; // 스킬 아이템 크기를 키움 (12 → 18)
+        int itemSpacing = 35; // 아이템 간격을 늘림 (20 → 35)
+        int startX = x + 10;
+        int centerY = y + (height - itemSize) / 2;
+        
+        // 각 스킬 아이템 표시 (실제 스킬 이미지 사용)
+        int[] skillTypes = {0, 2, 3}; // 무적, 3줄공격, 미사일
+        String[] skillNames = {"무적", "3줄공격", "미사일"};
+        
+        for (int i = 0; i < 3; i++) {
+            int itemX = startX + (i * itemSpacing);
+            
+            // 실제 스킬 이미지 사용 (진한 그림자 효과로 선명도 향상)
+            BufferedImage skillImage = loadSkillImage(skillTypes[i]);
+            if (skillImage != null) {
+                // 진한 그림자 효과 (오른쪽 아래로 이동, 더 진한 색상)
+                g.setColor(new Color(0, 0, 0, 200)); // 더 진한 그림자
+                g.fillRect(itemX + 2, centerY + 2, itemSize, itemSize);
+                
+                // 추가 그림자 (더 깊이감)
+                g.setColor(new Color(0, 0, 0, 150));
+                g.fillRect(itemX + 1, centerY + 1, itemSize, itemSize);
+                
+                // 실제 스킬 이미지
+                g.drawImage(skillImage, itemX, centerY, itemSize, itemSize, null);
+                
+                // 진한 테두리 효과 (선명도 향상)
+                g.setColor(new Color(255, 255, 255, 200)); // 더 진한 테두리
+                g.setStroke(new BasicStroke(2));
+                g.drawRect(itemX, centerY, itemSize, itemSize);
+            }
+            
+            // 스킬 개수 표시 (더 명확하게)
+            int skillCount = getSkillCount(skillManager, skillTypes[i]);
+            
+            // 개수 배경 (반투명 원형)
+            int circleX = itemX + itemSize - 6;
+            int circleY = centerY + itemSize - 6;
+            int circleRadius = 8;
+            
+            if (skillCount > 0) {
+                // 배경 원
+                g.setColor(new Color(0, 0, 0, 180));
+                g.fillOval(circleX - circleRadius, circleY - circleRadius, circleRadius * 2, circleRadius * 2);
+                
+                // 개수 텍스트
+                g.setColor(Color.YELLOW);
+                g.setFont(new Font("Arial", Font.BOLD, 10));
+                String countText = String.valueOf(skillCount);
+                int textWidth = g.getFontMetrics().stringWidth(countText);
+                int textHeight = g.getFontMetrics().getHeight();
+                int textX = circleX - textWidth / 2;
+                int textY = circleY + textHeight / 4;
+                g.drawString(countText, textX, textY);
+            } else {
+                // 개수가 0일 때는 빈 원만 표시
+                g.setColor(new Color(100, 100, 100, 100));
+                g.fillOval(circleX - circleRadius, circleY - circleRadius, circleRadius * 2, circleRadius * 2);
+                g.setColor(new Color(150, 150, 150));
+                g.drawOval(circleX - circleRadius, circleY - circleRadius, circleRadius * 2, circleRadius * 2);
+            }
+            
+            // 스킬 이름 표시 (아래쪽에 작게, 진한 그림자 효과로 선명도 향상)
+            g.setFont(new Font("Arial", Font.BOLD, 10)); // 크기도 조금 키움
+            String skillName = skillNames[i];
+            int nameWidth = g.getFontMetrics().stringWidth(skillName);
+            int nameX = itemX + (itemSize - nameWidth) / 2;
+            int nameY = centerY + itemSize + 12;
+            
+            // 진한 그림자 효과 (여러 겹으로)
+            g.setColor(new Color(0, 0, 0, 220)); // 매우 진한 그림자
+            g.drawString(skillName, nameX + 2, nameY + 2);
+            g.setColor(new Color(0, 0, 0, 180)); // 중간 그림자
+            g.drawString(skillName, nameX + 1, nameY + 1);
+            
+            // 실제 텍스트 (더 진한 흰색)
+            g.setColor(new Color(255, 255, 255, 255)); // 완전 불투명 흰색
+            g.drawString(skillName, nameX, nameY);
+        }
+    }
+
+    /**
+     * 스킬 개수 반환
+     */
+    private int getSkillCount(SkillManager skillManager, int skillType) {
+        switch (skillType) {
+            case 0: return skillManager.getInvincibleSkills();
+            case 2: return skillManager.getTripleShotSkills();
+            case 3: return skillManager.getMissileSkills();
+            default: return 0;
+        }
+    }
+
+    /**
+     * item_box.png 이미지 로드
+     */
+    private BufferedImage loadItemBoxImage() {
+        try {
+            InputStream is = getClass().getClassLoader().getResourceAsStream("sprites/item_box.png");
+            if (is != null) {
+                BufferedImage image = ImageIO.read(is);
+                is.close();
+                return image;
+            }
+        } catch (Exception e) {
+            System.err.println("Failed to load item box image: sprites/item_box.png");
+        }
+        return null;
+    }
+
+    /**
+     * 강화창에서만 표시되는 스킬포인트와 스탯
+     */
+    private void drawUpgradeStats(Graphics2D g, GameStateManager gameStateManager) {
+        int startY = 120;
+        
+        // 스킬 포인트 표시
+        g.setColor(Color.YELLOW);
+        g.setFont(FONT_TEXT_16_B);
+        g.drawString("스킬 포인트: " + gameStateManager.getSkillPoints(), 20, startY);
+
+        // 공격력과 공격속도 표시
+        g.setColor(Color.WHITE);
+        g.setFont(FONT_TEXT_12_P);
+        g.drawString("공격력: " + gameStateManager.getAttackPower(), 20, startY + 25);
+        g.drawString("공격속도: " + String.format("%.1f", gameStateManager.getAttackSpeed()) + "x", 20, startY + 40);
     }
 }

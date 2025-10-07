@@ -105,13 +105,13 @@ public class IceBallAttack extends Entity {
 			int drawX = (int)x - scaledWidth/2;
 			int drawY = (int)y - scaledHeight/2;
 			
-			// 디버그: 그리기 정보 출력 (매번 출력)
-			System.out.println("Drawing ice ball attack at X:" + drawX + " Y:" + drawY + " W:" + scaledWidth + " H:" + scaledHeight);
+			// 디버그: 그리기 정보 출력 (매번 출력) - 성능을 위해 주석 처리
+			// System.out.println("Drawing ice ball attack at X:" + drawX + " Y:" + drawY + " W:" + scaledWidth + " H:" + scaledHeight);
 			
 			g2d.drawImage(iceBallImage, drawX, drawY, scaledWidth, scaledHeight, null);
 		} else {
 			// Fallback: draw a simple cyan circle
-			System.out.println("Ice ball image is null, drawing fallback cyan circle at X:" + (int)x + " Y:" + (int)y);
+			// System.out.println("Ice ball image is null, drawing fallback cyan circle at X:" + (int)x + " Y:" + (int)y);
 			g.setColor(java.awt.Color.CYAN);
 			g.fillOval((int)x - 10, (int)y - 10, 20, 20);
 		}
