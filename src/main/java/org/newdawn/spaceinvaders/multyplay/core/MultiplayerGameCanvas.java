@@ -387,7 +387,7 @@ public class MultiplayerGameCanvas extends Canvas implements Screen, Multiplayer
 	 * Notification that an alien has been killed
 	 */
 	@Override
-	public void notifyAlienKilled(String killerPlayerId) {
+	public void notifyAlienKilled(String killerPlayerId, double killX, double killY) {
 		String targetId = killerPlayerId != null ? killerPlayerId : gameStateManager.getLocalPlayerId();
 
 		// Give random skill points for killing aliens
@@ -398,7 +398,7 @@ public class MultiplayerGameCanvas extends Canvas implements Screen, Multiplayer
 		// Random chance to drop a skill (world drop, not player-specific)
 		double dropChance = skillManager.getSkillDropChance(gameStateManager.getCurrentRound());
 		if (Math.random() < dropChance) {
-			skillManager.dropSkill(gameStateManager.getCurrentRound());
+			skillManager.dropSkill(gameStateManager.getCurrentRound(), killX, killY);
 		}
 		
 		// Count remaining aliens dynamically (excluding those marked for removal)

@@ -70,9 +70,17 @@ public class MultiplayerGameStateManager {
      * 게임 시작 시 초기화
      */
     public void startNewGame() {
-        // 모든 플레이어 상태 초기화 (현재는 로컬 플레이어만 존재)
-        players.clear();
-        getLocalPlayerState().resetForNewGame();
+        if (players.isEmpty()) {
+            getLocalPlayerState().resetForNewGame();
+        } else {
+            for (PlayerState state : players.values()) {
+                state.resetForNewGame();
+            }
+            if (localPlayerId != null && !players.containsKey(localPlayerId)) {
+                players.put(localPlayerId, new PlayerState(localPlayerId));
+                players.get(localPlayerId).resetForNewGame();
+            }
+        }
 
         // Reset round
         currentRound = 1;

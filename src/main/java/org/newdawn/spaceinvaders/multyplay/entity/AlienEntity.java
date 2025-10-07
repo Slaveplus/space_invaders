@@ -275,16 +275,18 @@ public class AlienEntity extends Entity {
 	 */
 	@Override
 	public java.awt.Rectangle getBounds() {
+		int spriteWidth = sprite.getWidth();
+		int spriteHeight = sprite.getHeight();
 		// 1라운드는 45% 축소, 나머지는 75%로 설정
 		double scale = (game.getCurrentRound() == 1) ? 0.45 : 0.75;
-		int scaledWidth = (int)(sprite.getWidth() * scale);
-		int scaledHeight = (int)(sprite.getHeight() * scale);
-		
-		// Center the collision box
-		int centerX = (int)x - scaledWidth/2;
-		int centerY = (int)y - scaledHeight/2;
-		
-		return new java.awt.Rectangle(centerX, centerY, scaledWidth, scaledHeight);
+		int scaledWidth = (int) Math.round(spriteWidth * scale);
+		int scaledHeight = (int) Math.round(spriteHeight * scale);
+		double offsetX = (spriteWidth - scaledWidth) / 2.0;
+		double offsetY = (spriteHeight - scaledHeight) / 2.0;
+		int topLeftX = (int) Math.round(x + offsetX);
+		int topLeftY = (int) Math.round(y + offsetY);
+
+		return new java.awt.Rectangle(topLeftX, topLeftY, scaledWidth, scaledHeight);
 	}
 	
 	/**
@@ -373,6 +375,7 @@ public class AlienEntity extends Entity {
 	/**
 	 * Avoid getting too close to the player
 	 */
+	@SuppressWarnings("unused")
 	private void avoidPlayer() {
 		try {
 			// Get local player ID and position
@@ -418,10 +421,10 @@ public class AlienEntity extends Entity {
 			double scale = (game.getCurrentRound() == 1) ? 0.45 : 0.75; // 75% * 0.6 = 45% (30% 축소)
 			int scaledWidth = (int)(sprite.getWidth() * scale);
 			int scaledHeight = (int)(sprite.getHeight() * scale);
-			
-			// 중앙 정렬을 위한 오프셋 계산
-			int drawX = (int)x - scaledWidth/2;
-			int drawY = (int)y - scaledHeight/2;
+			double offsetX = (sprite.getWidth() - scaledWidth) / 2.0;
+			double offsetY = (sprite.getHeight() - scaledHeight) / 2.0;
+			int drawX = (int) Math.round(x + offsetX);
+			int drawY = (int) Math.round(y + offsetY);
 			
 			g2d.drawImage(sprite.getImage(), drawX, drawY, 
 						 drawX + scaledWidth, drawY + scaledHeight,

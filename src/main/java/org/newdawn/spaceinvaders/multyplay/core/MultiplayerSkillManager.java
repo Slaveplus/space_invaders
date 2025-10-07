@@ -1,7 +1,5 @@
 package org.newdawn.spaceinvaders.multyplay.core;
 
-import java.util.ArrayList;
-
 import org.newdawn.spaceinvaders.multyplay.entity.AlienEntity;
 import org.newdawn.spaceinvaders.multyplay.entity.Entity;
 import org.newdawn.spaceinvaders.multyplay.state.MultiplayerGameStateManager;
@@ -185,25 +183,35 @@ public class MultiplayerSkillManager {
      * 스킬 드롭 생성
      */
     public void dropSkill(int currentRound) {
-        // Find the last killed alien's position (approximate)
+        dropSkill(currentRound, Double.NaN, Double.NaN);
+    }
+
+    public void dropSkill(int currentRound, double killX, double killY) {
         int dropX = 400; // Default center position
-        int dropY = 100; // Default top position
-        
-        // Try to find an alien position for more realistic dropping
-        ArrayList<Entity> entities = (ArrayList<Entity>) game.getEntities();
-        for (Entity entity : entities) {
-            if (entity instanceof org.newdawn.spaceinvaders.multyplay.entity.AlienEntity) {
-                dropX = (int) entity.getX();
-                dropY = (int) entity.getY();
-                break;
+        int dropY = 120; // Default drop height
+
+        boolean hasProvidedCoords = !Double.isNaN(killX) && !Double.isNaN(killY);
+        if (hasProvidedCoords) {
+            dropX = (int) Math.round(killX);
+            dropY = (int) Math.round(killY);
+        } else {
+            java.util.List<Entity> entities = game.getEntities();
+            for (Entity entity : entities) {
+                if (entity instanceof AlienEntity) {
+                    dropX = (int) Math.round(entity.getX());
+                    dropY = (int) Math.round(entity.getY());
+                    break;
+                }
             }
         }
-        
-        // Random skill type (0: Attack Power, 1: Attack Speed, 2: HP Recovery, 3: Missile)
+
+        dropX = Math.max(32, Math.min(768, dropX));
+        dropY = Math.max(48, Math.min(560, dropY));
+
         double random = Math.random();
         int skillType;
         int skillValue;
-        
+
         if (random < 0.25) {
             skillType = 0; // Attack Power
             skillValue = 5; // 5 seconds
@@ -217,8 +225,7 @@ public class MultiplayerSkillManager {
             skillType = 3; // Missile
             skillValue = 1; // 1 missile
         }
-        
-        // Create skill entity
+
         addSkillDrop(dropX, dropY, skillType, skillValue);
     }
     

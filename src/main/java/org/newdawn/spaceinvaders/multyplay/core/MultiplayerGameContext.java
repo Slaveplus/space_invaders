@@ -22,7 +22,7 @@ public interface MultiplayerGameContext {
     void createExplosion(int x, int y, double radius);
     void fireMissile(String playerId, double targetX, double targetY);
 
-    void notifyAlienKilled(String killerPlayerId);
+    void notifyAlienKilled(String killerPlayerId, double killX, double killY);
     void notifyBossDefeated(String killerPlayerId);
     void notifyDeath(String playerId);
 

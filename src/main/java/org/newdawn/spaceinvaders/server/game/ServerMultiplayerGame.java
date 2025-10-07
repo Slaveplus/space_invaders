@@ -4,7 +4,9 @@ import java.awt.geom.Point2D;
 import java.util.HashMap;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Random;
@@ -45,6 +47,7 @@ public class ServerMultiplayerGame implements MultiplayerGameContext {
     private RoundTransition pendingTransition;
     private Runnable pendingRoundInitializer;
     private boolean inIntermission;
+    private boolean gameStarted;
 
     public static class RoundTransition {
         public enum Type { WAVE_CLEARED, BOSS_DEFEATED, GAME_COMPLETED }
@@ -82,23 +85,43 @@ public class ServerMultiplayerGame implements MultiplayerGameContext {
     }
 
     public void registerPlayers(Collection<String> playerIds) {
-        for (String id : playerIds) {
+        boolean layoutChanged = false;
+        for (String rawId : playerIds) {
+            if (rawId == null) {
+                continue;
+            }
+            String id = rawId.trim();
+            if (id.isEmpty()) {
+                continue;
+            }
             gameStateManager.ensurePlayer(id);
-            playerRuntimes.computeIfAbsent(id, k -> new PlayerRuntime());
+            if (!playerRuntimes.containsKey(id)) {
+                playerRuntimes.put(id, new PlayerRuntime());
+                layoutChanged = true;
+            }
             skillManagers.computeIfAbsent(id, k -> new MultiplayerSkillManager(this, k));
         }
         if (primaryPlayerId == null && !playerIds.isEmpty()) {
-            setPrimaryPlayerId(playerIds.iterator().next());
+            String first = playerIds.iterator().next();
+            if (first != null) {
+                setPrimaryPlayerId(first.trim());
+            }
+        }
+        if (gameStarted && layoutChanged && !inIntermission) {
+            setupPlayerShips();
         }
     }
 
     public void setPrimaryPlayerId(String playerId) {
-        this.primaryPlayerId = playerId;
-        if (playerId != null) {
-            gameStateManager.setLocalPlayerId(playerId);
-            gameStateManager.ensurePlayer(playerId);
-            playerRuntimes.computeIfAbsent(playerId, k -> new PlayerRuntime());
+        String normalized = playerId != null ? playerId.trim() : null;
+        if (normalized == null || normalized.isEmpty()) {
+            this.primaryPlayerId = null;
+            return;
         }
+        this.primaryPlayerId = normalized;
+        gameStateManager.setLocalPlayerId(normalized);
+        gameStateManager.ensurePlayer(normalized);
+        playerRuntimes.computeIfAbsent(normalized, k -> new PlayerRuntime());
     }
 
     public RoundTransition pollRoundTransition() {
@@ -112,6 +135,8 @@ public class ServerMultiplayerGame implements MultiplayerGameContext {
     }
 
     public void startPendingRound() {
+        gameStateManager.getEntities().clear();
+        setupPlayerShips();
         if (pendingRoundInitializer != null) {
             pendingRoundInitializer.run();
         }
@@ -161,34 +186,110 @@ public class ServerMultiplayerGame implements MultiplayerGameContext {
         for (String id : playerRuntimes.keySet()) {
             skillManager(id).reset();
         }
-
-        int playerCount = Math.max(1, playerRuntimes.size());
-        int spacing = playerCount > 1 ? 500 / (playerCount - 1) : 0;
-        int index = 0;
-
         gameStateManager.getEntities().clear();
-        for (Map.Entry<String, PlayerRuntime> entry : playerRuntimes.entrySet()) {
-            String playerId = entry.getKey();
-            PlayerRuntime runtime = entry.getValue();
-            int spawnX = (playerCount == 1) ? 370 : 150 + index * spacing;
-            runtime.ship = new ShipEntity(this, currentSpaceshipSkin, spawnX, 550);
-            runtime.ship.setOwnerId(playerId);
-            runtime.leftPressed = runtime.rightPressed = runtime.firePressed = false;
-            runtime.lastFire = 0;
-            gameStateManager.getEntities().add(runtime.ship);
-            index++;
+        setupPlayerShips();
+        initEntities();
+        gameStarted = true;
+    }
+
+    private void setupPlayerShips() {
+        ArrayList<Entity> entities = gameStateManager.getEntities();
+        gameStateManager.getRemoveList().removeIf(e -> e instanceof ShipEntity);
+
+        playerRuntimes.entrySet().removeIf(entry -> {
+            String key = entry.getKey();
+            return key == null || key.trim().isEmpty();
+        });
+
+        if (playerRuntimes.isEmpty()) {
+            if (primaryPlayerId != null && !primaryPlayerId.isEmpty()) {
+                playerRuntimes.putIfAbsent(primaryPlayerId, new PlayerRuntime());
+            }
+            if (playerRuntimes.isEmpty()) {
+                ship = null;
+                return;
+            }
         }
 
-        ShipEntity fallbackShip = playerRuntimes.values().stream()
-                .map(r -> r.ship)
+        List<String> spawnOrder = new ArrayList<>(playerRuntimes.keySet());
+        if (primaryPlayerId != null && spawnOrder.remove(primaryPlayerId)) {
+            spawnOrder.add(0, primaryPlayerId);
+        }
+
+        for (PlayerState state : gameStateManager.getPlayerStates()) {
+            String playerId = state.getPlayerId();
+            if (playerId == null || playerId.trim().isEmpty()) {
+                continue;
+            }
+            if (!playerRuntimes.containsKey(playerId)) {
+                playerRuntimes.put(playerId, new PlayerRuntime());
+                spawnOrder.add(playerId);
+            } else if (!spawnOrder.contains(playerId)) {
+                spawnOrder.add(playerId);
+            }
+        }
+
+        entities.removeIf(e -> e instanceof ShipEntity);
+
+        int playerCount = spawnOrder.size();
+        if (playerCount == 0) {
+            ship = null;
+            return;
+        }
+
+        final int minX = 120;
+        final int maxX = 680;
+        final int spawnY = 550;
+        int spacing = playerCount > 1 ? (maxX - minX) / (playerCount - 1) : 0;
+
+        for (int index = 0; index < spawnOrder.size(); index++) {
+            String playerId = spawnOrder.get(index);
+            PlayerRuntime runtime = playerRuntimes.get(playerId);
+            if (runtime == null) {
+                runtime = new PlayerRuntime();
+                playerRuntimes.put(playerId, runtime);
+            }
+            int spawnX = (playerCount == 1) ? 370 : minX + (index * spacing);
+
+            gameStateManager.ensurePlayer(playerId);
+            ShipEntity newShip = new ShipEntity(this, currentSpaceshipSkin, spawnX, spawnY);
+            newShip.setOwnerId(playerId);
+            runtime.ship = newShip;
+            runtime.leftPressed = false;
+            runtime.rightPressed = false;
+            runtime.firePressed = false;
+            runtime.lastFire = 0;
+            entities.add(newShip);
+        }
+
+        pruneDuplicateShips(entities);
+
+        ShipEntity fallbackShip = spawnOrder.stream()
+                .map(playerRuntimes::get)
+                .filter(Objects::nonNull)
+                .map(runtime -> runtime.ship)
                 .filter(Objects::nonNull)
                 .findFirst()
                 .orElse(null);
+
         ship = primaryPlayerId != null && playerRuntimes.containsKey(primaryPlayerId)
                 ? playerRuntimes.get(primaryPlayerId).ship
                 : fallbackShip;
+    }
 
-        initEntities();
+    private void pruneDuplicateShips(ArrayList<Entity> entities) {
+        HashSet<String> seenOwners = new HashSet<>();
+        entities.removeIf(entity -> {
+            if (!(entity instanceof ShipEntity)) {
+                return false;
+            }
+            ShipEntity shipEntity = (ShipEntity) entity;
+            String owner = shipEntity.getOwnerId();
+            if (owner == null || owner.trim().isEmpty()) {
+                return true;
+            }
+            return !seenOwners.add(owner);
+        });
     }
 
     public void applyInputs(Map<String, PlayerInput> inputs) {
@@ -494,14 +595,14 @@ public class ServerMultiplayerGame implements MultiplayerGameContext {
     }
 
     @Override
-    public void notifyAlienKilled(String killerPlayerId) {
+    public void notifyAlienKilled(String killerPlayerId, double killX, double killY) {
         if (killerPlayerId != null) {
             MultiplayerSkillManager manager = skillManager(killerPlayerId);
             int earned = manager.getRandomSkillPoints(gameStateManager.getCurrentRound());
             addSkillPoints(killerPlayerId, earned);
             double dropChance = manager.getSkillDropChance(gameStateManager.getCurrentRound());
             if (rng.nextDouble() < dropChance) {
-                manager.dropSkill(gameStateManager.getCurrentRound());
+                manager.dropSkill(gameStateManager.getCurrentRound(), killX, killY);
             }
         }
         int remainingAliens = 0;
@@ -535,7 +636,6 @@ public class ServerMultiplayerGame implements MultiplayerGameContext {
             int nextRound = gameStateManager.getCurrentRound();
             boolean bossNext = isBossRound(nextRound);
             Runnable initializer = () -> {
-                gameStateManager.getEntities().clear();
                 if (bossNext) {
                     spawnBoss(false);
                 } else {
@@ -586,7 +686,6 @@ public class ServerMultiplayerGame implements MultiplayerGameContext {
             int nextRound = gameStateManager.getCurrentRound();
             boolean bossNext = isBossRound(nextRound);
             Runnable initializer = () -> {
-                gameStateManager.getEntities().clear();
                 if (bossNext) {
                     spawnBoss(false);
                 } else {
@@ -696,10 +795,9 @@ public class ServerMultiplayerGame implements MultiplayerGameContext {
         } else {
             ship = playerRuntimes.values().stream().map(r -> r.ship).findFirst().orElse(null);
         }
-    }
-
-    private void spawnBoss() {
-        spawnBoss(true);
+        if (gameStarted && !inIntermission) {
+            setupPlayerShips();
+        }
     }
 
     private void spawnBoss(boolean announce) {

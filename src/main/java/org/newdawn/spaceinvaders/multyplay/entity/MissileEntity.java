@@ -123,7 +123,7 @@ public class MissileEntity extends Entity {
             int damage = Math.max(alien.getCurrentHP(), game.getPlayerAttackPower(ownerId) * 4);
             alien.takeDamage(damage);
             if (alien.getCurrentHP() <= 0) {
-                game.notifyAlienKilled(ownerId);
+                game.notifyAlienKilled(ownerId, other.getX(), other.getY());
             }
             game.removeEntity(this);
             used = true;
