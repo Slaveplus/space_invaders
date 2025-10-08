@@ -23,14 +23,11 @@ public class SkillManager {
     // 스킬 효과 상태
     private boolean isInvincible = false;
     private long invincibleEndTime = 0;
-    private boolean hasPiercing = false;
-    private long piercingEndTime = 0;
     private boolean hasTripleShot = false;
     private long tripleShotEndTime = 0;
     
     // 스킬 인벤토리
     private int invincibleSkills = 0;
-    private int piercingSkills = 0;
     private int tripleShotSkills = 0;
     private int missileSkills = 0;
     
@@ -52,12 +49,10 @@ public class SkillManager {
         
         // Reset skill effects
         isInvincible = false;
-        hasPiercing = false;
         hasTripleShot = false;
         
         // Reset skill inventory
         invincibleSkills = 0;
-        piercingSkills = 0;
         tripleShotSkills = 0;
     }
     
@@ -72,10 +67,7 @@ public class SkillManager {
             isInvincible = false;
         }
         
-        // Check piercing expiration
-        if (hasPiercing && currentTime >= piercingEndTime) {
-            hasPiercing = false;
-        }
+        // 관통 스킬 제거됨
         
         // Check triple shot expiration
         if (hasTripleShot && currentTime >= tripleShotEndTime) {
@@ -89,8 +81,6 @@ public class SkillManager {
     public void addSkillToInventory(int skillType, int skillValue) {
         if (skillType == 0) { // Invincible skill
             invincibleSkills++;
-        } else if (skillType == 1) { // Piercing skill
-            piercingSkills++;
         } else if (skillType == 2) { // Triple shot skill
             tripleShotSkills++;
         } else if (skillType == 3) { // Missile skill
@@ -110,12 +100,7 @@ public class SkillManager {
                 isInvincible = true;
                 invincibleEndTime = currentTime + (skillValue * 1000);
             }
-        } else if (skillType == 1) { // Piercing skill
-            if (piercingSkills > 0) {
-                piercingSkills--;
-                hasPiercing = true;
-                piercingEndTime = currentTime + (skillValue * 1000);
-            }
+        // 관통 스킬 제거됨
         } else if (skillType == 2) { // Triple shot skill
             if (tripleShotSkills > 0) {
                 tripleShotSkills--;
@@ -143,12 +128,7 @@ public class SkillManager {
                 isInvincible = true;
                 invincibleEndTime = currentTime + (skillValue * 1000); // Reset duration
             }
-        } else if (skillType == 1) { // Piercing skill
-            if (piercingSkills > 0) {
-                piercingSkills--;
-                hasPiercing = true;
-                piercingEndTime = currentTime + (skillValue * 1000); // Reset duration
-            }
+        // 관통 스킬 제거됨
         } else if (skillType == 2) { // Triple shot skill
             if (tripleShotSkills > 0) {
                 tripleShotSkills--;
@@ -290,11 +270,7 @@ public class SkillManager {
     public long getInvincibleEndTime() { return invincibleEndTime; }
     public void setInvincibleEndTime(long invincibleEndTime) { this.invincibleEndTime = invincibleEndTime; }
     
-    public boolean hasPiercing() { return hasPiercing; }
-    public void setHasPiercing(boolean hasPiercing) { this.hasPiercing = hasPiercing; }
-    
-    public long getPiercingEndTime() { return piercingEndTime; }
-    public void setPiercingEndTime(long piercingEndTime) { this.piercingEndTime = piercingEndTime; }
+    // 관통 스킬 제거됨
     
     public boolean hasTripleShot() { return hasTripleShot; }
     public void setHasTripleShot(boolean hasTripleShot) { this.hasTripleShot = hasTripleShot; }
@@ -305,8 +281,7 @@ public class SkillManager {
     public int getInvincibleSkills() { return invincibleSkills; }
     public void setInvincibleSkills(int invincibleSkills) { this.invincibleSkills = invincibleSkills; }
     
-    public int getPiercingSkills() { return piercingSkills; }
-    public void setPiercingSkills(int piercingSkills) { this.piercingSkills = piercingSkills; }
+    // 관통 스킬 제거됨
     
     public int getTripleShotSkills() { return tripleShotSkills; }
     public void setTripleShotSkills(int tripleShotSkills) { this.tripleShotSkills = tripleShotSkills; }

@@ -62,4 +62,17 @@ public class Sprite {
 	public void draw(Graphics g,int x,int y) {
 		g.drawImage(image,x,y,null);
 	}
+	
+	/**
+	 * Draw the sprite onto the graphics context provided with custom size
+	 * 
+	 * @param g The graphics context on which to draw the sprite
+	 * @param x The x location at which to draw the sprite
+	 * @param y The y location at which to draw the sprite
+	 * @param width The width to draw the sprite
+	 * @param height The height to draw the sprite
+	 */
+	public void draw(Graphics g,int x,int y,int width,int height) {
+		g.drawImage(image,x,y,width,height,null);
+	}
 }

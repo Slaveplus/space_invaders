@@ -29,8 +29,6 @@ public class InputManager {
      * 키보드 입력 핸들러
      */
     public class KeyInputHandler extends KeyAdapter {
-        /** The number of key presses we've had while waiting for an "any key" press */
-        private int pressCount = 1;
         
         /**
          * 키가 눌렸을 때 처리
@@ -60,23 +58,16 @@ public class InputManager {
                     return;
                 }
                 
-                if (pressCount == 1) {
-                    // since we've now recieved our key typed
-                    // event we can mark it as such and start 
-                    // our new game
-                    gameStateManager.setWaitingForKeyPress(false);
-                    
-                    // 라운드 전환 중이면 게임을 초기화하지 않고 플래그만 해제
-                    if (gameStateManager.isRoundTransition()) {
-                        gameStateManager.setRoundTransition(false);
-                        // 라운드 전환 완료
-                    } else {
-                        // 새로운 게임 시작 (게임 오버 후 재시작 등)
-                        game.startGame();
-                    }
-                    pressCount = 0;
+                // 키를 한 번만 눌러도 게임 시작
+                gameStateManager.setWaitingForKeyPress(false);
+                
+                // 라운드 전환 중이면 게임을 초기화하지 않고 플래그만 해제
+                if (gameStateManager.isRoundTransition()) {
+                    gameStateManager.setRoundTransition(false);
+                    // 라운드 전환 완료
                 } else {
-                    pressCount++;
+                    // 새로운 게임 시작 (게임 오버 후 재시작 등)
+                    game.startGame();
                 }
             }
         }
@@ -198,7 +189,8 @@ public class InputManager {
     public void updateGameplayInput() {
         if (game.getShip() != null && 
             !gameStateManager.isShowingPauseMenu() && !gameStateManager.isShowingSkillMenu()) {
-            // 우주선 이동 처리
+            
+            // 우주선 이동 처리 (좌우만)
             game.getShip().setHorizontalMovement(0);
             
             if (leftPressed && !rightPressed) {

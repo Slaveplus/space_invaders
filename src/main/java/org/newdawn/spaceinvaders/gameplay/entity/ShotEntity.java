@@ -1,14 +1,13 @@
 package org.newdawn.spaceinvaders.gameplay.entity;
 
 import java.awt.Color;
+import java.awt.Font;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
+import java.awt.BasicStroke;
 import java.awt.image.BufferedImage;
-import javax.imageio.ImageIO;
 
 import org.newdawn.spaceinvaders.gameplay.Game;
-
-import java.io.InputStream;
 
 /**
  * An entity representing a shot fired by the player's ship
@@ -32,6 +31,8 @@ public class ShotEntity extends Entity {
 	private int skillValue = 0;
 	/** True if this shot has piercing ability */
 	private boolean hasPiercing = false;
+	/** True if this is a near monster shot (needs smaller size) */
+	private boolean isNearMonsterShot = false;
 	
 	/**
 	 * Create a new shot from the player
@@ -56,7 +57,7 @@ public class ShotEntity extends Entity {
 	 * @param sprite The sprite representing this shot
 	 * @param x The initial x location of the shot
 	 * @param y The initial y location of the shot
-	 * @param isAlienShot True if this is an alien shot
+	 * @param isAlienShot True if this is an alien shot (moves downward)
 	 */
 	public ShotEntity(Game game,String sprite,int x,int y,boolean isAlienShot) {
 		super(sprite,x,y);
@@ -65,167 +66,80 @@ public class ShotEntity extends Entity {
 		this.isAlienShot = isAlienShot;
 		
 		if (isAlienShot) {
-			dy = 300; // Move downward for alien shots
+			dy = moveSpeed;
 		} else {
-			dy = moveSpeed; // Move upward for player shots
+			dy = -moveSpeed;
 		}
 	}
 	
 	/**
-	 * Create a new shot with piercing ability
+	 * Create a new skill drop shot
 	 * 
 	 * @param game The game in which the shot has been created
 	 * @param sprite The sprite representing this shot
 	 * @param x The initial x location of the shot
 	 * @param y The initial y location of the shot
-	 * @param isAlienShot True if this is an alien shot
-	 * @param hasPiercing True if this shot has piercing ability
+	 * @param skillType The type of skill (0: Invincible, 1: Piercing)
+	 * @param skillValue The value of the skill
 	 */
-	public ShotEntity(Game game,String sprite,int x,int y,boolean isAlienShot,boolean hasPiercing) {
+	public ShotEntity(Game game,String sprite,int x,int y,int skillType,int skillValue) {
 		super(sprite,x,y);
 		
-		this.game = game;
-		this.isAlienShot = isAlienShot;
-		this.hasPiercing = hasPiercing;
-		
-		if (isAlienShot) {
-			dy = 300; // Move downward for alien shots
-		} else {
-			dy = moveSpeed; // Move upward for player shots
-		}
-	}
-	
-	/**
-	 * Create a new shot (player, alien, or skill drop)
-	 * 
-	 * @param game The game in which the shot has been created
-	 * @param sprite The sprite representing this shot
-	 * @param x The initial x location of the shot
-	 * @param y The initial y location of the shot
-	 * @param isAlienShot True if this is an alien shot
-	 * @param skillType Skill type for skill drops (0: Invincible, 1: Piercing)
-	 * @param skillValue Skill value for skill drops
-	 */
-	public ShotEntity(Game game,String sprite,int x,int y,boolean isAlienShot,int skillType,int skillValue) {
-		super(sprite,x,y);
+		System.out.println("🎁 ShotEntity skill drop created: sprite=" + sprite + ", type=" + skillType + ", value=" + skillValue + " at (" + x + ", " + y + ")");
 		
 		this.game = game;
-		this.isAlienShot = isAlienShot;
+		this.isSkillDrop = true;
 		this.skillType = skillType;
 		this.skillValue = skillValue;
 		
-		if (skillType >= 0) {
-			// This is a skill drop - move straight down
-			isSkillDrop = true;
-			
-			// Move straight down at constant speed
-			dx = 0; // No horizontal movement
-			dy = 150; // Move downward at 150 pixels per second
-		} else if (isAlienShot) {
-			dy = 300; // Alien shots move downward
-		} else {
-			dy = moveSpeed; // Player shots move upward (negative speed)
-		}
+		// 스킬 드롭은 천천히 떨어지도록 속도 조정
+		dy = 100; // 기본 moveSpeed 대신 100으로 고정 (천천히 떨어짐)
+		
+		System.out.println("🎁 ShotEntity initialized: isSkillDrop=" + isSkillDrop + ", skillType=" + this.skillType + ", skillValue=" + this.skillValue + ", dy=" + dy);
 	}
-
+	
 	/**
-	 * Request that this shot moved based on time elapsed
+	 * Request that this shot move itself based on an elapsed ammount of
+	 * time
 	 * 
-	 * @param delta The time that has elapsed since last move
+	 * @param delta The time that has elapsed since last move (ms)
 	 */
 	public void move(long delta) {
 		// proceed with normal move
 		super.move(delta);
 		
+		// Debug skill drop movement (reduced for performance)
+		// if (isSkillDrop) {
+		//	System.out.println("🎁 Skill drop moving: y=" + y + ", delta=" + delta);
+		// }
+		
 		// if we shot off the screen, remove ourselfs
-		if (isSkillDrop) {
-			// Skill drops: remove when they go below screen
-			if (y > 700) {
-				game.removeEntity(this);
+		// 스킬 드롭은 더 오래 화면에 남아있도록 경계 조정
+		if (y < -50 || y > 700) { // y > 600을 700으로 변경
+			if (isSkillDrop) {
+				System.out.println("🎁 Skill drop removed (off screen): y=" + y);
 			}
-		} else if (isAlienShot) {
-			// Alien shots: remove when they go below screen
-			if (y > 700) {
-				game.removeEntity(this);
-			}
-		} else {
-			// Player shots: remove when they go above screen
-			if (y < -100) {
-				game.removeEntity(this);
-			}
+			game.removeEntity(this);
 		}
 	}
 	
 	/**
-	 * Draw this entity with special coloring for alien shots
-	 * 
-	 * @param g The graphics context on which to draw
+	 * Load skill image for skill drop display
 	 */
-	public void draw(Graphics g) {
-		if (isSkillDrop) {
-			// Draw skill drop using PNG images
-			Graphics2D g2d = (Graphics2D) g;
-			
-			// Load and draw the appropriate PNG image based on skill type
-			BufferedImage skillImage = loadSkillImage(skillType);
-			if (skillImage != null) {
-				// Draw the PNG skill image, scaled to 32x32
-				int imageSize = 32;
-				int drawX = (int)x - imageSize/2;
-				int drawY = (int)y - imageSize/2;
-				g2d.drawImage(skillImage, drawX, drawY, imageSize, imageSize, null);
-			} else {
-				// Fallback: Draw simple colored background if PNG failed to load
-				g2d.setColor(Color.BLACK);
-				g2d.fillRect((int)x - 16, (int)y - 16, 32, 32);
-				g2d.setColor(Color.GRAY);
-				g2d.drawRect((int)x - 16, (int)y - 16, 32, 32);
-				
-				// Draw skill type text as fallback
-				g2d.setColor(Color.WHITE);
-				g2d.setFont(new java.awt.Font("Arial", java.awt.Font.BOLD, 12));
-				g2d.drawString("S" + skillType, (int)x - 8, (int)y + 4);
-			}
-			
-			// Add a subtle glow effect
-			g2d.setColor(new Color(255, 255, 255, 50));
-			g2d.fillOval((int)x - 18, (int)y - 18, 36, 36);
-			
-		} else if (isAlienShot) {
-			// Draw circular alien energy projectile
-			Graphics2D g2d = (Graphics2D) g;
-			
-			// Calculate center position for perfect circle
-			int w = (sprite != null ? sprite.getWidth() : 16);
-			int h = (sprite != null ? sprite.getHeight() : 16);
-			int centerX = (int) x + w / 2;
-			int centerY = (int) y + h / 2;
-			int radius = 8; // Fixed radius for perfect circle
-			
-			// Outer glow effect (larger circle)
-			g2d.setColor(new Color(255, 100, 100, 60)); // Red glow
-			g2d.fillOval(centerX - radius - 3, centerY - radius - 3, (radius + 3) * 2, (radius + 3) * 2);
-			
-			// Main projectile body (perfect circle)
-			g2d.setColor(new Color(255, 50, 50, 220)); // Bright red core
-			g2d.fillOval(centerX - radius, centerY - radius, radius * 2, radius * 2);
-			
-			// Inner bright core (smaller circle)
-			g2d.setColor(new Color(255, 200, 200, 180)); // Light red center
-			g2d.fillOval(centerX - radius + 2, centerY - radius + 2, (radius - 2) * 2, (radius - 2) * 2);
-			
-			// Bright white center (smallest circle)
-			g2d.setColor(new Color(255, 255, 255, 200)); // White hot center
-			g2d.fillOval(centerX - radius + 4, centerY - radius + 4, (radius - 4) * 2, (radius - 4) * 2);
-			
-			// Add subtle energy trail effect (smaller circles behind)
-			g2d.setColor(new Color(255, 100, 100, 80));
-			g2d.fillOval(centerX - radius + 1, centerY - radius + 6, (radius - 1) * 2, (radius - 1) * 2);
-			g2d.setColor(new Color(255, 100, 100, 40));
-			g2d.fillOval(centerX - radius + 2, centerY - radius + 10, (radius - 2) * 2, (radius - 2) * 2);
-		} else {
-			// Draw normal player shot
-			super.draw(g);
+	private BufferedImage loadSkillImageForDrop(int skillType) {
+		String imagePath;
+		switch (skillType) {
+			case 0: imagePath = "sprites/Skill/1.png"; break; // Invincible
+			case 2: imagePath = "sprites/Skill/3.png"; break; // Triple Shot
+			case 3: imagePath = "sprites/Skill/4.png"; break; // Missile
+			default: imagePath = "sprites/Skill/1.png"; break;
+		}
+		
+		try {
+			return javax.imageio.ImageIO.read(getClass().getClassLoader().getResourceAsStream(imagePath));
+		} catch (Exception e) {
+			System.err.println("Failed to load skill image: " + imagePath);
+			return null;
 		}
 	}
 	
@@ -233,7 +147,7 @@ public class ShotEntity extends Entity {
 	 * Notification that this shot has collided with another
 	 * entity
 	 * 
-	 * @parma other The other entity with which we've collided
+	 * @param other The other entity
 	 */
 	public void collidedWith(Entity other) {
 		// prevents double kills, if we've already hit something,
@@ -242,59 +156,181 @@ public class ShotEntity extends Entity {
 			return;
 		}
 		
-		if (isSkillDrop) {
-			// Skill drop: if we've hit the player ship, add to inventory
-			if (other instanceof ShipEntity) {
-				System.out.println("Skill drop collected! Type: " + skillType + ", Value: " + skillValue);
-				// remove the skill drop
-				game.removeEntity(this);
-				
-				// add skill to inventory instead of immediately activating
-				game.addSkillToInventory(skillType, skillValue);
-				used = true;
-			}
-		} else if (isAlienShot) {
-			// Alien shot: if we've hit the player ship, damage it
-			if (other instanceof ShipEntity) {
-				// remove the shot
-				game.removeEntity(this);
-				
-				// notify the game that the player has been hit
-				game.notifyDeath();
-				used = true;
-			}
-		} else {
-			// Player shot: if we've hit an alien, damage it!
-			if (other instanceof AlienEntity) {
-				// damage the alien (using player's attack power)
-				AlienEntity alien = (AlienEntity) other;
-				alien.takeDamage(game.getPlayerAttackPower());
-				
-				// Create heat effect at hit location
-				HeatEffectEntity heatEffect = new HeatEffectEntity(game, (int)x, (int)y);
-				game.addEntity(heatEffect);
-				
-				// Check if this shot has piercing ability or player has piercing shots
-				if (!hasPiercing && !game.hasPiercingShots()) {
-					// remove the shot only if not piercing
-					game.removeEntity(this);
-					used = true;
-				}
-				// If piercing, the shot continues through aliens
-			} else if (other instanceof BossEntity) {
-				// Player shot: if we've hit a boss, damage it!
-				BossEntity boss = (BossEntity) other;
-				boss.takeDamage(game.getPlayerAttackPower());
-				
-				// Create heat effect at hit location
-				HeatEffectEntity heatEffect = new HeatEffectEntity(game, (int)x, (int)y);
-				game.addEntity(heatEffect);
-				
-				// Boss shots are always destroyed on hit (no piercing through boss)
-				game.removeEntity(this);
-				used = true;
-			}
+		// Debug: Log collision detection (reduced for performance)
+		// System.out.println("ShotEntity collidedWith called - other entity: " + other.getClass().getSimpleName());
+		
+		// if we've hit an alien, kill it!
+		if (other instanceof AlienEntity) {
+			// System.out.println("Shot hit AlienEntity! Removing entities...");
+			
+			// Create heat effect at impact point
+			game.createHeatEffect((int)other.getX(), (int)other.getY(), 50.0);
+			
+			// remove the affected entities
+			game.removeEntity(this);
+			game.removeEntity(other);
+			
+			// notify the game that the alien has been killed
+			game.notifyAlienKilled();
+			used = true;
 		}
+		
+		// if we've hit a near monster, damage it! (but not if this is a near monster shot)
+		if (other.getClass().getSimpleName().equals("NearEntity") && !isNearMonsterShot) {
+			// System.out.println("🎯 Shot hit NearEntity! Damaging near monster...");
+			
+			// Create heat effect at impact point
+			game.createHeatEffect((int)other.getX(), (int)other.getY(), 60.0);
+			
+			// remove the shot
+			game.removeEntity(this);
+			
+			// damage the near monster
+			try {
+				// Cast to NearEntity and call takeDamage directly
+				org.newdawn.spaceinvaders.gameplay.entity.NearEntity nearEntity = (org.newdawn.spaceinvaders.gameplay.entity.NearEntity) other;
+				nearEntity.takeDamage(game.getPlayerAttackPower());
+				// System.out.println("🎯 Near Monster took " + game.getPlayerAttackPower() + " damage!");
+			} catch (Exception e) {
+				System.out.println("🎯 Could not damage near monster: " + e.getMessage());
+				e.printStackTrace();
+			}
+			
+			used = true;
+		}
+		
+		// if we've hit a boss, damage it!
+		if (other.getClass().getSimpleName().equals("BossEntity")) {
+			// System.out.println("Shot hit BossEntity! Damaging boss...");
+			
+			// Create heat effect at impact point
+			game.createHeatEffect((int)other.getX(), (int)other.getY(), 80.0);
+			
+			// remove the shot
+			game.removeEntity(this);
+			
+			// damage the boss (assuming BossEntity has a takeDamage method)
+			try {
+				// Use reflection to call takeDamage method if it exists
+				java.lang.reflect.Method takeDamageMethod = other.getClass().getMethod("takeDamage", int.class);
+				takeDamageMethod.invoke(other, game.getPlayerAttackPower());
+				// System.out.println("Boss took " + game.getPlayerAttackPower() + " damage!");
+			} catch (Exception e) {
+				System.out.println("Could not damage boss: " + e.getMessage());
+			}
+			
+			used = true;
+		}
+		
+		// if we've hit the player's ship, damage it
+		if (other instanceof ShipEntity) {
+			// remove the shot
+			game.removeEntity(this);
+			
+			// notify the game that the player has been damaged
+			game.notifyPlayerDamaged(1);
+			used = true;
+		}
+		
+		// if this is a skill drop and we've hit the player's ship
+		if (isSkillDrop && other instanceof ShipEntity) {
+			// remove the skill drop
+			game.removeEntity(this);
+			
+			// TODO: Implement skill collection logic
+			System.out.println("Skill collected: Type=" + skillType + ", Value=" + skillValue);
+			used = true;
+		}
+	}
+	
+	/**
+	 * Draw this entity to the graphics context provided
+	 * 
+	 * @param g The graphics context on which to draw
+	 */
+	public void draw(Graphics g) {
+		if (isSkillDrop) {
+			// Draw skill drop with same style as in-game skill UI
+			Graphics2D g2d = (Graphics2D) g;
+			int itemSize = 24; // 스킬 드롭 크기
+			int drawX = (int)x - itemSize / 2;
+			int drawY = (int)y - itemSize / 2;
+			
+			// Load skill image based on skill type
+			BufferedImage skillImage = loadSkillImageForDrop(skillType);
+			if (skillImage != null) {
+				// 진한 그림자 효과 (오른쪽 아래로 이동, 더 진한 색상)
+				g2d.setColor(new Color(0, 0, 0, 200)); // 더 진한 그림자
+				g2d.fillRect(drawX + 2, drawY + 2, itemSize, itemSize);
+				
+				// 추가 그림자 (더 깊이감)
+				g2d.setColor(new Color(0, 0, 0, 150));
+				g2d.fillRect(drawX + 1, drawY + 1, itemSize, itemSize);
+				
+				// 실제 스킬 이미지
+				g2d.drawImage(skillImage, drawX, drawY, itemSize, itemSize, null);
+				
+				// 진한 테두리 효과 (선명도 향상)
+				g2d.setColor(new Color(255, 255, 255, 200)); // 더 진한 테두리
+				g2d.setStroke(new BasicStroke(2));
+				g2d.drawRect(drawX, drawY, itemSize, itemSize);
+				
+				// 스킬 개수 표시 (스킬 드롭이므로 항상 1개)
+				int circleX = drawX + itemSize - 4;
+				int circleY = drawY + itemSize - 4;
+				int circleRadius = 6;
+				
+				// 배경 원
+				g2d.setColor(new Color(0, 0, 0, 180));
+				g2d.fillOval(circleX - circleRadius, circleY - circleRadius, circleRadius * 2, circleRadius * 2);
+				
+				// 개수 텍스트
+				g2d.setColor(Color.YELLOW);
+				g2d.setFont(new Font("Arial", Font.BOLD, 8));
+				String countText = "1";
+				int textWidth = g2d.getFontMetrics().stringWidth(countText);
+				int textHeight = g2d.getFontMetrics().getHeight();
+				int textX = circleX - textWidth / 2;
+				int textY = circleY + textHeight / 4;
+				g2d.drawString(countText, textX, textY);
+			} else {
+				// Fallback: Draw simple colored circle
+				g.setColor(Color.CYAN);
+				g.fillOval(drawX, drawY, itemSize, itemSize);
+				g.setColor(Color.WHITE);
+				g.drawOval(drawX, drawY, itemSize, itemSize);
+			}
+		} else if (hasPiercing) {
+			// Draw piercing shot with special color
+			g.setColor(Color.YELLOW);
+			g.fillRect((int)x - 2, (int)y - 10, 4, 20);
+		} else if (isNearMonsterShot) {
+			// Draw near monster shot with 50x50 size
+			int smallWidth = 50;  // 50x50 크기로 키움
+			int smallHeight = 50;
+			sprite.draw(g, (int)x - smallWidth/2, (int)y - smallHeight/2, smallWidth, smallHeight);
+		} else {
+			// Draw normal shot
+			super.draw(g);
+		}
+	}
+	
+	/**
+	 * Check if this shot has piercing ability
+	 * 
+	 * @return True if this shot can pierce through enemies
+	 */
+	public boolean hasPiercing() {
+		return hasPiercing;
+	}
+	
+	/**
+	 * Set piercing ability for this shot
+	 * 
+	 * @param hasPiercing True if this shot can pierce through enemies
+	 */
+	public void setPiercing(boolean hasPiercing) {
+		this.hasPiercing = hasPiercing;
 	}
 	
 	/**
@@ -307,42 +343,54 @@ public class ShotEntity extends Entity {
 	}
 	
 	/**
-	 * Load skill image based on skill type
+	 * Check if this is a skill drop
 	 * 
-	 * @param skillType The skill type (0-3)
-	 * @return BufferedImage of the skill icon
+	 * @return True if this is a skill drop
 	 */
-	private BufferedImage loadSkillImage(int skillType) {
-		String imagePath;
-		switch (skillType) {
-			case 0: // Attack Power
-				imagePath = "sprites/Skill/1.png";
-				break;
-			case 1: // Attack Speed
-				imagePath = "sprites/Skill/2.png";
-				break;
-			case 2: // HP Recovery
-				imagePath = "sprites/Skill/3.png";
-				break;
-			case 3: // Missile
-				imagePath = "sprites/Skill/4.png";
-				break;
-			default:
-				imagePath = "sprites/Skill/1.png";
-				break;
-		}
-		
-		try {
-			InputStream is = getClass().getClassLoader().getResourceAsStream(imagePath);
-			if (is != null) {
-				BufferedImage image = ImageIO.read(is);
-				is.close();
-				return image;
-			}
-		} catch (Exception e) {
-			System.err.println("Failed to load skill image: " + imagePath);
-		}
-		return null;
+	public boolean isSkillDrop() {
+		return isSkillDrop;
 	}
 	
+	/**
+	 * Get the skill type
+	 * 
+	 * @return The skill type
+	 */
+	public int getSkillType() {
+		return skillType;
+	}
+	
+	/**
+	 * Get the skill value
+	 * 
+	 * @return The skill value
+	 */
+	public int getSkillValue() {
+		return skillValue;
+	}
+	
+	/**
+	 * Set whether this is a near monster shot (for size adjustment)
+	 * 
+	 * @param isNearMonsterShot True if this is a near monster shot
+	 */
+	public void setNearMonsterShot(boolean isNearMonsterShot) {
+		this.isNearMonsterShot = isNearMonsterShot;
+	}
+	
+	/**
+	 * Override getBounds to provide smaller hitbox for near monster shots
+	 * 
+	 * @return The bounds of the shot entity
+	 */
+	public java.awt.Rectangle getBounds() {
+		if (isNearMonsterShot) {
+			// Near monster shots have smaller hitbox (20x20) than display size (50x50)
+			int hitboxSize = 20;
+			return new java.awt.Rectangle((int)x - hitboxSize/2, (int)y - hitboxSize/2, hitboxSize, hitboxSize);
+		} else {
+			// Normal shots use default bounds
+			return super.getBounds();
+		}
+	}
 }

@@ -2,6 +2,7 @@ package org.newdawn.spaceinvaders.gameplay.entity;
 
 import java.awt.Graphics;
 import java.awt.Graphics2D;
+import java.awt.Rectangle;
 
 import org.newdawn.spaceinvaders.gameplay.Game;
 import org.newdawn.spaceinvaders.gameplay.sprite.Sprite;
@@ -54,16 +55,18 @@ public class AlienEntity extends Entity {
 	private static String getAlienSpriteForRound(int round) {
 		switch (round) {
 			case 1:
-				return "sprites/Boss/1round_small.png";
+				return "sprites/Boss/1near.png"; // 1라운드 전용 사이드 몬스터
 			case 2:
-				return "sprites/Boss/1round_small.png"; // alien2.gif 대신 사용
+				return "sprites/Boss/2near.png"; // 2라운드 전용 사이드 몬스터
 			case 3:
-				return "sprites/Boss/1round_small.png"; // alien3.gif 대신 사용
+				return "sprites/Boss/3near.png"; // 3라운드 전용 사이드 몬스터
 			case 4:
-				return "sprites/Boss/1round_small.png"; // alien.gif 대신 사용
+				return "sprites/Boss/4near.png"; // 4라운드 전용 사이드 몬스터
+			case 5:
+				return "sprites/Boss/5near.png"; // 5라운드 전용 사이드 몬스터
 			default:
-				// For rounds 5 and above, use 1round_small.png
-				return "sprites/Boss/1round_small.png";
+				// For rounds 6 and above, use 5near.png
+				return "sprites/Boss/5near.png";
 		}
 	}
 	
@@ -89,9 +92,9 @@ public class AlienEntity extends Entity {
 		frames[2] = sprite;
 		frames[3] = sprite;
 		
-		// HP scaling: 1, 4, 10, 18, 30 for rounds 1-5 (더 도전적인 체력 증가)
+		// HP scaling: 20, 4, 10, 18, 30 for rounds 1-5 (1라운드 사이드 몬스터 체력 20)
 		switch (round) {
-			case 1: maxHP = 1; break;
+			case 1: maxHP = 20; break; // 1라운드 사이드 몬스터 체력 20
 			case 2: maxHP = 4; break;
 			case 3: maxHP = 10; break;
 			case 4: maxHP = 18; break;
@@ -183,15 +186,32 @@ public class AlienEntity extends Entity {
 			}
 		}
 		
-		// Check screen boundaries and change direction (좌우로 맵 전체를 왕복)
-		if (x < 10) {
-			movingRight = true;
-			dx = Math.abs(dx); // 현재 속도 유지하되 양수로
-			x = 10; // Keep alien on screen
-		} else if (x > 750) {
-			movingRight = false;
-			dx = -Math.abs(dx); // 현재 속도 유지하되 음수로
-			x = 750;
+		// 완전히 새로운 움직임 로직 - 경계 체크 후 직접 위치 업데이트
+		if (movingRight) {
+			x += moveSpeed * delta * 0.001;
+			if (x >= 750) {
+				movingRight = false;
+				x = 745; // 안전한 위치로 설정
+			}
+		} else {
+			x -= moveSpeed * delta * 0.001;
+			if (x <= 10) {
+				movingRight = true;
+				x = 15; // 안전한 위치로 설정
+			}
+		}
+		
+		// Y축 움직임 (작은 범위 내에서만)
+		if (!movingDown) {
+			y -= moveSpeed * delta * 0.0005; // Y축은 더 천천히
+			if (y <= 80) {
+				movingDown = true;
+			}
+		} else {
+			y += moveSpeed * delta * 0.0005;
+			if (y >= 180) {
+				movingDown = false;
+			}
 		}
 		
 		// Y 위치 제한 (맵 절반 이상 내려오지 못하게)
@@ -200,9 +220,6 @@ public class AlienEntity extends Entity {
 		} else if (y > 300) { // 맵 절반(300) 이상 내려오지 못하게 제한
 			y = 300;
 		}
-		
-		// proceed with normal move
-		super.move(delta);
 	}
 	
 	/**
@@ -270,24 +287,6 @@ public class AlienEntity extends Entity {
 		return currentHP;
 	}
 	
-	/**
-	 * Override getBounds to provide scaled collision bounds
-	 * 
-	 * @return The bounds of the alien entity
-	 */
-	@Override
-	public java.awt.Rectangle getBounds() {
-		// 1라운드는 45% 축소, 나머지는 75%로 설정
-		double scale = (game.getCurrentRound() == 1) ? 0.45 : 0.75;
-		int scaledWidth = (int)(sprite.getWidth() * scale);
-		int scaledHeight = (int)(sprite.getHeight() * scale);
-		
-		// Center the collision box
-		int centerX = (int)x - scaledWidth/2;
-		int centerY = (int)y - scaledHeight/2;
-		
-		return new java.awt.Rectangle(centerX, centerY, scaledWidth, scaledHeight);
-	}
 	
 	/**
 	 * Get the alien's maximum HP
@@ -415,8 +414,8 @@ public class AlienEntity extends Entity {
 	public void draw(Graphics g) {
 		Graphics2D g2d = (Graphics2D) g;
 		if (sprite != null) {
-			// 1라운드는 30% 축소, 나머지는 75%로 설정
-			double scale = (game.getCurrentRound() == 1) ? 0.45 : 0.75; // 75% * 0.6 = 45% (30% 축소)
+			// 1라운드는 18% 크기, 나머지는 75%로 설정
+			double scale = (game.getCurrentRound() == 1) ? 0.18 : 0.75; // 1라운드 몬스터 18% 크기
 			int scaledWidth = (int)(sprite.getWidth() * scale);
 			int scaledHeight = (int)(sprite.getHeight() * scale);
 			
@@ -428,6 +427,40 @@ public class AlienEntity extends Entity {
 						 drawX + scaledWidth, drawY + scaledHeight,
 						 0, 0, sprite.getWidth(), sprite.getHeight(), null);
 		}
+	}
+	
+	/**
+	 * Get collision bounds that match the scaled drawing size (더 작은 히트박스)
+	 * 
+	 * @return Rectangle representing the actual collision bounds
+	 */
+	@Override
+	public Rectangle getBounds() {
+		if (sprite != null) {
+			// 1라운드는 18% 크기, 나머지는 75%로 설정
+			double scale = (game.getCurrentRound() == 1) ? 0.18 : 0.75;
+			int scaledWidth = (int)(sprite.getWidth() * scale);
+			int scaledHeight = (int)(sprite.getHeight() * scale);
+			
+			// 중앙 정렬을 위한 오프셋 계산
+			int drawX = (int)x - scaledWidth/2;
+			int drawY = (int)y - scaledHeight/2;
+			
+			// 히트박스를 실제 크기의 5%로 극도로 축소 (매우 작게)
+			// 세로는 더욱 작게 (3%)
+			int hitboxWidth = (int)(scaledWidth * 0.05);
+			int hitboxHeight = (int)(scaledHeight * 0.03); // 세로를 더 작게
+			int hitboxX = drawX + (scaledWidth - hitboxWidth) / 2;
+			int hitboxY = drawY + (scaledHeight - hitboxHeight) / 2;
+			
+			// 디버그: 히트박스 정보 출력 (더 자주)
+			if (Math.random() < 0.01) { // 1% 확률로 출력
+				System.out.println("Alien hitbox - X:" + hitboxX + " Y:" + hitboxY + " W:" + hitboxWidth + " H:" + hitboxHeight);
+			}
+			
+			return new Rectangle(hitboxX, hitboxY, hitboxWidth, hitboxHeight);
+		}
+		return super.getBounds();
 	}
 	
 	/**

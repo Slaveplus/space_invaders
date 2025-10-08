@@ -11,19 +11,19 @@ import java.util.ArrayList;
 public class GameStateManager {
     // 게임플레이 상태
     private boolean gameRunning = true;
-    private boolean waitingForKeyPress = true;
+    private boolean waitingForKeyPress = false; // 게임 시작 시 바로 시작되도록 false로 변경
     private String message = "";
 
     // 라운드 정보
     private int currentRound = 1;
-    private final int MAX_ROUND = 5;
+    private final int MAX_ROUND = 8; // 1-4라운드: Near + Boss, 5라운드: Boss only
     private int alienCount;
 
     // 플레이어 스탯
-    private int attackPower = 1;
+    private int attackPower = 10;
     private double attackSpeed = 1.0;
-    private int maxHP = 3;
-    private int currentHP = 3;
+    private int maxHP = 10;
+    private int currentHP = 10;
     private int skillPoints = 0;
 
     // 스킬 메뉴 관련
@@ -66,15 +66,18 @@ public class GameStateManager {
      * 게임 시작 시 초기화
      */
     public void startNewGame() {
+        System.out.println("🎮 GameStateManager.startNewGame() called!");
+        
         // Reset player stats
-        attackPower = 1;
+        attackPower = 10;
         attackSpeed = 1.0;
-        maxHP = 3;
-        currentHP = 3;
+        maxHP = 10;
+        currentHP = 10;
         skillPoints = 0;
         
         // Reset round
         currentRound = 1;
+        System.out.println("🎮 GameStateManager: Set currentRound = " + currentRound);
         
         // Reset alien firing interval
         alienFiringInterval = baseAlienFiringInterval;
