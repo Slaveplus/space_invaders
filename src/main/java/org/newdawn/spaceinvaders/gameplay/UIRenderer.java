@@ -298,20 +298,13 @@ public class UIRenderer {
         g.drawString(title, titleX, 180);
 
         // 메뉴 항목
-        String[] items = {"계속하기", "메인메뉴", "설정"};
+        String[] items = {"계속하기", "그만두기"};
         int y = 260;
         for (int i = 0; i < items.length; i++) {
             boolean sel = (i == selectedIndex);
             drawMenuButton(g, items[i], 325, y, 150, 40, sel);
             y += 60;
         }
-
-        // 안내
-        g.setFont(FONT_TEXT_14_P);
-        g.setColor(Color.YELLOW);
-        String hint = "ESC: 메뉴 닫기";
-        int hintX = (800 - g.getFontMetrics().stringWidth(hint)) / 2;
-        g.drawString(hint, hintX, 520);
     }
 
     public void drawSkillOverlay(Graphics2D g,

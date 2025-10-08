@@ -222,8 +222,8 @@ public class ShotEntity extends Entity {
 			used = true;
 		}
 		
-		// if we've hit the player's ship, damage it
-		if (other instanceof ShipEntity) {
+		// if we've hit the player's ship, damage it (but not if this is a player shot)
+		if (other instanceof ShipEntity && isAlienShot) {
 			// remove the shot
 			game.removeEntity(this);
 			
