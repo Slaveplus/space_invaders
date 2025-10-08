@@ -184,6 +184,20 @@ public class ShopRenderer {
     }
     
     /**
+     * 인벤토리 진입 애니메이션 시작 (상점 카테고리와 동일한 방식)
+     */
+    public void startInventoryEntryAnimation() {
+        categoryAnimation.startAnimation(ShopAnimation.AnimationType.SLIDE_IN);
+    }
+    
+    /**
+     * 인벤토리 나가기 애니메이션 시작 (상점 카테고리와 동일한 방식)
+     */
+    public void startInventoryExitAnimation() {
+        categoryAnimation.startAnimation(ShopAnimation.AnimationType.SLIDE_OUT);
+    }
+    
+    /**
      * 애니메이션 업데이트
      */
     public void updateAnimation() {
@@ -271,6 +285,16 @@ public class ShopRenderer {
             // 양쪽으로 밀려나가는 효과
             leftPanelX = (int) (50 - (200 * progress));  // 왼쪽으로 밀려나감
             rightPanelX = (int) (270 + (480 * progress)); // 오른쪽으로 밀려나감
+        } else if (animation.isAnimating() && animation.getCurrentType() == ShopAnimation.AnimationType.SLIDE_DOWN) {
+            // 위에서 아래로 내려오는 효과 (인벤토리 진입)
+            leftPanelX = 50;
+            rightPanelX = 270;
+            // Y 위치는 애니메이션에 따라 조정 (나중에 구현)
+        } else if (animation.isAnimating() && animation.getCurrentType() == ShopAnimation.AnimationType.SLIDE_UP) {
+            // 아래에서 위로 올라가는 효과 (인벤토리 나가기)
+            leftPanelX = 50;
+            rightPanelX = 270;
+            // Y 위치는 애니메이션에 따라 조정 (나중에 구현)
         } else {
             // 애니메이션 완료 후 정상 위치
             leftPanelX = 50;
@@ -332,7 +356,7 @@ public class ShopRenderer {
         g2d.setColor(Color.WHITE);
         g2d.setFont(menuFont);
         
-        int startX = panelX + 20;
+        int startX = panelX+20;
         int startY = 100;
         int lineHeight = 30;
         
@@ -364,7 +388,7 @@ public class ShopRenderer {
         
         // 선택된 항목에 따라 다른 정보 표시
         switch (inputHandler.getSelectedOption()) {
-            case 0: // 무기 상점
+            case 0: //  상점
                 g2d.drawString("다양한 무기를 구매할 수 있습니다.", startX, startY + lineHeight * 2);
                 g2d.drawString("레이저 건, 플라즈마 건, 미사일 발사기 등", startX, startY + lineHeight * 3);
                 g2d.drawString("Enter를 눌러 무기 상점에 입장하세요.", startX, startY + lineHeight * 4);
@@ -450,22 +474,33 @@ public class ShopRenderer {
         // 플레이어 코인 표시 (상단 우측) - 실시간 데이터
         int currentCoins = getCurrentCoins();
         if (coinImage != null) {
-            g2d.drawImage(coinImage, panelX + 600, panelY + 20, 24, 24, null);
             g2d.setColor(Color.YELLOW);
             g2d.setFont(menuFont);
-            g2d.drawString(": " + currentCoins, panelX + 630, panelY + 40);
+            String coinText = ": " + currentCoins;
+            FontMetrics coinMetrics = g2d.getFontMetrics();
+            
+            // 텍스트 너비를 고려하여 이미지와 텍스트를 패널 내부에 정확히 배치
+            int coinTextWidth = coinMetrics.stringWidth(coinText);
+            int coinImageWidth = 24;
+            int totalWidth = coinImageWidth + 5 + coinTextWidth; // 이미지 + 간격 + 텍스트
+            int coinImageX = panelX + 700 - totalWidth - 15; // 패널 오른쪽에서 15px 여백
+            
+            g2d.drawImage(coinImage, coinImageX, panelY + 20, 24, 24, null);
+            int coinTextX = coinImageX + coinImageWidth + 5; // 이미지 오른쪽에 5px 간격
+            g2d.drawString(coinText, coinTextX, panelY + 40);
         } else {
             g2d.setColor(Color.YELLOW);
             g2d.setFont(menuFont);
-            g2d.drawString("보유 코인: " + currentCoins, panelX + 600, panelY + 40);
+            String coinText = "보유 코인: " + currentCoins;
+            FontMetrics coinMetrics = g2d.getFontMetrics();
+            int coinTextX = panelX + 700 - coinMetrics.stringWidth(coinText) - 15; // 패널 오른쪽에서 15px 여백
+            g2d.drawString(coinText, coinTextX, panelY + 40);
         }
         
-        // 해당 카테고리의 아이템 목록
-        List<ShopItem> categoryItems = shopManager.getShopItems().stream()
-                .filter(item -> item.getCategory() == shopManager.getCurrentCategory())
-                .collect(java.util.stream.Collectors.toList());
+        // 현재 페이지의 아이템 목록
+        List<ShopItem> currentPageItems = shopManager.getItemsForCurrentPage(shopManager.getCurrentCategory());
         
-        if (categoryItems.isEmpty()) {
+        if (currentPageItems.isEmpty()) {
             g2d.setColor(Color.WHITE);
             g2d.setFont(menuFont);
             g2d.drawString("이 카테고리에는 아이템이 없습니다.", panelX + 350, panelY + 200);
@@ -482,8 +517,8 @@ public class ShopRenderer {
         int startX = panelX + spacingX;
         int startY = panelY + 80; // 제목 아래로 조정
         
-        for (int i = 0; i < categoryItems.size(); i++) {
-            ShopItem item = categoryItems.get(i);
+        for (int i = 0; i < currentPageItems.size(); i++) {
+            ShopItem item = currentPageItems.get(i);
             int row = i / itemsPerRow;
             int col = i % itemsPerRow;
             
@@ -491,7 +526,8 @@ public class ShopRenderer {
             int y = startY + row * (itemHeight + spacingY);
             
             // 아이템 박스 그리기 (구매 상태에 따라 다른 색상)
-            boolean isPurchased = item.isPurchased();
+            // 인벤토리에 있는 아이템인지 확인 (상점 아이템의 구매 상태가 아닌 실제 인벤토리 확인)
+            boolean isPurchased = shopManager.isItemInInventory(item.getId());
             boolean isSelected = (i == inputHandler.getSelectedItem());
             
             if (itemBoxImage != null) {
@@ -572,6 +608,7 @@ public class ShopRenderer {
             }
         }
         
+        
         // 구매 메시지 표시
         if (shopManager.hasMessage()) {
             g2d.setColor(Color.RED);
@@ -579,8 +616,18 @@ public class ShopRenderer {
             String message = shopManager.getPurchaseMessage();
             FontMetrics messageMetrics = g2d.getFontMetrics();
             int messageX = panelX + (700 - messageMetrics.stringWidth(message)) / 2;
-            g2d.drawString(message, messageX, panelY + 450);
+            int messageY = panelY + 420;
+            g2d.drawString(message, messageX, messageY);
         }
+        
+        // 상점 조작 안내
+        g2d.setFont(menuFont);
+        g2d.setColor(Color.YELLOW);
+        String instructions = "↑↓←→: 아이템 이동  Enter: 구매  P/L: 페이지 전환  ESC: 뒤로가기";
+        FontMetrics instructionMetrics = g2d.getFontMetrics();
+        int instructionX = panelX + (700 - instructionMetrics.stringWidth(instructions)) / 2;
+        int instructionY = panelY + 450;
+        g2d.drawString(instructions, instructionX, instructionY);
     }
     
     // private String getCategoryTitle(ShopCategory category) {
@@ -831,42 +878,61 @@ public class ShopRenderer {
     }
     
     private void drawInventory(Graphics2D g2d, ShopManager shopManager, ShopInputHandler inputHandler) {
+        // 애니메이션 효과에 따른 패널 위치 계산 (상점 카테고리와 동일한 방식)
+        float progress = categoryAnimation.getProgress();
+        int panelX, panelY;
+        
+        if (categoryAnimation.isAnimating() && categoryAnimation.getCurrentType() == ShopAnimation.AnimationType.SLIDE_IN) {
+            // 위에서 아래로 밀려오는 효과
+            panelX = 50;
+            panelY = (int) (50 - (500 * (1.0f - progress))); // 위에서 아래로
+        } else if (categoryAnimation.isAnimating() && categoryAnimation.getCurrentType() == ShopAnimation.AnimationType.SLIDE_OUT) {
+            // 아래에서 위로 밀려나가는 효과
+            panelX = 50;
+            panelY = (int) (50 - (500 * progress)); // 아래에서 위로
+        } else {
+            // 애니메이션 완료 후 정상 위치
+            panelX = 50;
+            panelY = 50;
+        }
+        
         // 전체 화면을 인벤토리 영역으로 사용
         g2d.setColor(new Color(0, 0, 0, 150)); // 반투명 검은색
-        g2d.fillRect(50, 50, 700, 500);
+        g2d.fillRect(panelX, panelY, 700, 500);
         g2d.setColor(Color.WHITE);
-        g2d.drawRect(50, 50, 700, 500);
+        g2d.drawRect(panelX, panelY, 700, 500);
         
         // 제목 "인벤토리" (화면 상단 중앙)
         g2d.setColor(Color.WHITE);
         g2d.setFont(titleFont);
         FontMetrics titleMetrics = g2d.getFontMetrics();
         String title = "인벤토리";
-        int titleX = 50 + (700 - titleMetrics.stringWidth(title)) / 2;
-        g2d.drawString(title, titleX, 100);
+        int titleX = panelX + (700 - titleMetrics.stringWidth(title)) / 2;
+        g2d.drawString(title, titleX, panelY + 50);
         
         // 카테고리 탭 표시
-        drawInventoryCategoryTabs(g2d, shopManager, inputHandler);
+        drawInventoryCategoryTabs(g2d, shopManager, inputHandler, panelX, panelY);
         
-        // 현재 선택된 카테고리의 아이템들 표시
+        // 현재 선택된 카테고리의 아이템들 표시 (페이지네이션 적용)
         ShopCategory currentCategory = shopManager.getInventoryCategory();
-        List<ShopItem> categoryItems = shopManager.getInventoryByCategory(currentCategory);
+        List<ShopItem> currentPageItems = shopManager.getInventoryItemsForCurrentPage(currentCategory);
         
-        if (categoryItems.isEmpty()) {
+        if (currentPageItems.isEmpty()) {
             g2d.setColor(Color.WHITE);
             g2d.setFont(menuFont);
             String message = currentCategory.getDisplayName() + " 카테고리에 아이템이 없습니다.";
-            g2d.drawString(message, 50 + (700 - g2d.getFontMetrics().stringWidth(message)) / 2, 250);
-            g2d.drawString("상점에서 아이템을 구매해보세요!", 50 + (700 - g2d.getFontMetrics().stringWidth("상점에서 아이템을 구매해보세요!")) / 2, 280);
+            g2d.drawString(message, panelX + (700 - g2d.getFontMetrics().stringWidth(message)) / 2, panelY + 170);
+            g2d.drawString("상점에서 아이템을 구매해보세요!", panelX + (700 - g2d.getFontMetrics().stringWidth("상점에서 아이템을 구매해보세요!")) / 2, panelY + 200);
         } else {
-            drawInventoryItems(g2d, categoryItems, shopManager, inputHandler);
+            drawInventoryItems(g2d, currentPageItems, shopManager, inputHandler, panelX, panelY);
         }
+        
         
         // 조작 안내
         g2d.setFont(menuFont);
         g2d.setColor(Color.YELLOW);
-        String instructions = "Q: 카테고리 변경  ↑↓←→: 아이템 이동  Enter: 장착/해제  ESC: 뒤로가기";
-        g2d.drawString(instructions, 50 + (700 - g2d.getFontMetrics().stringWidth(instructions)) / 2, 520);
+        String instructions = "Q: 카테고리 변경  Enter: 장착/해제  P/L: 페이지 전환  ESC: 뒤로가기";
+        g2d.drawString(instructions, panelX + (700 - g2d.getFontMetrics().stringWidth(instructions)) / 2, panelY + 450);
         
         // 저장 중 표시
         if (shopManager.getEquipmentManager().isSaving()) {
@@ -952,7 +1018,7 @@ public class ShopRenderer {
         g2d.drawString(autoCloseText, autoX, autoY);
     }
     
-    private void drawInventoryCategoryTabs(Graphics2D g2d, ShopManager shopManager, ShopInputHandler inputHandler) {
+    private void drawInventoryCategoryTabs(Graphics2D g2d, ShopManager shopManager, ShopInputHandler inputHandler, int panelX, int panelY) {
         ShopCategory currentCategory = shopManager.getInventoryCategory();
         ShopCategory[] equippableCategories = {
             ShopCategory.WEAPONS,
@@ -962,8 +1028,8 @@ public class ShopRenderer {
         int tabWidth = 150;
         int tabHeight = 30;
         int totalWidth = (tabWidth + 10) * equippableCategories.length - 10; // 전체 탭 너비
-        int startX = 50 + (700 - totalWidth) / 2; // 중앙정렬
-        int startY = 120;
+        int startX = panelX + (700 - totalWidth) / 2; // 중앙정렬
+        int startY = panelY + 90;
         
         for (int i = 0; i < equippableCategories.length; i++) {
             ShopCategory category = equippableCategories[i];
@@ -982,26 +1048,26 @@ public class ShopRenderer {
             g2d.setColor(Color.WHITE);
             g2d.drawRect(x, y, tabWidth, tabHeight);
             
-            // 탭 텍스트
+            // 탭 텍스트 (아이템 개수 포함)
             g2d.setFont(menuFont);
             FontMetrics metrics = g2d.getFontMetrics();
-            String text = category.getDisplayName();
+            int totalItems = shopManager.getInventoryByCategory(category).size(); // 전체 아이템 개수
+            String text = category.getDisplayName() + " (" + totalItems + ")";
             int textX = x + (tabWidth - metrics.stringWidth(text)) / 2;
             int textY = y + (tabHeight + metrics.getAscent()) / 2 - 2;
             g2d.drawString(text, textX, textY);
         }
     }
     
-    private void drawInventoryItems(Graphics2D g2d, List<ShopItem> items, ShopManager shopManager, ShopInputHandler inputHandler) {
+    private void drawInventoryItems(Graphics2D g2d, List<ShopItem> items, ShopManager shopManager, ShopInputHandler inputHandler, int panelX, int panelY) {
         int itemsPerRow = 3; // 2에서 3으로 변경
         int panelWidth = 700;
-        int panelStartX = 50;
         int spacingX = 15; // 간격을 좀 더 줄임
         int spacingY = 20;
         int itemWidth = (panelWidth - spacingX * (itemsPerRow + 1)) / itemsPerRow;
         int itemHeight = 120;
-        int startX = panelStartX + spacingX;
-        int startY = 170;
+        int startX = panelX + spacingX;
+        int startY = panelY + 140;
         
         for (int i = 0; i < items.size(); i++) {
             ShopItem item = items.get(i);
@@ -1091,12 +1157,6 @@ public class ShopRenderer {
                 g2d.drawRect(x, y, itemWidth, itemHeight);
             }
         }
-        
-        // 인벤토리 아이템 개수 표시 (하단으로 이동하여 겹침 방지)
-        g2d.setColor(Color.WHITE);
-        g2d.setFont(menuFont);
-        String itemCountText = "보유 아이템: " + items.size() + "개";
-        g2d.drawString(itemCountText, 50 + (700 - g2d.getFontMetrics().stringWidth(itemCountText)) / 2, 480);
     }
     
     private void drawSearchResults(Graphics2D g2d, ShopManager shopManager, ShopInputHandler inputHandler) {

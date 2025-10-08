@@ -16,7 +16,9 @@ public class ShopAnimation {
         SLIDE_OUT,   // 양쪽으로 밀려나가는 효과
         FADE_IN,     // 페이드 인 효과
         FADE_OUT,    // 페이드 아웃 효과
-        SCALE_IN     // 크기 변화 효과
+        SCALE_IN,    // 크기 변화 효과
+        SLIDE_DOWN,  // 위에서 아래로 내려오는 효과
+        SLIDE_UP     // 아래에서 위로 올라가는 효과
     }
     
     private AnimationType currentType = AnimationType.SLIDE_IN;

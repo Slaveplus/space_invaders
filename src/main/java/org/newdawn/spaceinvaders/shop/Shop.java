@@ -142,6 +142,24 @@ public class Shop {
     }
     
     /**
+     * 인벤토리 진입 애니메이션 시작 (위에서 아래로)
+     */
+    public void startInventoryEntryAnimation() {
+        if (shopRenderer != null) {
+            shopRenderer.startInventoryEntryAnimation();
+        }
+    }
+    
+    /**
+     * 인벤토리 나가기 애니메이션 시작 (아래에서 위로)
+     */
+    public void startInventoryExitAnimation() {
+        if (shopRenderer != null) {
+            shopRenderer.startInventoryExitAnimation();
+        }
+    }
+    
+    /**
      * 애니메이션 중인지 확인
      */
     public boolean isAnimating() {

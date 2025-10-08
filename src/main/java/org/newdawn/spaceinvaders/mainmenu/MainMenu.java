@@ -68,11 +68,9 @@ public class MainMenu {
     
     // 해상도 옵션들
     private String[] resolutionOptions = {
-        "800x600 (기본)",
-        "1024x768 (일반)",
-        "1280x720 (HD)",
-        "1366x768 (노트북)",
-        "1920x1080 (Full HD)",
+        "800x600",
+        "1024x768",
+        "1440x1080",
         "이전메뉴"
     };
     
@@ -80,9 +78,7 @@ public class MainMenu {
     private int[][] resolutionValues = {
         {800, 600},
         {1024, 768},
-        {1280, 720},
-        {1366, 768},
-        {1920, 1080},
+        {1440, 1080},
         {0, 0} // 이전메뉴는 무시
     };
     
@@ -119,7 +115,6 @@ public class MainMenu {
      */
     public void refreshInventory() {
         if (shop != null && userManager != null && userManager.isLoggedIn()) {
-            System.out.println("MainMenu: 인벤토리 새로고침 시작");
             shop.getShopManager().loadInventoryFromDB();
             shop.getShopManager().loadEquipmentFromDB();
         }
@@ -245,7 +240,6 @@ public class MainMenu {
             if (x >= 300 && x <= 500 && y >= optionY - 20 && y <= optionY + 20) {
                 selectedOption = i;
                 handleMenuSelection();
-                System.out.println("마우스 클릭: " + options[i]);
                 break;
             }
         }
@@ -299,9 +293,9 @@ public class MainMenu {
                     currentState = MenuState.MAIN;
                     selectedOption = 3; // 인벤토리 옵션으로 돌아가기
                 } else if (currentState == MenuState.RESOLUTION) {
-                    // 해상도 설정에서 설정으로 돌아갈 때 슬라이드 아웃 애니메이션
+                    // 설정 메뉴의 좌우 패널 애니메이션 시작 (상점과 동일한 방식)
                     if (settingsAnimation != null) {
-                        settingsAnimation.startAnimation(ShopAnimation.AnimationType.SLIDE_OUT);
+                        settingsAnimation.startAnimation(ShopAnimation.AnimationType.SLIDE_IN);
                     }
                     currentState = MenuState.SETTINGS;
                     selectedOption = 0;
@@ -417,6 +411,10 @@ public class MainMenu {
                 if (shop != null && shop.getShopManager() != null) {
                     shop.getShopManager().clearWarningDialog();
                 }
+                // 인벤토리 진입 애니메이션 시작 (위에서 아래로)
+                if (shop != null) {
+                    shop.startInventoryEntryAnimation();
+                }
                 break;
             case 4: // 설정
                 currentState = MenuState.SETTINGS;
@@ -449,7 +447,6 @@ public class MainMenu {
                 gameStartRequested = true;
                 break;
             case 1: // 플레이기록
-                System.out.println("플레이기록을 표시합니다.");
                 break;
             case 2: // 이전메뉴
                 currentState = MenuState.MAIN;
@@ -464,10 +461,8 @@ public class MainMenu {
     private void handleMultiPlayerSelection() {
         switch (selectedOption) {
             case 0: // 게임참가
-                System.out.println("멀티플레이 게임에 참가합니다.");
                 break;
             case 1: // 리더보드
-                System.out.println("리더보드를 표시합니다.");
                 break;
             case 2: // 이전메뉴
                 currentState = MenuState.MAIN;
@@ -484,7 +479,6 @@ public class MainMenu {
         switch (selectedOption) {
             case 0: // 배경음악 ON/OFF
                 musicEnabled = !musicEnabled;
-                System.out.println("음악이 " + (musicEnabled ? "켜졌습니다" : "꺼졌습니다"));
                 break;
             case 1: // 해상도 변경
                 currentState = MenuState.RESOLUTION;
@@ -495,7 +489,6 @@ public class MainMenu {
                 }
                 break;
             case 2: // 제작자
-                System.out.println("제작자 정보를 표시합니다.");
                 break;
             case 3: // 이전메뉴
                 // 설정에서 메인으로 돌아갈 때 슬라이드 아웃 애니메이션
@@ -512,19 +505,16 @@ public class MainMenu {
         switch (selectedOption) {
             case 0: // 800x600
             case 1: // 1024x768
-            case 2: // 1280x720
-            case 3: // 1366x768
-            case 4: // 1920x1080
+            case 2: // 1440x1080
                 int[] resolution = resolutionValues[selectedOption];
                 if (resolution[0] > 0 && resolution[1] > 0) {
                     navigator.setResolution(resolution[0], resolution[1]);
-                    System.out.println("해상도가 " + resolution[0] + "x" + resolution[1] + "로 변경되었습니다.");
                 }
                 break;
-            case 5: // 이전메뉴
-                // 해상도에서 설정으로 돌아갈 때 슬라이드 아웃 애니메이션
+            case 3: // 이전메뉴
+                // 설정 메뉴의 좌우 패널 애니메이션 시작 (상점과 동일한 방식)
                 if (settingsAnimation != null) {
-                    settingsAnimation.startAnimation(ShopAnimation.AnimationType.SLIDE_OUT);
+                    settingsAnimation.startAnimation(ShopAnimation.AnimationType.SLIDE_IN);
                 }
                 currentState = MenuState.SETTINGS;
                 selectedOption = 1; // 해상도 변경 옵션으로 돌아가기
@@ -551,7 +541,6 @@ public class MainMenu {
                 currentState = MenuState.MAIN;
                 selectedOption = 0;
                 logoutRequested = true;
-                System.out.println("로그아웃 완료");
                 break;
             case 4: // 이전메뉴
                 // 계정에서 메인으로 돌아갈 때 슬라이드 아웃 애니메이션
@@ -582,24 +571,31 @@ public class MainMenu {
             if (!shop.getShopManager().getEquipmentManager().isSaving()) {
                 // 변경사항을 DB에 저장
                 boolean saveSuccess = shop.getShopManager().getEquipmentManager().saveChangesToDB();
-                if (saveSuccess) {
-                    System.out.println("MainMenu: 인벤토리 변경사항 저장 완료");
-                } else {
-                    System.out.println("MainMenu: 인벤토리 변경사항 저장 실패");
-                }
+                // 인벤토리 변경사항 저장 완료
             }
+        }
+        
+        // 인벤토리 나가기 애니메이션 시작 (아래에서 위로)
+        if (shop != null) {
+            shop.startInventoryExitAnimation();
         }
         
         // 메인 메뉴로 돌아가기
         currentState = MenuState.MAIN;
         selectedOption = 3; // 인벤토리 옵션으로 돌아가기
-        System.out.println("MainMenu: 인벤토리에서 메인 메뉴로 돌아가기");
     }
     
     /**
      * 메뉴를 그립니다
      */
     public void draw(Graphics2D g2d) {
+        // 해상도 스케일링 적용
+        if (navigator != null && navigator.getResolutionManager() != null) {
+            double scaleX = navigator.getResolutionManager().getScaleX();
+            double scaleY = navigator.getResolutionManager().getScaleY();
+            g2d.scale(scaleX, scaleY);
+        }
+        
         // 상점이 표시중이면 상점을 그리기
         if (showingShop) {
             shop.update(); // 메시지 타이머 업데이트
@@ -637,6 +633,8 @@ public class MainMenu {
             drawAccountMenu(g2d);
         } else if (currentState == MenuState.SETTINGS) {
             drawSettingsMenu(g2d);
+        } else if (currentState == MenuState.RESOLUTION) {
+            drawResolutionMenu(g2d);
         } else {
             // 메뉴 옵션들 그리기
             drawMenuOptions(g2d);
@@ -855,13 +853,13 @@ public class MainMenu {
         FontMetrics titleMetrics = g2d.getFontMetrics();
         String title = "설정";
         int titleX = leftPanelX + (200 - titleMetrics.stringWidth(title)) / 2;
-        g2d.drawString(title, titleX, 80);
+        g2d.drawString(title, titleX, 100 );
         
         // 메뉴 옵션들 (왼쪽 패널)
         String[] options = getSettingsOptions();
         g2d.setFont(menuFont);
         
-        int startY = 120;
+        int startY = 140;
         int lineHeight = 40;
         
         for (int i = 0; i < options.length; i++) {
@@ -987,6 +985,91 @@ public class MainMenu {
     
     public void resetLogoutRequest() {
         logoutRequested = false;
+    }
+    
+    /**
+     * 해상도 변경 메뉴를 그립니다
+     */
+    private void drawResolutionMenu(Graphics2D g2d) {
+        // 배경 이미지 그리기
+        if (backgroundImage != null) {
+            g2d.drawImage(backgroundImage, 0, 0, 800, 600, null);
+        }
+        
+        // 반투명 오버레이
+        g2d.setColor(new Color(0, 0, 0, 100));
+        g2d.fillRect(0, 0, 800, 600);
+        
+        // 제목 그리기
+        g2d.setColor(Color.WHITE);
+        g2d.setFont(titleFont);
+        FontMetrics titleMetrics = g2d.getFontMetrics();
+        String title = "해상도 변경";
+        int titleX = (800 - titleMetrics.stringWidth(title)) / 2;
+        int titleY = 120;
+        g2d.drawString(title, titleX, titleY);
+        
+        // 해상도 옵션들 그리기 (메인메뉴 스타일)
+        g2d.setFont(menuFont);
+        
+        int startY = 200;
+        int lineHeight = 50;
+        
+        for (int i = 0; i < resolutionOptions.length; i++) {
+            // 선택된 항목 강조
+            if (i == selectedOption) {
+                // 선택된 항목 배경 (메인메뉴 스타일)
+                g2d.setColor(Color.YELLOW);
+                g2d.fillRect(300, startY + (i * lineHeight) - 20, 200, 30);
+                
+                // 선택된 항목 텍스트 (검은색)
+                g2d.setColor(Color.BLACK);
+            } else {
+                // 선택되지 않은 항목 텍스트 (흰색)
+                g2d.setColor(Color.WHITE);
+            }
+            
+            // 텍스트 중앙 정렬
+            FontMetrics metrics = g2d.getFontMetrics();
+            int textX = (800 - metrics.stringWidth(resolutionOptions[i])) / 2;
+            int textY = startY + (i * lineHeight);
+            g2d.drawString(resolutionOptions[i], textX, textY);
+        }
+        
+        // 현재 해상도 정보 표시 (하단)
+        g2d.setColor(Color.YELLOW);
+        g2d.setFont(new Font("Arial", Font.BOLD, 14));
+        String currentResolution = "현재 해상도: ";
+        String scaleInfo = "";
+        if (navigator != null) {
+            currentResolution += navigator.getCurrentWidth() + " x " + navigator.getCurrentHeight();
+            if (navigator.getResolutionManager() != null) {
+                double scale = navigator.getResolutionManager().getUniformScale();
+                scaleInfo = " (스케일: " + String.format("%.2f", scale) + "x)";
+            }
+        } else {
+            currentResolution += "800 x 600";
+            scaleInfo = " (스케일: 1.00x)";
+        }
+        FontMetrics currentMetrics = g2d.getFontMetrics();
+        int currentX = (800 - currentMetrics.stringWidth(currentResolution + scaleInfo)) / 2;
+        g2d.drawString(currentResolution + scaleInfo, currentX, 500);
+        
+        // 조작 안내
+        g2d.setColor(Color.LIGHT_GRAY);
+        g2d.setFont(new Font("Arial", Font.PLAIN, 12));
+        String instructions = "↑↓: 선택  Enter: 확인  ESC: 뒤로가기";
+        FontMetrics instructionMetrics = g2d.getFontMetrics();
+        int instructionX = (800 - instructionMetrics.stringWidth(instructions)) / 2;
+        g2d.drawString(instructions, instructionX, 530);
+        
+        // 스케일링 설명
+        g2d.setColor(Color.CYAN);
+        g2d.setFont(new Font("Arial", Font.PLAIN, 11));
+        String scaleDescription = "※ 균등 스케일링: 게임 비율을 유지하면서 크기만 조정합니다";
+        FontMetrics descMetrics = g2d.getFontMetrics();
+        int descX = (800 - descMetrics.stringWidth(scaleDescription)) / 2;
+        g2d.drawString(scaleDescription, descX, 550);
     }
     
         
