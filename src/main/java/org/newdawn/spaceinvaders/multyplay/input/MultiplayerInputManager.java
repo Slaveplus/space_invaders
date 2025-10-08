@@ -140,22 +140,38 @@ public class MultiplayerInputManager {
             
             // Handle skill activation keys (only when skill menu is not open)
             if (e.getKeyCode() == KeyEvent.VK_1) {
-                skillManager.extendSkill(0, 5); // 5 seconds invincible
+                if (game.isRemoteSession()) {
+                    game.sendSkillActivationRequest(0);
+                } else {
+                    skillManager.extendSkill(0, 5); // 5 seconds invincible
+                }
                 return;
             }
             
             if (e.getKeyCode() == KeyEvent.VK_2) {
-                skillManager.extendSkill(1, 10); // 10 seconds piercing
+                if (game.isRemoteSession()) {
+                    game.sendSkillActivationRequest(1);
+                } else {
+                    skillManager.extendSkill(1, 10); // 10 seconds piercing
+                }
                 return;
             }
             
             if (e.getKeyCode() == KeyEvent.VK_3) {
-                skillManager.extendSkill(2, 8); // 8 seconds triple shot
+                if (game.isRemoteSession()) {
+                    game.sendSkillActivationRequest(2);
+                } else {
+                    skillManager.extendSkill(2, 8); // 8 seconds triple shot
+                }
                 return;
             }
             
             if (e.getKeyCode() == KeyEvent.VK_4) {
-                skillManager.activateSkill(3, 1); // Activate missile skill
+                if (game.isRemoteSession()) {
+                    game.sendSkillActivationRequest(3);
+                } else {
+                    skillManager.activateSkill(3, 1); // Activate missile skill
+                }
                 return;
             }
             
@@ -305,6 +321,14 @@ public class MultiplayerInputManager {
         int selectedSkill = gameStateManager.getSelectedSkill();
         int skillPoints = gameStateManager.getSkillPoints();
         
+        if (game.isRemoteSession()) {
+            game.sendSkillUpgradeRequest(selectedSkill);
+            gameStateManager.setMessage("강화 요청을 서버에 보냈습니다.");
+            gameStateManager.setWaitingForKeyPress(false);
+            gameStateManager.setRoundTransition(false);
+            return;
+        }
+		
         String result = "";
         boolean success = false;
         

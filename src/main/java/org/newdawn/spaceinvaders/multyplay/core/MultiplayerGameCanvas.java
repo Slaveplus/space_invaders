@@ -121,6 +121,7 @@ public class MultiplayerGameCanvas extends Canvas implements Screen, Multiplayer
 	private boolean localReady = false;
 	private String intermissionMessage = "";
 	private boolean localSpectating = false;
+	private boolean requestLobbyReturn = false;
 	
 	/**
 	 * Construct our game and set it running.
@@ -213,6 +214,44 @@ public class MultiplayerGameCanvas extends Canvas implements Screen, Multiplayer
 		if (networkAdapter != null) {
 			networkAdapter.shutdown();
 		}
+	}
+
+	public boolean isRemoteSession() {
+		return remoteMode;
+	}
+
+	public void sendSkillActivationRequest(int skillType) {
+		if (!remoteMode || networkAdapter == null) {
+			return;
+		}
+		GameEvent event = new GameEvent(GameEvent.Type.SKILL_REQUEST,
+				localPlayerId,
+				Integer.toString(skillType),
+				System.currentTimeMillis());
+		networkAdapter.sendEvent(event);
+	}
+
+	public void sendSkillUpgradeRequest(int upgradeType) {
+		if (!remoteMode || networkAdapter == null) {
+			return;
+		}
+		GameEvent event = new GameEvent(GameEvent.Type.SKILL_UPGRADE,
+				localPlayerId,
+				Integer.toString(upgradeType),
+				System.currentTimeMillis());
+		networkAdapter.sendEvent(event);
+	}
+
+	public void requestReturnToLobby() {
+		requestLobbyReturn = true;
+	}
+
+	public boolean isRequestingLobbyReturn() {
+		return requestLobbyReturn;
+	}
+
+	public void resetLobbyReturnRequest() {
+		requestLobbyReturn = false;
 	}
 
 	@Override
@@ -414,7 +453,9 @@ public class MultiplayerGameCanvas extends Canvas implements Screen, Multiplayer
 			}
 		}
 		
-		if (remainingAliens == 0) {
+		BossEntity boss = getBoss();
+		boolean bossAlive = boss != null && !removeList.contains(boss);
+		if (remainingAliens == 0 && !bossAlive) {
 			notifyWin();
 		}
 		
@@ -670,6 +711,7 @@ public class MultiplayerGameCanvas extends Canvas implements Screen, Multiplayer
 					handleRemoteEvents(events);
 				}
 			}
+			skillManager.updateSkillEffects();
 			return;
 		}
 
@@ -755,6 +797,7 @@ public class MultiplayerGameCanvas extends Canvas implements Screen, Multiplayer
 		Map<Long, Entity> next = new HashMap<>();
 		snapshotEntitiesBuffer.clear();
 		Entity localShipCandidate = null;
+		boolean localShipVisible = false;
 		for (EntitySnapshot snap : snapshot.entities) {
 			Entity entity = remoteEntities.get(snap.id);
 			if (entity == null) {
@@ -765,6 +808,7 @@ public class MultiplayerGameCanvas extends Canvas implements Screen, Multiplayer
 			snapshotEntitiesBuffer.add(entity);
 			if (localPlayerId != null && localPlayerId.equals(snap.ownerId) && "ShipEntity".equals(snap.type)) {
 				localShipCandidate = entity;
+				localShipVisible = true;
 			}
 		}
 		remoteEntities.clear();
@@ -786,6 +830,37 @@ public class MultiplayerGameCanvas extends Canvas implements Screen, Multiplayer
 				ps.setAttackPower(state.atk);
 				ps.setAttackSpeed(state.aspd);
 				ps.setSkillPoints(state.skillPts);
+				if (entry.getKey() != null && entry.getKey().equals(localPlayerId)) {
+					skillManager.setInvincibleSkills(state.invincibleCharges);
+					skillManager.setPiercingSkills(state.piercingCharges);
+					skillManager.setTripleShotSkills(state.tripleShotCharges);
+					skillManager.setMissileSkills(state.missileCharges);
+					skillManager.setAttackPowerLevel(state.attackPowerLevel);
+					skillManager.setAttackSpeedLevel(state.attackSpeedLevel);
+					skillManager.setHpUpLevel(state.hpUpLevel);
+					long now = System.currentTimeMillis();
+					if (state.invincibleRemainingMs > 0) {
+						skillManager.setInvincible(true);
+						skillManager.setInvincibleEndTime(now + state.invincibleRemainingMs);
+					} else {
+						skillManager.setInvincible(false);
+						skillManager.setInvincibleEndTime(0);
+					}
+					if (state.piercingRemainingMs > 0) {
+						skillManager.setHasPiercing(true);
+						skillManager.setPiercingEndTime(now + state.piercingRemainingMs);
+					} else {
+						skillManager.setHasPiercing(false);
+						skillManager.setPiercingEndTime(0);
+					}
+					if (state.tripleShotRemainingMs > 0) {
+						skillManager.setHasTripleShot(true);
+						skillManager.setTripleShotEndTime(now + state.tripleShotRemainingMs);
+					} else {
+						skillManager.setHasTripleShot(false);
+						skillManager.setTripleShotEndTime(0);
+					}
+				}
 				playerDisplayNames.putIfAbsent(entry.getKey(), entry.getKey());
 			}
 		}
@@ -804,11 +879,10 @@ public class MultiplayerGameCanvas extends Canvas implements Screen, Multiplayer
 				localReady = serverReady;
 			}
 		}
-		if (localPlayerId != null) {
+		if (localPlayerId != null && remotePhase == GameSnapshot.Phase.ACTIVE) {
 			PlayerState localState = gameStateManager.getPlayerState(localPlayerId);
-			localSpectating = remotePhase == GameSnapshot.Phase.ACTIVE
-				&& localState != null
-				&& localState.isDead();
+			boolean reportedDead = localState != null && localState.isDead();
+			localSpectating = reportedDead && !localShipVisible;
 		} else {
 			localSpectating = false;
 		}
@@ -1185,8 +1259,20 @@ public class MultiplayerGameCanvas extends Canvas implements Screen, Multiplayer
 					appendIntermissionChat(line);
 					break;
 				}
-				case SYSTEM:
-					appendIntermissionChat("* " + (event.message != null ? event.message : ""));
+				case SYSTEM: {
+					String message = event.message != null ? event.message : "";
+					if (!message.isEmpty()) {
+						appendIntermissionChat("* " + message);
+						if (event.fromPlayerId != null && event.fromPlayerId.equals(localPlayerId)) {
+							gameStateManager.setMessage(message);
+							gameStateManager.setWaitingForKeyPress(true);
+							gameStateManager.setRoundTransition(false);
+						}
+					}
+					break;
+				}
+				case SKILL_UPDATE:
+					// Reserved for future skill synchronization events
 					break;
 				default:
 					break;
@@ -1228,6 +1314,10 @@ public class MultiplayerGameCanvas extends Canvas implements Screen, Multiplayer
 			case KeyEvent.VK_ESCAPE:
 				if (intermissionChatFocus) {
 					intermissionChatFocus = false;
+					return true;
+				}
+				if (remotePhase == GameSnapshot.Phase.COMPLETED) {
+					requestReturnToLobby();
 					return true;
 				}
 				break;
@@ -1292,12 +1382,16 @@ public class MultiplayerGameCanvas extends Canvas implements Screen, Multiplayer
 			intermissionChatFocus = false;
 			return;
 		}
+		boolean shouldEchoLocally = true;
 		if (remoteMode && networkAdapter != null) {
 			GameEvent chat = new GameEvent(GameEvent.Type.CHAT, localPlayerId, message, System.currentTimeMillis());
 			networkAdapter.sendEvent(chat);
+			shouldEchoLocally = false;
 		}
-		String display = playerDisplayNames.getOrDefault(localPlayerId, localPlayerId != null ? localPlayerId : "나");
-		appendIntermissionChat((display == null || display.isEmpty() ? "나" : display) + ": " + message);
+		if (shouldEchoLocally) {
+			String display = playerDisplayNames.getOrDefault(localPlayerId, localPlayerId != null ? localPlayerId : "나");
+			appendIntermissionChat((display == null || display.isEmpty() ? "나" : display) + ": " + message);
+		}
 		intermissionChatInput = "";
 		intermissionChatFocus = false;
 	}

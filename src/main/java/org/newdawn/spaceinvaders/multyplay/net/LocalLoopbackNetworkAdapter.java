@@ -46,7 +46,12 @@ public class LocalLoopbackNetworkAdapter implements GameNetworkAdapter {
         List<EntitySnapshot> entitySnaps = gsm.getEntities().stream().map(Entity::toSnapshot).collect(Collectors.toList());
         Map<String, GameSnapshot.PlayerScalarState> pmap = new LinkedHashMap<>();
         for (PlayerState ps : gsm.getPlayerStates()) {
-            pmap.put(ps.getPlayerId(), new GameSnapshot.PlayerScalarState(ps.getCurrentHP(), ps.getMaxHP(), ps.getAttackPower(), ps.getAttackSpeed(), ps.getSkillPoints()));
+            pmap.put(ps.getPlayerId(), new GameSnapshot.PlayerScalarState(
+                    ps.getCurrentHP(),
+                    ps.getMaxHP(),
+                    ps.getAttackPower(),
+                    ps.getAttackSpeed(),
+                    ps.getSkillPoints()));
         }
         latest = new GameSnapshot(tickCounter, nowMillis, delta, gsm.getCurrentRound(), entitySnaps, pmap,
                 GameSnapshot.Phase.ACTIVE, false, Collections.emptyMap(), null);

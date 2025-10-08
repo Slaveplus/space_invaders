@@ -177,6 +177,24 @@ public class SpaceInvadersApp extends JFrame implements ScreenNavigator {
                     // 메인 메뉴로 전환
                     setScreen(mainMenuCanvas);
                     gameScreen.resetMainMenuRequest();
+                } else if (currentScreen == multiplayerGameCanvas && multiplayerGameCanvas != null
+                        && multiplayerGameCanvas.isRequestingLobbyReturn()) {
+                    multiplayerGameCanvas.resetLobbyReturnRequest();
+                    if (multiplayerNetworkAdapter != null && currentClient != null) {
+                        currentClient.removeListener(multiplayerNetworkAdapter);
+                    }
+                    if (multiplayerNetworkAdapter != null) {
+                        multiplayerNetworkAdapter.shutdown();
+                        multiplayerNetworkAdapter = null;
+                    }
+                    if (currentClient != null) {
+                        currentClient.leaveRoom();
+                        showRoomList(currentClient);
+                    } else {
+                        showMainMenu();
+                    }
+                    multiplayerGameCanvas.shutdownNetwork();
+                    multiplayerGameCanvas = null;
                 }
             }
 

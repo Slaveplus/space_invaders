@@ -145,6 +145,22 @@ public class ServerGameSession implements Runnable {
 						broadcastGameEvent(chatEvent);
 					}
 					break;
+                case "SKILL_REQUEST": {
+                    int skillType = safeParseInt(data, -1);
+                    ServerMultiplayerGame.SkillActionResult result = game.handleSkillActivation(session.getId(), skillType);
+                    if (result != null && result.message != null && !result.message.isEmpty()) {
+                        sendSystemMessage(session.getId(), result.message);
+                    }
+                    break;
+                }
+                case "SKILL_UPGRADE": {
+                    int upgradeType = safeParseInt(data, -1);
+                    ServerMultiplayerGame.SkillActionResult result = game.handleSkillUpgrade(session.getId(), upgradeType);
+                    if (result != null && result.message != null && !result.message.isEmpty()) {
+                        sendSystemMessage(session.getId(), result.message);
+                    }
+                    break;
+                }
 				default:
 					// other actions can be handled here later
 					break;
@@ -316,6 +332,34 @@ public class ServerGameSession implements Runnable {
         sendToAll(line);
     }
 
+    private void sendGameEventToPlayer(String playerId, GameEvent event) {
+        if (playerId == null || event == null) {
+            return;
+        }
+        PlayerSession session = players.get(playerId);
+        if (session == null) {
+            return;
+        }
+        String payload = GameEventCodec.encode(Collections.singletonList(event));
+        if (payload.isEmpty()) {
+            return;
+        }
+        String line = TextMessage.builder(GAME_EVENT)
+                .put(ProtocolKeys.ROOM_ID, room.getId())
+                .put(ProtocolKeys.TICK, tickCounter)
+                .put(ProtocolKeys.EVENTS, payload)
+                .toLine();
+        session.getOut().println(line);
+    }
+
+    private void sendSystemMessage(String playerId, String message) {
+        if (message == null || message.isEmpty()) {
+            return;
+        }
+        GameEvent event = new GameEvent(GameEvent.Type.SYSTEM, playerId, message, System.currentTimeMillis());
+        sendGameEventToPlayer(playerId, event);
+    }
+
     private Map<String, Boolean> buildReadyStates() {
         Map<String, Boolean> view = new LinkedHashMap<>();
         for (String id : players.keySet()) {
@@ -347,5 +391,16 @@ public class ServerGameSession implements Runnable {
     public void shutdown() {
         running = false;
         scheduler.shutdownNow();
+    }
+
+    private static int safeParseInt(String value, int def) {
+        if (value == null) {
+            return def;
+        }
+        try {
+            return Integer.parseInt(value.trim());
+        } catch (NumberFormatException ex) {
+            return def;
+        }
     }
 }

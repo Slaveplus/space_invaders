@@ -56,7 +56,17 @@ public final class GameSnapshotCodec {
               .append(state.maxHp).append(',')
               .append(state.atk).append(',')
               .append(doubleString(state.aspd)).append(',')
-              .append(state.skillPts);
+                            .append(state.skillPts).append(',')
+                            .append(state.invincibleCharges).append(',')
+                            .append(state.piercingCharges).append(',')
+                            .append(state.tripleShotCharges).append(',')
+                            .append(state.missileCharges).append(',')
+                            .append(state.invincibleRemainingMs).append(',')
+                            .append(state.piercingRemainingMs).append(',')
+                            .append(state.tripleShotRemainingMs).append(',')
+                            .append(state.attackPowerLevel).append(',')
+                            .append(state.attackSpeedLevel).append(',')
+                            .append(state.hpUpLevel);
         });
         return sb.toString();
     }
@@ -101,7 +111,20 @@ public final class GameSnapshotCodec {
             int atk = parseInt(fields, 3, 1);
             double aspd = parseDouble(fields, 4, 1.0);
             int skillPts = parseInt(fields, 5, 0);
-            map.put(playerId, new GameSnapshot.PlayerScalarState(hp, maxHp, atk, aspd, skillPts));
+            int inv = parseInt(fields, 6, 0);
+            int pierce = parseInt(fields, 7, 0);
+            int triple = parseInt(fields, 8, 0);
+            int missile = parseInt(fields, 9, 0);
+            long invRem = parseLong(fields, 10, 0L);
+            long pierceRem = parseLong(fields, 11, 0L);
+            long tripleRem = parseLong(fields, 12, 0L);
+            int atkLvl = parseInt(fields, 13, 0);
+            int aspdLvl = parseInt(fields, 14, 0);
+            int hpLvl = parseInt(fields, 15, 0);
+            map.put(playerId, new GameSnapshot.PlayerScalarState(hp, maxHp, atk, aspd, skillPts,
+                    inv, pierce, triple, missile,
+                    invRem, pierceRem, tripleRem,
+                    atkLvl, aspdLvl, hpLvl));
         }
         return map;
     }

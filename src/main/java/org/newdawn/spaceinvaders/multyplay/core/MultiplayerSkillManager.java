@@ -80,6 +80,7 @@ public class MultiplayerSkillManager {
         invincibleSkills = 0;
         piercingSkills = 0;
         tripleShotSkills = 0;
+        missileSkills = 0;
     }
     
     /**
@@ -308,6 +309,9 @@ public class MultiplayerSkillManager {
     public void increaseAttackPowerLevel() { attackPowerLevel++; }
     public void increaseAttackSpeedLevel() { attackSpeedLevel++; }
     public void increaseHpUpLevel() { hpUpLevel++; }
+    public void setAttackPowerLevel(int level) { attackPowerLevel = Math.max(0, level); }
+    public void setAttackSpeedLevel(int level) { attackSpeedLevel = Math.max(0, level); }
+    public void setHpUpLevel(int level) { hpUpLevel = Math.max(0, level); }
     
     // 강화 레벨 getter 메서드들
     public int getAttackPowerLevel() { return attackPowerLevel; }

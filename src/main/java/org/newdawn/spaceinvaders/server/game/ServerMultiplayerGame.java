@@ -9,6 +9,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Locale;
 import java.util.Random;
 
 import org.newdawn.spaceinvaders.multyplay.core.MultiplayerGameContext;
@@ -62,6 +63,16 @@ public class ServerMultiplayerGame implements MultiplayerGameContext {
             this.completedRound = completedRound;
             this.nextRound = nextRound;
             this.bossNext = bossNext;
+            this.message = message;
+        }
+    }
+
+    public static class SkillActionResult {
+        public final boolean success;
+        public final String message;
+
+        public SkillActionResult(boolean success, String message) {
+            this.success = success;
             this.message = message;
         }
     }
@@ -400,13 +411,36 @@ public class ServerMultiplayerGame implements MultiplayerGameContext {
         }
         Map<String, GameSnapshot.PlayerScalarState> players = new LinkedHashMap<>();
         for (PlayerState ps : gameStateManager.getPlayerStates()) {
-            players.put(ps.getPlayerId(),
-                    new GameSnapshot.PlayerScalarState(
-                            ps.getCurrentHP(),
-                            ps.getMaxHP(),
-                            ps.getAttackPower(),
-                            ps.getAttackSpeed(),
-                            ps.getSkillPoints()));
+        String playerId = ps.getPlayerId();
+        MultiplayerSkillManager manager = skillManager(playerId);
+        int invCount = manager != null ? manager.getInvincibleSkills() : 0;
+        int pierceCount = manager != null ? manager.getPiercingSkills() : 0;
+        int tripleCount = manager != null ? manager.getTripleShotSkills() : 0;
+        int missileCount = manager != null ? manager.getMissileSkills() : 0;
+        long invRem = manager != null ? Math.max(0L, manager.getInvincibleEndTime() - serverTime) : 0L;
+        long pierceRem = manager != null ? Math.max(0L, manager.getPiercingEndTime() - serverTime) : 0L;
+        long tripleRem = manager != null ? Math.max(0L, manager.getTripleShotEndTime() - serverTime) : 0L;
+        int atkLevel = manager != null ? manager.getAttackPowerLevel() : 0;
+        int aspdLevel = manager != null ? manager.getAttackSpeedLevel() : 0;
+        int hpLevel = manager != null ? manager.getHpUpLevel() : 0;
+
+        players.put(playerId,
+            new GameSnapshot.PlayerScalarState(
+                ps.getCurrentHP(),
+                ps.getMaxHP(),
+                ps.getAttackPower(),
+                ps.getAttackSpeed(),
+                ps.getSkillPoints(),
+                invCount,
+                pierceCount,
+                tripleCount,
+                missileCount,
+                invRem,
+                pierceRem,
+                tripleRem,
+                atkLevel,
+                aspdLevel,
+                hpLevel));
         }
         return new GameSnapshot(tick, serverTime, delta,
                 gameStateManager.getCurrentRound(),
@@ -579,6 +613,99 @@ public class ServerMultiplayerGame implements MultiplayerGameContext {
         skillManager(playerId).addSkillToInventory(skillType, skillValue);
     }
 
+    public SkillActionResult handleSkillActivation(String playerId, int skillType) {
+        if (playerId == null) {
+            return new SkillActionResult(false, "플레이어 정보를 확인할 수 없습니다.");
+        }
+        MultiplayerSkillManager manager = skillManager(playerId);
+        if (manager == null) {
+            return new SkillActionResult(false, "스킬 정보를 불러올 수 없습니다.");
+        }
+        switch (skillType) {
+            case 0:
+                if (manager.getInvincibleSkills() <= 0) {
+                    return new SkillActionResult(false, "무적 스킬이 부족합니다.");
+                }
+                manager.extendSkill(0, 5);
+                return new SkillActionResult(true, null);
+            case 1:
+                if (manager.getPiercingSkills() <= 0) {
+                    return new SkillActionResult(false, "관통 스킬이 부족합니다.");
+                }
+                manager.extendSkill(1, 10);
+                return new SkillActionResult(true, null);
+            case 2:
+                if (manager.getTripleShotSkills() <= 0) {
+                    return new SkillActionResult(false, "3줄 공격 스킬이 부족합니다.");
+                }
+                manager.extendSkill(2, 8);
+                return new SkillActionResult(true, null);
+            case 3:
+                if (manager.getMissileSkills() <= 0) {
+                    return new SkillActionResult(false, "미사일 스킬이 부족합니다.");
+                }
+                manager.activateSkill(3, 1);
+                return new SkillActionResult(true, null);
+            default:
+                return new SkillActionResult(false, "알 수 없는 스킬입니다.");
+        }
+    }
+
+    public SkillActionResult handleSkillUpgrade(String playerId, int upgradeType) {
+        if (playerId == null) {
+            return new SkillActionResult(false, "플레이어 정보를 확인할 수 없습니다.");
+        }
+        MultiplayerSkillManager manager = skillManager(playerId);
+        PlayerState state = gameStateManager.ensurePlayer(playerId);
+        if (manager == null || state == null) {
+            return new SkillActionResult(false, "스킬 정보를 불러올 수 없습니다.");
+        }
+
+        int availablePoints = state.getSkillPoints();
+        switch (upgradeType) {
+            case 0: { // Attack Power
+                int cost = manager.getAttackPowerCost();
+                if (availablePoints < cost) {
+                    return new SkillActionResult(false,
+                            "스킬 포인트가 부족합니다! (필요: " + cost + ", 보유: " + availablePoints + ")");
+                }
+                state.setAttackPower(state.getAttackPower() + 1);
+                state.setSkillPoints(availablePoints - cost);
+                manager.increaseAttackPowerLevel();
+                return new SkillActionResult(true,
+                        "공격력이 증가했습니다! (현재: " + state.getAttackPower() + ", 레벨: " + manager.getAttackPowerLevel() + ")");
+            }
+            case 1: { // Attack Speed
+                int cost = manager.getAttackSpeedCost();
+                if (availablePoints < cost) {
+                    return new SkillActionResult(false,
+                            "스킬 포인트가 부족합니다! (필요: " + cost + ", 보유: " + availablePoints + ")");
+                }
+                state.setAttackSpeed(state.getAttackSpeed() + 0.2);
+                state.setSkillPoints(availablePoints - cost);
+                manager.increaseAttackSpeedLevel();
+        return new SkillActionResult(true,
+            "공격 속도가 증가했습니다! (현재: " + String.format(Locale.KOREA, "%.1f", state.getAttackSpeed())
+                                + ", 레벨: " + manager.getAttackSpeedLevel() + ")");
+            }
+            case 2: { // HP Up & Heal
+                int cost = manager.getHpUpCost();
+                if (availablePoints < cost) {
+                    return new SkillActionResult(false,
+                            "스킬 포인트가 부족합니다! (필요: " + cost + ", 보유: " + availablePoints + ")");
+                }
+                state.setMaxHP(state.getMaxHP() + 3);
+                state.setCurrentHP(state.getMaxHP());
+                state.setSkillPoints(availablePoints - cost);
+                manager.increaseHpUpLevel();
+                return new SkillActionResult(true,
+                        "최대 체력이 증가하고 체력이 회복되었습니다! (현재: " + state.getMaxHP() + ", 레벨: " + manager.getHpUpLevel() + ")");
+            }
+            default:
+                return new SkillActionResult(false, "알 수 없는 강화 항목입니다.");
+        }
+    }
+
     @Override
     public void createSkillDrop(int x, int y, int skillType, int skillValue) {
         ShotEntity skillDrop = new ShotEntity(this, "sprites/shot.gif", x, y,
@@ -590,6 +717,17 @@ public class ServerMultiplayerGame implements MultiplayerGameContext {
     public void createExplosion(int x, int y, double radius) {
         ExplosionEntity explosion = new ExplosionEntity(this, "sprites/Skill/Explosion.png", x, y, radius);
         gameStateManager.getEntities().add(explosion);
+    }
+
+    private boolean isBossAlive() {
+        ArrayList<Entity> entities = gameStateManager.getEntities();
+        ArrayList<Entity> removeList = gameStateManager.getRemoveList();
+        for (Entity entity : entities) {
+            if (entity instanceof BossEntity && !removeList.contains(entity)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     @Override
@@ -625,7 +763,8 @@ public class ServerMultiplayerGame implements MultiplayerGameContext {
                 remainingAliens++;
             }
         }
-        if (remainingAliens == 0) {
+        boolean bossAlive = isBossAlive();
+        if (remainingAliens == 0 && !bossAlive) {
             notifyWin();
         }
         for (Entity entity : entities) {

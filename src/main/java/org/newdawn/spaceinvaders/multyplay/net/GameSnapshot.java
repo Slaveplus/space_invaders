@@ -62,9 +62,59 @@ public class GameSnapshot {
 
     /** 플레이어의 단순 수치 상태 */
     public static class PlayerScalarState {
-        public final int hp; public final int maxHp; public final int atk; public final double aspd; public final int skillPts;
+        public final int hp;
+        public final int maxHp;
+        public final int atk;
+        public final double aspd;
+        public final int skillPts;
+        public final int invincibleCharges;
+        public final int piercingCharges;
+        public final int tripleShotCharges;
+        public final int missileCharges;
+        public final long invincibleRemainingMs;
+        public final long piercingRemainingMs;
+        public final long tripleShotRemainingMs;
+        public final int attackPowerLevel;
+        public final int attackSpeedLevel;
+        public final int hpUpLevel;
+
+    public PlayerScalarState(int hp,
+                                 int maxHp,
+                                 int atk,
+                                 double aspd,
+                                 int skillPts,
+                                 int invincibleCharges,
+                                 int piercingCharges,
+                                 int tripleShotCharges,
+                                 int missileCharges,
+                                 long invincibleRemainingMs,
+                                 long piercingRemainingMs,
+                                 long tripleShotRemainingMs,
+                                 int attackPowerLevel,
+                                 int attackSpeedLevel,
+                                 int hpUpLevel) {
+            this.hp = hp;
+            this.maxHp = maxHp;
+            this.atk = atk;
+            this.aspd = aspd;
+            this.skillPts = skillPts;
+            this.invincibleCharges = invincibleCharges;
+            this.piercingCharges = piercingCharges;
+            this.tripleShotCharges = tripleShotCharges;
+            this.missileCharges = missileCharges;
+            this.invincibleRemainingMs = invincibleRemainingMs;
+            this.piercingRemainingMs = piercingRemainingMs;
+            this.tripleShotRemainingMs = tripleShotRemainingMs;
+            this.attackPowerLevel = attackPowerLevel;
+            this.attackSpeedLevel = attackSpeedLevel;
+            this.hpUpLevel = hpUpLevel;
+        }
+
         public PlayerScalarState(int hp, int maxHp, int atk, double aspd, int skillPts) {
-            this.hp=hp; this.maxHp=maxHp; this.atk=atk; this.aspd=aspd; this.skillPts=skillPts;
+            this(hp, maxHp, atk, aspd, skillPts,
+                    0, 0, 0, 0,
+                    0L, 0L, 0L,
+                    0, 0, 0);
         }
     }
 }
