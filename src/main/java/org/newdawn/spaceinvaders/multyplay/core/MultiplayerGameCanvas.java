@@ -120,6 +120,7 @@ public class MultiplayerGameCanvas extends Canvas implements Screen, Multiplayer
 	private boolean intermissionChatFocus = false;
 	private boolean localReady = false;
 	private String intermissionMessage = "";
+	private boolean localSpectating = false;
 	
 	/**
 	 * Construct our game and set it running.
@@ -178,6 +179,7 @@ public class MultiplayerGameCanvas extends Canvas implements Screen, Multiplayer
 		this.playerDisplayNames.clear();
 		this.intermissionChatLines.clear();
 		this.intermissionChatInput = "";
+		this.localSpectating = false;
 		this.intermissionChatFocus = false;
 		this.localReady = false;
 		this.intermissionMessage = "";
@@ -726,6 +728,12 @@ public class MultiplayerGameCanvas extends Canvas implements Screen, Multiplayer
 			lastSentFire = false;
 			return;
 		}
+		if (isLocalSpectatorActive()) {
+			lastSentLeft = false;
+			lastSentRight = false;
+			lastSentFire = false;
+			return;
+		}
 		boolean left = inputManager.isLeftPressed();
 		boolean right = inputManager.isRightPressed();
 		boolean fire = inputManager.isFirePressed();
@@ -796,6 +804,14 @@ public class MultiplayerGameCanvas extends Canvas implements Screen, Multiplayer
 				localReady = serverReady;
 			}
 		}
+		if (localPlayerId != null) {
+			PlayerState localState = gameStateManager.getPlayerState(localPlayerId);
+			localSpectating = remotePhase == GameSnapshot.Phase.ACTIVE
+				&& localState != null
+				&& localState.isDead();
+		} else {
+			localSpectating = false;
+		}
 		if (remotePhase != GameSnapshot.Phase.INTERMISSION) {
 			intermissionChatFocus = false;
 			intermissionChatInput = "";
@@ -814,6 +830,18 @@ public class MultiplayerGameCanvas extends Canvas implements Screen, Multiplayer
 				return new RemoteShotEntity(snapshot, meta);
 			case "ExplosionEntity":
 				return new RemoteExplosionEntity(snapshot, meta);
+			case "BossEntity":
+				return new RemoteBossEntity(snapshot, meta);
+			case "BossShotEntity":
+				return new RemoteBossShotEntity(snapshot, meta);
+			case "HeatEffectEntity":
+				return new RemoteHeatEffectEntity(snapshot.x, snapshot.y);
+			case "AlienEntity": {
+				String spritePath = snapshot.sprite != null && !snapshot.sprite.isEmpty()
+						? snapshot.sprite
+						: "sprites/Boss/1round_small.png";
+				return new RemoteAlienEntity(spritePath, snapshot.x, snapshot.y);
+			}
 			default:
 				String spritePath = snapshot.sprite != null && !snapshot.sprite.isEmpty() ? snapshot.sprite : null;
 				if (spritePath == null || spritePath.isEmpty()) {
@@ -826,6 +854,321 @@ public class MultiplayerGameCanvas extends Canvas implements Screen, Multiplayer
 					}
 				}
 				return new RemoteSpriteEntity(spritePath, snapshot.x, snapshot.y);
+		}
+	}
+
+	private class RemoteAlienEntity extends Entity {
+		RemoteAlienEntity(String spritePath, double centerX, double centerY) {
+			super(spritePath, (int) Math.round(centerX), (int) Math.round(centerY));
+			this.x = centerX;
+			this.y = centerY;
+		}
+
+		private double currentScale() {
+			int round = gameStateManager.getCurrentRound();
+			return (round == 1) ? 0.45 : 0.75;
+		}
+
+		@Override
+		public java.awt.Rectangle getBounds() {
+			double scale = currentScale();
+			int scaledWidth = (int) Math.round(sprite.getWidth() * scale);
+			int scaledHeight = (int) Math.round(sprite.getHeight() * scale);
+			int topLeftX = (int) Math.round(x) - (scaledWidth / 2);
+			int topLeftY = (int) Math.round(y) - (scaledHeight / 2);
+			return new java.awt.Rectangle(topLeftX, topLeftY, scaledWidth, scaledHeight);
+		}
+
+		@Override
+		public void draw(Graphics g) {
+			if (sprite == null) {
+				return;
+			}
+			Graphics2D g2d = (Graphics2D) g;
+			double scale = currentScale();
+			int scaledWidth = (int) Math.round(sprite.getWidth() * scale);
+			int scaledHeight = (int) Math.round(sprite.getHeight() * scale);
+			int drawX = (int) Math.round(x) - (scaledWidth / 2);
+			int drawY = (int) Math.round(y) - (scaledHeight / 2);
+			g2d.drawImage(sprite.getImage(), drawX, drawY,
+					drawX + scaledWidth, drawY + scaledHeight,
+					0, 0, sprite.getWidth(), sprite.getHeight(), null);
+		}
+
+		@Override
+		public void move(long delta) {
+			// remote entities are driven by snapshots only
+		}
+
+		@Override
+		public void collidedWith(Entity other) {
+			// remote visuals do not process collisions locally
+		}
+	}
+
+	private static class RemoteBossEntity extends Entity {
+		private int currentHP = 1;
+		private int maxHP = 1;
+		private int phase = 1;
+
+		RemoteBossEntity(EntitySnapshot snapshot, Map<String, String> meta) {
+			super(snapshot.sprite != null && !snapshot.sprite.isEmpty() ? snapshot.sprite : "sprites/Boss/2round_Boss.png",
+				(int) Math.round(snapshot.x), (int) Math.round(snapshot.y));
+			this.x = snapshot.x;
+			this.y = snapshot.y;
+			apply(meta);
+		}
+
+		private void apply(Map<String, String> meta) {
+			if (meta == null || meta.isEmpty()) {
+				return;
+			}
+			try {
+				currentHP = Integer.parseInt(meta.getOrDefault("hp", Integer.toString(currentHP)));
+			} catch (NumberFormatException ignore) {
+				// keep previous value
+			}
+			try {
+				maxHP = Integer.parseInt(meta.getOrDefault("max", Integer.toString(maxHP)));
+			} catch (NumberFormatException ignore) {
+				// keep previous value
+			}
+			try {
+				phase = Integer.parseInt(meta.getOrDefault("phase", Integer.toString(phase)));
+			} catch (NumberFormatException ignore) {
+				// keep previous value
+			}
+		}
+
+		@Override
+		protected void applySnapshotMetadata(String metadata) {
+			apply(MetadataCodec.decode(metadata));
+		}
+
+		@Override
+		public java.awt.Rectangle getBounds() {
+			return new java.awt.Rectangle((int) Math.round(x) - 150, (int) Math.round(y) - 150, 300, 300);
+		}
+
+		@Override
+		public void draw(Graphics g) {
+			Graphics2D g2d = (Graphics2D) g;
+			if (sprite != null) {
+				int bossWidth = 300;
+				int bossHeight = 300;
+				int drawX = (int) Math.round(x) - bossWidth / 2;
+				int drawY = (int) Math.round(y) - bossHeight / 2;
+				g2d.drawImage(sprite.getImage(), drawX, drawY,
+						drawX + bossWidth, drawY + bossHeight,
+						0, 0, sprite.getWidth(), sprite.getHeight(), null);
+			}
+			g2d.setColor(Color.YELLOW);
+			g2d.setFont(g2d.getFont().deriveFont(16f));
+			g2d.drawString("Phase " + Math.max(1, phase), (int) Math.round(x) - 25, (int) Math.round(y) - 170);
+			g2d.setColor(Color.RED);
+			g2d.fillRect((int) Math.round(x) - 50, (int) Math.round(y) + 170, 100, 8);
+			g2d.setColor(Color.GREEN);
+			int healthWidth = 0;
+			if (maxHP > 0) {
+				double ratio = Math.max(0.0, Math.min(1.0, (double) currentHP / maxHP));
+				healthWidth = (int) Math.round(100 * ratio);
+			}
+			g2d.fillRect((int) Math.round(x) - 50, (int) Math.round(y) + 170, healthWidth, 8);
+			g2d.setColor(Color.WHITE);
+			g2d.drawRect((int) Math.round(x) - 50, (int) Math.round(y) + 170, 100, 8);
+		}
+
+		@Override
+		public void move(long delta) {
+			// remote boss driven by snapshots only
+		}
+
+		@Override
+		public void collidedWith(Entity other) {
+			// remote visuals do not process collisions locally
+		}
+	}
+
+	private static class RemoteBossShotEntity extends Entity {
+		private double directionX;
+		private double directionY;
+		private double speed;
+		private int radius = 8;
+		private boolean canSplit;
+		private double splitY;
+		private int splitCount;
+
+		RemoteBossShotEntity(EntitySnapshot snapshot, Map<String, String> meta) {
+			super(snapshot.sprite != null && !snapshot.sprite.isEmpty() ? snapshot.sprite : "sprites/shot.gif",
+				(int) Math.round(snapshot.x), (int) Math.round(snapshot.y));
+			this.x = snapshot.x;
+			this.y = snapshot.y;
+			apply(meta);
+		}
+
+		private void apply(Map<String, String> meta) {
+			if (meta == null || meta.isEmpty()) {
+				return;
+			}
+			try {
+				directionX = Double.parseDouble(meta.getOrDefault("dirX", Double.toString(directionX)));
+			} catch (NumberFormatException ignore) {
+				// keep previous value
+			}
+			try {
+				directionY = Double.parseDouble(meta.getOrDefault("dirY", Double.toString(directionY)));
+			} catch (NumberFormatException ignore) {
+				// keep previous value
+			}
+			try {
+				speed = Double.parseDouble(meta.getOrDefault("speed", Double.toString(speed)));
+			} catch (NumberFormatException ignore) {
+				// keep previous value
+			}
+			try {
+				radius = Integer.parseInt(meta.getOrDefault("radius", Integer.toString(radius)));
+			} catch (NumberFormatException ignore) {
+				// keep previous value
+			}
+			canSplit = "1".equals(meta.get("split"));
+			try {
+				splitY = Double.parseDouble(meta.getOrDefault("splitY", Double.toString(splitY)));
+			} catch (NumberFormatException ignore) {
+				// keep previous value
+			}
+			try {
+				splitCount = Integer.parseInt(meta.getOrDefault("splitCount", Integer.toString(splitCount)));
+			} catch (NumberFormatException ignore) {
+				// keep previous value
+			}
+		}
+
+		@Override
+		protected void applySnapshotMetadata(String metadata) {
+			apply(MetadataCodec.decode(metadata));
+		}
+
+		@Override
+		public void draw(Graphics g) {
+			Graphics2D g2d = (Graphics2D) g;
+			int spriteWidth = sprite != null ? sprite.getWidth() : 16;
+			int spriteHeight = sprite != null ? sprite.getHeight() : 16;
+			int centerX = (int) Math.round(x) + spriteWidth / 2;
+			int centerY = (int) Math.round(y) + spriteHeight / 2;
+			int glowAlpha = canSplit ? 100 : 60;
+			int coreAlpha = canSplit ? 240 : 220;
+			g2d.setColor(new Color(255, 100, 100, glowAlpha));
+			g2d.fillOval(centerX - radius - 3, centerY - radius - 3, (radius + 3) * 2, (radius + 3) * 2);
+			g2d.setColor(new Color(255, 50, 50, coreAlpha));
+			g2d.fillOval(centerX - radius, centerY - radius, radius * 2, radius * 2);
+			if (radius > 4) {
+				g2d.setColor(new Color(255, 200, 200, 180));
+				g2d.fillOval(centerX - radius + 2, centerY - radius + 2, (radius - 2) * 2, (radius - 2) * 2);
+			}
+			if (radius > 6) {
+				g2d.setColor(new Color(255, 255, 255, 200));
+				g2d.fillOval(centerX - radius + 4, centerY - radius + 4, (radius - 4) * 2, (radius - 4) * 2);
+			}
+			if (speed > 0 && radius > 4 && (directionX != 0 || directionY != 0)) {
+				int trailDistance = Math.max(8, radius);
+				int trailX = centerX - (int) (directionX * trailDistance);
+				int trailY = centerY - (int) (directionY * trailDistance);
+				g2d.setColor(new Color(255, 100, 100, 80));
+				int trailRadius = Math.max(3, radius - 1);
+				g2d.fillOval(trailX - trailRadius, trailY - trailRadius, trailRadius * 2, trailRadius * 2);
+				trailX = centerX - (int) (directionX * trailDistance * 1.5);
+				trailY = centerY - (int) (directionY * trailDistance * 1.5);
+				g2d.setColor(new Color(255, 100, 100, 40));
+				trailRadius = Math.max(2, radius - 2);
+				g2d.fillOval(trailX - trailRadius, trailY - trailRadius, trailRadius * 2, trailRadius * 2);
+			}
+		}
+
+		@Override
+		public void move(long delta) {
+			// snapshots drive movement
+		}
+
+		@Override
+		public void collidedWith(Entity other) {
+			// visuals only
+		}
+	}
+
+	private static class RemoteHeatEffectEntity extends Entity {
+		private static BufferedImage cachedHeat;
+		private final long startTime = System.currentTimeMillis();
+		private final long duration = 800;
+
+		RemoteHeatEffectEntity(double x, double y) {
+			super("sprites/Skill/Heat.gif", (int) Math.round(x), (int) Math.round(y));
+			this.x = x;
+			this.y = y;
+			ensureHeatImage();
+		}
+
+		private static synchronized void ensureHeatImage() {
+			if (cachedHeat != null) {
+				return;
+			}
+			try (java.io.InputStream is = MultiplayerGameCanvas.class.getClassLoader().getResourceAsStream("sprites/Skill/Heat.gif")) {
+				if (is != null) {
+					cachedHeat = ImageIO.read(is);
+				}
+			} catch (Exception ignore) {
+				cachedHeat = null;
+			}
+		}
+
+		@Override
+		public void move(long delta) {
+			// remote visuals rely on draw timing
+		}
+
+		@Override
+		public void collidedWith(Entity other) {
+			// no collisions for visuals
+		}
+
+		@Override
+		public void draw(Graphics g) {
+			long elapsed = System.currentTimeMillis() - startTime;
+			double progress = Math.min(1.0, Math.max(0.0, elapsed / (double) duration));
+			if (progress >= 1.0) {
+				return;
+			}
+			float alpha = (float) (1.0 - progress);
+			float scale;
+			if (progress < 0.3) {
+				scale = 1.5f + (float) (progress * 1.0);
+			} else {
+				float shrink = (float) ((progress - 0.3) / 0.7);
+				scale = 2.5f - shrink;
+			}
+			Graphics2D g2d = (Graphics2D) g;
+			g2d.setRenderingHint(java.awt.RenderingHints.KEY_ANTIALIASING,
+					java.awt.RenderingHints.VALUE_ANTIALIAS_ON);
+			g2d.setComposite(java.awt.AlphaComposite.getInstance(java.awt.AlphaComposite.SRC_OVER,
+					Math.max(0f, Math.min(1f, alpha))));
+			if (cachedHeat != null) {
+				int originalWidth = cachedHeat.getWidth();
+				int originalHeight = cachedHeat.getHeight();
+				int scaledWidth = (int) (originalWidth * scale);
+				int scaledHeight = (int) (originalHeight * scale);
+				int drawX = (int) Math.round(x) - scaledWidth / 2;
+				int drawY = (int) Math.round(y) - scaledHeight / 2;
+				g2d.drawImage(cachedHeat, drawX, drawY, scaledWidth, scaledHeight, null);
+			} else {
+				int fallbackSize = (int) (20 * scale);
+				g2d.setColor(new Color(255, 100, 0, (int) (alpha * 200)));
+				g2d.fillOval((int) Math.round(x) - fallbackSize / 2, (int) Math.round(y) - fallbackSize / 2,
+					fallbackSize, fallbackSize);
+				int innerSize = (int) (12 * scale);
+				g2d.setColor(new Color(255, 200, 0, (int) (alpha * 150)));
+				g2d.fillOval((int) Math.round(x) - innerSize / 2, (int) Math.round(y) - innerSize / 2,
+					innerSize, innerSize);
+			}
+			g2d.setComposite(java.awt.AlphaComposite.getInstance(java.awt.AlphaComposite.SRC_OVER, 1.0f));
 		}
 	}
 
@@ -917,6 +1260,14 @@ public class MultiplayerGameCanvas extends Canvas implements Screen, Multiplayer
 
 	public boolean isIntermissionOverlayVisible() {
 		return remoteMode && (remotePhase == GameSnapshot.Phase.INTERMISSION || remotePhase == GameSnapshot.Phase.COMPLETED);
+	}
+
+	public boolean isSpectatorOverlayVisible() {
+		return isLocalSpectatorActive();
+	}
+
+	private boolean isLocalSpectatorActive() {
+		return remoteMode && remotePhase == GameSnapshot.Phase.ACTIVE && localSpectating;
 	}
 
 	public boolean isIntermissionChatFocused() {
@@ -1157,6 +1508,9 @@ public class MultiplayerGameCanvas extends Canvas implements Screen, Multiplayer
 	if (gameStateManager.isWaitingForKeyPress()) {
 		uiRenderer.drawMessage(g, gameStateManager.getMessage());
 	}
+	if (isLocalSpectatorActive()) {
+		drawSpectatorOverlay(g);
+	}
 	if (isIntermissionOverlayVisible()) {
 		drawIntermissionOverlay(g);
 	}
@@ -1201,6 +1555,88 @@ public class MultiplayerGameCanvas extends Canvas implements Screen, Multiplayer
 	
 	public void setWaitingForKeyPress(boolean waiting) {
 		gameStateManager.setWaitingForKeyPress(waiting);
+	}
+
+	private void drawSpectatorOverlay(Graphics2D g) {
+		int panelWidth = 380;
+		int panelHeight = 240;
+		int panelX = (getWidth() - panelWidth) / 2;
+		int panelY = (getHeight() - panelHeight) / 2;
+
+		g.setColor(new Color(0, 0, 0, 180));
+		g.fillRoundRect(panelX, panelY, panelWidth, panelHeight, 16, 16);
+		g.setColor(new Color(255, 255, 255, 90));
+		g.drawRoundRect(panelX, panelY, panelWidth, panelHeight, 16, 16);
+
+		g.setFont(new Font("Arial", Font.BOLD, 22));
+		g.setColor(Color.WHITE);
+		g.drawString("관전 모드", panelX + 24, panelY + 36);
+
+		g.setFont(new Font("Arial", Font.PLAIN, 14));
+		g.setColor(new Color(225, 225, 225));
+		g.drawString("당신의 함선이 파괴되었습니다.", panelX + 24, panelY + 64);
+		g.drawString("라운드 종료까지 관전을 계속합니다.", panelX + 24, panelY + 82);
+
+		List<String> alive = new ArrayList<>();
+		List<String> defeated = new ArrayList<>();
+		for (PlayerState state : gameStateManager.getPlayerStates()) {
+			if (state == null) {
+				continue;
+			}
+			String pid = state.getPlayerId();
+			if (pid == null) {
+				continue;
+			}
+			String display = playerDisplayNames.getOrDefault(pid, pid);
+			if (pid.equals(localPlayerId)) {
+				display = display + " (You)";
+			}
+			if (state.isDead()) {
+				defeated.add(display);
+			} else {
+				alive.add(display);
+			}
+		}
+
+		int listY = panelY + 110;
+		g.setFont(new Font("Arial", Font.BOLD, 14));
+		g.setColor(new Color(120, 255, 160));
+		g.drawString("생존 플레이어", panelX + 24, listY);
+		listY += 18;
+		g.setFont(new Font("Arial", Font.PLAIN, 13));
+		if (alive.isEmpty()) {
+			g.setColor(new Color(200, 200, 200));
+			g.drawString("• 없음", panelX + 24, listY);
+			listY += 18;
+		} else {
+			g.setColor(new Color(200, 255, 200));
+			for (String label : alive) {
+				g.drawString("• " + label, panelX + 24, listY);
+				listY += 18;
+			}
+		}
+
+		listY += 4;
+		g.setFont(new Font("Arial", Font.BOLD, 14));
+		g.setColor(new Color(255, 200, 160));
+		g.drawString("전투 불능", panelX + 24, listY);
+		listY += 18;
+		g.setFont(new Font("Arial", Font.PLAIN, 13));
+		if (defeated.isEmpty()) {
+			g.setColor(new Color(200, 200, 200));
+			g.drawString("• 없음", panelX + 24, listY);
+			listY += 18;
+		} else {
+			g.setColor(new Color(240, 200, 200));
+			for (String label : defeated) {
+				g.drawString("• " + label, panelX + 24, listY);
+				listY += 18;
+			}
+		}
+
+		g.setFont(new Font("Arial", Font.PLAIN, 12));
+		g.setColor(new Color(200, 200, 200));
+		g.drawString("Enter: 채팅  ESC: 로비로 돌아가기", panelX + 24, panelY + panelHeight - 28);
 	}
 
 	private void drawIntermissionOverlay(Graphics2D g) {

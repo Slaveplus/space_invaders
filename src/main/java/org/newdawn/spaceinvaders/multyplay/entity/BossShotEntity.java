@@ -5,6 +5,10 @@ import java.awt.Graphics;
 import java.awt.Graphics2D;
 
 import org.newdawn.spaceinvaders.multyplay.core.MultiplayerGameContext;
+import org.newdawn.spaceinvaders.multyplay.net.protocol.MetadataCodec;
+
+import java.util.LinkedHashMap;
+import java.util.Map;
 
 /**
  * An entity representing a shot fired by a boss enemy
@@ -259,5 +263,57 @@ public class BossShotEntity extends Entity {
      */
     public boolean isUsed() {
         return used;
+    }
+
+    @Override
+    protected String snapshotMetadata() {
+        Map<String, String> map = new LinkedHashMap<>();
+        map.put("dirX", Double.toString(directionX));
+        map.put("dirY", Double.toString(directionY));
+        map.put("speed", Double.toString(speed));
+        map.put("radius", Integer.toString(radius));
+        map.put("split", canSplit ? "1" : "0");
+        map.put("splitY", Double.toString(splitY));
+        map.put("splitCount", Integer.toString(splitCount));
+        return MetadataCodec.encode(map);
+    }
+
+    @Override
+    protected void applySnapshotMetadata(String metadata) {
+        Map<String, String> map = MetadataCodec.decode(metadata);
+        if (map.isEmpty()) {
+            return;
+        }
+        try {
+            directionX = Double.parseDouble(map.getOrDefault("dirX", Double.toString(directionX)));
+        } catch (NumberFormatException ignore) {
+            // keep previous value
+        }
+        try {
+            directionY = Double.parseDouble(map.getOrDefault("dirY", Double.toString(directionY)));
+        } catch (NumberFormatException ignore) {
+            // keep previous value
+        }
+        try {
+            speed = Double.parseDouble(map.getOrDefault("speed", Double.toString(speed)));
+        } catch (NumberFormatException ignore) {
+            // keep previous value
+        }
+        try {
+            radius = Integer.parseInt(map.getOrDefault("radius", Integer.toString(radius)));
+        } catch (NumberFormatException ignore) {
+            // keep previous value
+        }
+        canSplit = "1".equals(map.get("split"));
+        try {
+            splitY = Double.parseDouble(map.getOrDefault("splitY", Double.toString(splitY)));
+        } catch (NumberFormatException ignore) {
+            // keep previous value
+        }
+        try {
+            splitCount = Integer.parseInt(map.getOrDefault("splitCount", Integer.toString(splitCount)));
+        } catch (NumberFormatException ignore) {
+            // keep previous value
+        }
     }
 }

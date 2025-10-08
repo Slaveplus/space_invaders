@@ -45,7 +45,18 @@ public class PlayerState {
     }
 
     public void takeDamage(int amount) {
-        currentHP -= amount;
+        if (amount <= 0) {
+            return;
+        }
+        currentHP = Math.max(0, currentHP - amount);
+    }
+
+    public void restoreFullHealth() {
+        currentHP = maxHP;
+    }
+
+    public boolean isAlive() {
+        return currentHP > 0;
     }
 
     public boolean isDead() { return currentHP <= 0; }

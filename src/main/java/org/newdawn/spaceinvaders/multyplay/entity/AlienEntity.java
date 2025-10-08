@@ -281,10 +281,10 @@ public class AlienEntity extends Entity {
 		double scale = (game.getCurrentRound() == 1) ? 0.45 : 0.75;
 		int scaledWidth = (int) Math.round(spriteWidth * scale);
 		int scaledHeight = (int) Math.round(spriteHeight * scale);
-		double offsetX = (spriteWidth - scaledWidth) / 2.0;
-		double offsetY = (spriteHeight - scaledHeight) / 2.0;
-		int topLeftX = (int) Math.round(x + offsetX);
-		int topLeftY = (int) Math.round(y + offsetY);
+		int centerX = (int) Math.round(x);
+		int centerY = (int) Math.round(y);
+		int topLeftX = centerX - (scaledWidth / 2);
+		int topLeftY = centerY - (scaledHeight / 2);
 
 		return new java.awt.Rectangle(topLeftX, topLeftY, scaledWidth, scaledHeight);
 	}
@@ -419,16 +419,14 @@ public class AlienEntity extends Entity {
 		if (sprite != null) {
 			// 1라운드는 30% 축소, 나머지는 75%로 설정
 			double scale = (game.getCurrentRound() == 1) ? 0.45 : 0.75; // 75% * 0.6 = 45% (30% 축소)
-			int scaledWidth = (int)(sprite.getWidth() * scale);
-			int scaledHeight = (int)(sprite.getHeight() * scale);
-			double offsetX = (sprite.getWidth() - scaledWidth) / 2.0;
-			double offsetY = (sprite.getHeight() - scaledHeight) / 2.0;
-			int drawX = (int) Math.round(x + offsetX);
-			int drawY = (int) Math.round(y + offsetY);
+			int scaledWidth = (int) Math.round(sprite.getWidth() * scale);
+			int scaledHeight = (int) Math.round(sprite.getHeight() * scale);
+			int drawX = (int) Math.round(x) - (scaledWidth / 2);
+			int drawY = (int) Math.round(y) - (scaledHeight / 2);
 			
 			g2d.drawImage(sprite.getImage(), drawX, drawY, 
-						 drawX + scaledWidth, drawY + scaledHeight,
-						 0, 0, sprite.getWidth(), sprite.getHeight(), null);
+					 drawX + scaledWidth, drawY + scaledHeight,
+					 0, 0, sprite.getWidth(), sprite.getHeight(), null);
 		}
 	}
 	

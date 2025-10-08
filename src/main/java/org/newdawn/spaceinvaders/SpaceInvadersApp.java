@@ -320,14 +320,30 @@ public class SpaceInvadersApp extends JFrame implements ScreenNavigator {
 		if (multiplayerNetworkAdapter != null) {
 			multiplayerNetworkAdapter.shutdown();
 		}
-		multiplayerNetworkAdapter = new RoomGameNetworkAdapter(client);
-		multiplayerNetworkAdapter.onGameInit(initInfo);
+        multiplayerNetworkAdapter = new RoomGameNetworkAdapter(client);
+        multiplayerNetworkAdapter.onGameInit(initInfo);
 		
-		multiplayerGameCanvas = new MultiplayerGameCanvas();
-		multiplayerGameCanvas.setUserManager(userManager);
-		multiplayerGameCanvas.setResolutionManager(resolutionManager);
-		multiplayerGameCanvas.configureForRemote(multiplayerNetworkAdapter,
-				client.getSelfId(), initInfo);
+        multiplayerGameCanvas = new MultiplayerGameCanvas();
+        multiplayerGameCanvas.setUserManager(userManager);
+        multiplayerGameCanvas.setResolutionManager(resolutionManager);
+        String resolvedSelfId = client.getSelfId();
+        if ((resolvedSelfId == null || resolvedSelfId.isEmpty()) && initInfo.players != null) {
+            String username = client.getUsername();
+            if (username != null) {
+                for (GameInitInfo.Player p : initInfo.players) {
+                    if (p != null && username.equals(p.username)) {
+                        resolvedSelfId = p.id;
+                        break;
+                    }
+                }
+            }
+            if ((resolvedSelfId == null || resolvedSelfId.isEmpty()) && initInfo.players.size() == 1) {
+                GameInitInfo.Player only = initInfo.players.get(0);
+                resolvedSelfId = only != null ? only.id : null;
+            }
+        }
+        multiplayerGameCanvas.configureForRemote(multiplayerNetworkAdapter,
+                resolvedSelfId, initInfo);
 		requestSetScreen(multiplayerGameCanvas);
 	}
     

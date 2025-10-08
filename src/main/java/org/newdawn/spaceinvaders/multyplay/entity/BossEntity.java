@@ -4,8 +4,11 @@ import java.awt.Graphics;
 import java.awt.Graphics2D;
 
 import org.newdawn.spaceinvaders.multyplay.core.MultiplayerGameContext;
+import org.newdawn.spaceinvaders.multyplay.net.protocol.MetadataCodec;
 
 import java.awt.Color;
+import java.util.LinkedHashMap;
+import java.util.Map;
 
 /**
  * An entity representing a boss enemy
@@ -418,5 +421,37 @@ public class BossEntity extends Entity {
     public java.awt.Rectangle getBounds() {
         // Return bounds matching the visual size (6x scale = 300x300)
         return new java.awt.Rectangle((int)x - 150, (int)y - 150, 300, 300);
+    }
+
+    @Override
+    protected String snapshotMetadata() {
+        Map<String, String> map = new LinkedHashMap<>();
+        map.put("hp", Integer.toString(currentHP));
+        map.put("max", Integer.toString(maxHP));
+        map.put("phase", Integer.toString(phase));
+        return MetadataCodec.encode(map);
+    }
+
+    @Override
+    protected void applySnapshotMetadata(String metadata) {
+        Map<String, String> map = MetadataCodec.decode(metadata);
+        if (map.isEmpty()) {
+            return;
+        }
+        try {
+            currentHP = Integer.parseInt(map.getOrDefault("hp", Integer.toString(currentHP)));
+        } catch (NumberFormatException ignore) {
+            // keep previous value
+        }
+        try {
+            maxHP = Integer.parseInt(map.getOrDefault("max", Integer.toString(maxHP)));
+        } catch (NumberFormatException ignore) {
+            // keep previous value
+        }
+        try {
+            phase = Integer.parseInt(map.getOrDefault("phase", Integer.toString(phase)));
+        } catch (NumberFormatException ignore) {
+            // keep previous value
+        }
     }
 }

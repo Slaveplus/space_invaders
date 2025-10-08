@@ -89,13 +89,13 @@ public class ServerMultiplayerGameTest {
         assertEquals("Alien bounds width should match scaled sprite", expectedWidth, bounds.width);
         assertEquals("Alien bounds height should match scaled sprite", expectedHeight, bounds.height);
 
-        double offsetX = (alien.getSpriteWidth() - expectedWidth) / 2.0;
-        double offsetY = (alien.getSpriteHeight() - expectedHeight) / 2.0;
+    int expectedTopLeftX = (int) Math.round(alien.getPreciseCenterX()) - (expectedWidth / 2);
+    int expectedTopLeftY = (int) Math.round(alien.getPreciseCenterY()) - (expectedHeight / 2);
 
-        assertEquals("Alien bounds X offset should match draw position",
-                Math.round(alien.getX() + offsetX), bounds.x);
-        assertEquals("Alien bounds Y offset should match draw position",
-                Math.round(alien.getY() + offsetY), bounds.y);
+    assertEquals("Alien bounds X offset should match draw position",
+        expectedTopLeftX, bounds.x);
+    assertEquals("Alien bounds Y offset should match draw position",
+        expectedTopLeftY, bounds.y);
     }
 
     private static class TestAlienEntity extends AlienEntity {
@@ -109,6 +109,14 @@ public class ServerMultiplayerGameTest {
 
         int getSpriteHeight() {
             return sprite.getHeight();
+        }
+
+        double getPreciseCenterX() {
+            return x;
+        }
+
+        double getPreciseCenterY() {
+            return y;
         }
     }
 }

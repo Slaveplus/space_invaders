@@ -99,6 +99,9 @@ public class MultiplayerInputManager {
             if (gameStateManager.isWaitingForKeyPress() && !gameStateManager.isShowingSkillMenu()) {
                 return;
             }
+            if (game.isIntermissionOverlayVisible() || game.isSpectatorOverlayVisible()) {
+                return;
+            }
             
             // Handle ESC key for pause menu (only during gameplay)
             if (e.getKeyCode() == KeyEvent.VK_ESCAPE) {

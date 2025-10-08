@@ -74,6 +74,7 @@ public class ServerMultiplayerGame implements MultiplayerGameContext {
         long lastFire;
         @SuppressWarnings("unused")
         final Map<Integer, Integer> skillInventory = new HashMap<>(); // 향후 사용 예정
+        boolean spectating;
     }
 
     private final Map<String, PlayerRuntime> playerRuntimes = new LinkedHashMap<>();
@@ -95,10 +96,13 @@ public class ServerMultiplayerGame implements MultiplayerGameContext {
                 continue;
             }
             gameStateManager.ensurePlayer(id);
-            if (!playerRuntimes.containsKey(id)) {
-                playerRuntimes.put(id, new PlayerRuntime());
+            PlayerRuntime runtime = playerRuntimes.get(id);
+            if (runtime == null) {
+                runtime = new PlayerRuntime();
+                playerRuntimes.put(id, runtime);
                 layoutChanged = true;
             }
+            runtime.spectating = false;
             skillManagers.computeIfAbsent(id, k -> new MultiplayerSkillManager(this, k));
         }
         if (primaryPlayerId == null && !playerIds.isEmpty()) {
@@ -136,6 +140,7 @@ public class ServerMultiplayerGame implements MultiplayerGameContext {
 
     public void startPendingRound() {
         gameStateManager.getEntities().clear();
+        revivePlayersForNextRound();
         setupPlayerShips();
         if (pendingRoundInitializer != null) {
             pendingRoundInitializer.run();
@@ -187,6 +192,7 @@ public class ServerMultiplayerGame implements MultiplayerGameContext {
             skillManager(id).reset();
         }
         gameStateManager.getEntities().clear();
+        revivePlayersForNextRound();
         setupPlayerShips();
         initEntities();
         gameStarted = true;
@@ -249,12 +255,18 @@ public class ServerMultiplayerGame implements MultiplayerGameContext {
                 runtime = new PlayerRuntime();
                 playerRuntimes.put(playerId, runtime);
             }
+            PlayerState state = gameStateManager.ensurePlayer(playerId);
+            if (state.isDead()) {
+                runtime.ship = null;
+                runtime.spectating = true;
+                continue;
+            }
             int spawnX = (playerCount == 1) ? 370 : minX + (index * spacing);
 
-            gameStateManager.ensurePlayer(playerId);
             ShipEntity newShip = new ShipEntity(this, currentSpaceshipSkin, spawnX, spawnY);
             newShip.setOwnerId(playerId);
             runtime.ship = newShip;
+            runtime.spectating = false;
             runtime.leftPressed = false;
             runtime.rightPressed = false;
             runtime.firePressed = false;
@@ -449,7 +461,7 @@ public class ServerMultiplayerGame implements MultiplayerGameContext {
 
     private void tryToFire(String playerId, PlayerRuntime runtime) {
         ShipEntity playerShip = runtime.ship;
-        if (playerShip == null) {
+        if (playerShip == null || runtime.spectating) {
             return;
         }
         PlayerState ps = gameStateManager.ensurePlayer(playerId);
@@ -668,12 +680,41 @@ public class ServerMultiplayerGame implements MultiplayerGameContext {
             return;
         }
         String targetId = playerId != null ? playerId : gameStateManager.getLocalPlayerId();
+        if (targetId == null) {
+            return;
+        }
+        PlayerRuntime runtime = playerRuntimes.get(targetId);
         gameStateManager.takeDamage(targetId);
         PlayerState ps = gameStateManager.ensurePlayer(targetId);
-        if (ps.isDead()) {
-            gameStateManager.setMessage("Player down!");
-            gameStateManager.setWaitingForKeyPress(true);
+        if (!ps.isDead()) {
+            return;
         }
+        if (runtime != null && runtime.ship != null) {
+            gameStateManager.getEntities().remove(runtime.ship);
+            gameStateManager.getRemoveList().remove(runtime.ship);
+            if (ship == runtime.ship) {
+                ship = null;
+            }
+            runtime.ship = null;
+        }
+        if (runtime != null) {
+            runtime.spectating = true;
+        }
+
+        if (isEveryoneEliminated()) {
+            scheduleIntermission(
+                    new RoundTransition(
+                            RoundTransition.Type.GAME_COMPLETED,
+                            gameStateManager.getCurrentRound(),
+                            gameStateManager.getCurrentRound(),
+                            false,
+                            "모든 플레이어가 쓰러졌습니다."),
+                    null);
+            return;
+        }
+
+        gameStateManager.setWaitingForKeyPress(false);
+        gameStateManager.setMessage("");
     }
 
     private void notifyWin() {
@@ -811,5 +852,37 @@ public class ServerMultiplayerGame implements MultiplayerGameContext {
             gameStateManager.setMessage("BOSS APPEARED!");
             gameStateManager.setWaitingForKeyPress(true);
         }
+    }
+
+    private void revivePlayersForNextRound() {
+        for (String playerId : new ArrayList<>(playerRuntimes.keySet())) {
+            if (playerId == null) {
+                continue;
+            }
+            PlayerState state = gameStateManager.ensurePlayer(playerId);
+            state.restoreFullHealth();
+            PlayerRuntime runtime = playerRuntimes.get(playerId);
+            if (runtime != null) {
+                runtime.spectating = false;
+                runtime.ship = null;
+                runtime.leftPressed = false;
+                runtime.rightPressed = false;
+                runtime.firePressed = false;
+                runtime.lastFire = 0;
+            }
+        }
+    }
+
+    private boolean isEveryoneEliminated() {
+        if (playerRuntimes.isEmpty()) {
+            return false;
+        }
+        for (String id : playerRuntimes.keySet()) {
+            PlayerState state = gameStateManager.getPlayerState(id);
+            if (state != null && state.isAlive()) {
+                return false;
+            }
+        }
+        return true;
     }
 }
