@@ -3,6 +3,7 @@ package org.newdawn.spaceinvaders.multyplay.core;
 import java.awt.Canvas;
 import java.awt.Color;
 import java.awt.Font;
+import java.awt.FontMetrics;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
 import java.awt.image.BufferedImage;
@@ -62,6 +63,9 @@ import org.newdawn.spaceinvaders.multyplay.net.client.RoomGameNetworkAdapter;
  */
 public class MultiplayerGameCanvas extends Canvas implements Screen, MultiplayerGameContext
 {
+	private static final Font LOCAL_SHIP_MARKER_FONT = new Font("Arial", Font.BOLD, 14);
+	private static final Color LOCAL_SHIP_MARKER_COLOR = new Color(255, 230, 140);
+	private static final Color LOCAL_SHIP_MARKER_SHADOW = new Color(0, 0, 0, 170);
 	/** The stragey that allows us to use accelerate page flipping */
 	// BufferStrategy는 상위 App에서 관리
 	// entities and removeList are now managed by MultiplayerGameStateManager
@@ -1262,7 +1266,6 @@ public class MultiplayerGameCanvas extends Canvas implements Screen, Multiplayer
 				case SYSTEM: {
 					String message = event.message != null ? event.message : "";
 					if (!message.isEmpty()) {
-						appendIntermissionChat("* " + message);
 						if (event.fromPlayerId != null && event.fromPlayerId.equals(localPlayerId)) {
 							gameStateManager.setMessage(message);
 							gameStateManager.setWaitingForKeyPress(true);
@@ -1595,6 +1598,7 @@ public class MultiplayerGameCanvas extends Canvas implements Screen, Multiplayer
 		// entities
 		ArrayList<Entity> entities = gameStateManager.getEntities();
 		for (Entity entity : entities) entity.draw(g);
+		drawLocalShipMarker(g);
 		// UI & overlays
 	uiRenderer.drawGameUI(g, gameStateManager, skillManager);
 	if (gameStateManager.isShowingPauseMenu()) { drawPauseMenu(g); }
@@ -1610,6 +1614,45 @@ public class MultiplayerGameCanvas extends Canvas implements Screen, Multiplayer
 	}
 	}
 	
+	private void drawLocalShipMarker(Graphics2D g) {
+		if (localPlayerId == null || isLocalSpectatorActive()) {
+			return;
+		}
+		Entity localShip = this.ship;
+		if (localShip == null && localPlayerId != null) {
+			localShip = getShip(localPlayerId);
+		}
+		if (localShip == null) {
+			return;
+		}
+		String ownerId = localShip.getOwnerId();
+		if (ownerId != null && !ownerId.equals(localPlayerId)) {
+			return;
+		}
+		java.awt.Rectangle bounds = localShip.getBounds();
+		int centerX = bounds.x + (bounds.width / 2);
+		String label = "(YOU)";
+		Font previousFont = g.getFont();
+		Color previousColor = g.getColor();
+		g.setFont(LOCAL_SHIP_MARKER_FONT);
+		FontMetrics metrics = g.getFontMetrics();
+		int textWidth = metrics.stringWidth(label);
+		int textBaseline = bounds.y + bounds.height + 18;
+		double scaleY = resolutionManager != null ? resolutionManager.getScaleY() : 1.0;
+		int logicalHeight = scaleY != 0 ? (int) Math.round(getHeight() / scaleY) : getHeight();
+		int maxBaseline = logicalHeight - metrics.getDescent() - 4;
+		if (textBaseline > maxBaseline) {
+			textBaseline = maxBaseline;
+		}
+		int drawX = centerX - (textWidth / 2);
+		g.setColor(LOCAL_SHIP_MARKER_SHADOW);
+		g.drawString(label, drawX + 1, textBaseline + 1);
+		g.setColor(LOCAL_SHIP_MARKER_COLOR);
+		g.drawString(label, drawX, textBaseline);
+		g.setFont(previousFont);
+		g.setColor(previousColor);
+	}
+
 	
 	/**
 	 * Getter methods for MultiplayerInputManager
@@ -1678,7 +1721,7 @@ public class MultiplayerGameCanvas extends Canvas implements Screen, Multiplayer
 				continue;
 			}
 			String pid = state.getPlayerId();
-			if (pid == null) {
+			if (!shouldDisplayInSpectatorList(pid)) {
 				continue;
 			}
 			String display = playerDisplayNames.getOrDefault(pid, pid);
@@ -1731,6 +1774,17 @@ public class MultiplayerGameCanvas extends Canvas implements Screen, Multiplayer
 		g.setFont(new Font("Arial", Font.PLAIN, 12));
 		g.setColor(new Color(200, 200, 200));
 		g.drawString("Enter: 채팅  ESC: 로비로 돌아가기", panelX + 24, panelY + panelHeight - 28);
+	}
+
+	private boolean shouldDisplayInSpectatorList(String playerId) {
+		if (playerId == null) {
+			return false;
+		}
+		String trimmed = playerId.trim();
+		if (trimmed.isEmpty()) {
+			return false;
+		}
+		return !"local".equalsIgnoreCase(trimmed);
 	}
 
 	private void drawIntermissionOverlay(Graphics2D g) {
