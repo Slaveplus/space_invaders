@@ -44,6 +44,11 @@ public class InputManager {
          * 키가 타이핑되었을 때 처리
          */
         public void keyTyped(KeyEvent e) {
+            // 라운드 설명 창이 열려있을 때 (자동 닫기 기능으로 인해 키 입력 처리 제거)
+            if (gameStateManager.isShowingRoundInfo()) {
+                return;
+            }
+            
             // 게임플레이 중 "any key" 대기 상태일 때
             if (gameStateManager.isWaitingForKeyPress()) {
                 // 스킬 메뉴가 열려있고 waitingForKeyPress가 true인 경우 (스킬 포인트 부족 메시지)
@@ -55,6 +60,15 @@ public class InputManager {
                 
                 // 일시정지 메뉴가 열려있으면 무시
                 if (gameStateManager.isShowingPauseMenu()) {
+                    return;
+                }
+                
+                // 게임 클리어 상태일 때는 메인메뉴로 이동
+                if (gameStateManager.isGameCompleted()) {
+                    gameStateManager.setWaitingForKeyPress(false);
+                    gameStateManager.setGameCompleted(false);
+                    // 메인메뉴로 이동
+                    game.returnToMainMenu();
                     return;
                 }
                 
@@ -113,6 +127,12 @@ public class InputManager {
             // Handle skill menu navigation when skill menu is open
             if (gameStateManager.isShowingSkillMenu()) {
                 handleSkillMenuInput(e);
+                return;
+            }
+            
+            // Handle quit confirmation dialog when it's open
+            if (gameStateManager.isShowingQuitConfirm()) {
+                handleQuitConfirmInput(e);
                 return;
             }
             
@@ -240,14 +260,9 @@ public class InputManager {
             case 0: // 계속하기
                 gameStateManager.hidePauseMenu();
                 break;
-            case 1: // 메인메뉴
+            case 1: // 그만두기
                 gameStateManager.hidePauseMenu();
-                game.goToMainMenu();
-                break;
-            case 2: // 설정
-                gameStateManager.setMessage("설정 기능은 준비 중입니다!");
-                gameStateManager.hidePauseMenu();
-                gameStateManager.setWaitingForKeyPress(true);
+                gameStateManager.showQuitConfirm();
                 break;
         }
     }
@@ -338,6 +353,37 @@ public class InputManager {
             // keyTyped에서 스킬 메뉴 상태일 때 처리하도록 개선됨
             gameStateManager.setWaitingForKeyPress(true);
             gameStateManager.setRoundTransition(false); // 스킬 선택 실패 시 라운드 전환 플래그 해제
+        }
+    }
+    
+    /**
+     * 그만두기 확인 창 입력 처리
+     */
+    private void handleQuitConfirmInput(KeyEvent e) {
+        if (e.getKeyCode() == KeyEvent.VK_LEFT) {
+            gameStateManager.setSelectedQuitOption(0); // 아니요
+        } else if (e.getKeyCode() == KeyEvent.VK_RIGHT) {
+            gameStateManager.setSelectedQuitOption(1); // 예
+        } else if (e.getKeyCode() == KeyEvent.VK_ENTER || e.getKeyCode() == KeyEvent.VK_SPACE) {
+            handleQuitConfirmSelection();
+        } else if (e.getKeyCode() == KeyEvent.VK_ESCAPE) {
+            gameStateManager.hideQuitConfirm();
+        }
+    }
+    
+    /**
+     * 그만두기 확인 창 선택 처리
+     */
+    private void handleQuitConfirmSelection() {
+        if (gameStateManager.getSelectedQuitOption() == 0) {
+            // 아니요 선택 - 일시정지 메뉴로 돌아가기
+            gameStateManager.hideQuitConfirm();
+            gameStateManager.showPauseMenu();
+        } else {
+            // 예 선택 - 메인메뉴로 돌아가기 (코인 저장)
+            gameStateManager.hideQuitConfirm();
+            game.saveCoinsAndPlayTime(); // 코인 저장
+            game.goToMainMenu();
         }
     }
     

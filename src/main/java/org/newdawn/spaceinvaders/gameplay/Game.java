@@ -7,6 +7,7 @@ import java.util.ArrayList;
 
 import org.newdawn.spaceinvaders.gameplay.entity.AlienEntity;
 import org.newdawn.spaceinvaders.gameplay.entity.BossEntity;
+import org.newdawn.spaceinvaders.gameplay.entity.CoinDisplayEntity;
 import org.newdawn.spaceinvaders.gameplay.entity.Entity;
 import org.newdawn.spaceinvaders.gameplay.entity.NearEntity;
 import org.newdawn.spaceinvaders.gameplay.entity.ExplosionEntity;
@@ -18,6 +19,7 @@ import org.newdawn.spaceinvaders.login.UserManager;
 import org.newdawn.spaceinvaders.shop.ShopCategory;
 import org.newdawn.spaceinvaders.shop.ShopItem;
 import org.newdawn.spaceinvaders.app.Screen;
+import org.newdawn.spaceinvaders.app.ScreenNavigator;
 
 /**
  * The main hook of our game. This class with both act as a manager
@@ -55,6 +57,9 @@ public class Game extends Canvas implements Screen
 	private String currentSpaceshipSkin = "sprites/ship.gif";
 	/** 현재 장착된 무기 스킨 경로 */
 	private String currentWeaponSkin = "sprites/shot.gif";
+	
+	/** 이전 프레임의 일시정지 상태 (상태 변화 감지용) */
+	private boolean wasPaused = false;
 
 	/** The current number of frames recorded */
 	// FPS 표시 기능은 상위에서 처리 가능, 내부적으로는 카운트만 유지하지 않음
@@ -73,13 +78,16 @@ public class Game extends Canvas implements Screen
 	
 	/** 메인메뉴 전환 요청 플래그 */
 	private boolean requestMainMenu = false;
+	/** ScreenNavigator for menu navigation */
+	private ScreenNavigator navigator;
 	/** 게임 시작 시간 (3초 공격 지연용) */
 	private long gameStartTime = 0;
 	
 	/**
 	 * Construct our game and set it running.
 	 */
-	public Game() {
+	public Game(ScreenNavigator navigator) {
+		this.navigator = navigator;
 		// 게임 시작 시간 기록
 		gameStartTime = System.currentTimeMillis();
 		setIgnoreRepaint(true);
@@ -208,7 +216,7 @@ public class Game extends Canvas implements Screen
 		
 		gameStateManager.takeDamage();
 		if (gameStateManager.getCurrentHP() <= 0) {
-			gameStateManager.setMessage("Oh no! They got you, try again?");
+			gameStateManager.setMessage("아쉬워요 .... 다시 시작!!");
 			gameStateManager.setWaitingForKeyPress(true);
 		}
 	}
@@ -222,12 +230,19 @@ public class Game extends Canvas implements Screen
 			return; // No damage taken when invincible
 		}
 		
+		// Check if game is in a state where damage should be applied
+		if (gameStateManager.isWaitingForKeyPress() || 
+			gameStateManager.isShowingPauseMenu() || 
+			gameStateManager.isShowingSkillMenu() ||
+			gameStateManager.isShowingRoundInfo() ||
+			gameStateManager.isShowingQuitConfirm()) {
+			return;
+		}
+		
 		// Apply damage only once (not multiple times)
-		// 이전: for (int i = 0; i < damage; i++) - 데미지 값만큼 반복 (위험!)
-		// 수정: 한 번만 데미지 적용
 		gameStateManager.takeDamage();
 		if (gameStateManager.getCurrentHP() <= 0) {
-			gameStateManager.setMessage("Oh no! Boss attack got you, try again?");
+			gameStateManager.setMessage("아쉬워요 .... 다시 시작!!");
 			gameStateManager.setWaitingForKeyPress(true);
 		}
 	}
@@ -240,6 +255,12 @@ public class Game extends Canvas implements Screen
 		boolean roundAdvanced = gameStateManager.advanceRound();
 		
 		if (roundAdvanced) {
+			// 라운드 클리어 보상 지급 (10, 20, 30, 40, 50, 60, 70, 80)
+			int currentRound = gameStateManager.getCurrentRound() - 1; // 이전 라운드 번호
+			int roundReward = currentRound * 10;
+			gameStateManager.addEarnedCoins(roundReward);
+			System.out.println("🎉 Round " + currentRound + " cleared! Reward: " + roundReward + " coins");
+			
 			// Update background for new round
 			updateBackgroundForRound(gameStateManager.getCurrentRound());
 			
@@ -251,9 +272,24 @@ public class Game extends Canvas implements Screen
 				spawnBoss();
 			}
 		} else {
-			// Game completed
-			gameStateManager.setMessage("Well done! You Win!");
+			// Game completed - 최종 클리어 보상
+			int finalReward = 100; // 최종 클리어 보상
+			gameStateManager.addEarnedCoins(finalReward);
+			System.out.println("🏆 Game completed! Final reward: " + finalReward + " coins");
+			
+			// 코인과 플레이 시간 저장
+			saveCoinsAndPlayTime();
+			
+			// 클리어 화면 메시지 생성
+			int totalCoins = gameStateManager.getEarnedCoins();
+			String playTime = gameStateManager.getPlayTime();
+			String clearMessage = "경축\n" +
+								"걸린시간 : " + playTime + "\n" +
+								"획득코인 : " + totalCoins + "개";
+			
+			gameStateManager.setMessage(clearMessage);
 			gameStateManager.setWaitingForKeyPress(true);
+			gameStateManager.setGameCompleted(true); // 게임 클리어 상태 설정
 		}
 	}
 	
@@ -270,6 +306,7 @@ public class Game extends Canvas implements Screen
 		if (Math.random() < dropChance) {
 			skillManager.dropSkill(gameStateManager.getCurrentRound());
 		}
+		
 		
 		// Count remaining aliens and check if boss is alive
 		int remainingAliens = 0;
@@ -508,6 +545,132 @@ public class Game extends Canvas implements Screen
 	}
 	
 	/**
+	 * 코인 드롭 생성
+	 * 
+	 * @param x X 좌표
+	 * @param y Y 좌표
+	 * @param coinValue 코인 가치
+	 */
+	public void createCoinDrop(int x, int y, int coinValue) {
+		try {
+			org.newdawn.spaceinvaders.gameplay.entity.CoinEntity coin = 
+				new org.newdawn.spaceinvaders.gameplay.entity.CoinEntity(this, x, y, coinValue);
+			gameStateManager.getEntities().add(coin);
+			System.out.println("💰 Coin drop created at (" + x + ", " + y + ") with value: " + coinValue);
+		} catch (Exception e) {
+			System.err.println("Error creating coin drop: " + e.getMessage());
+			e.printStackTrace();
+		}
+	}
+	
+	
+	/**
+	 * 획득한 코인 추가
+	 * 
+	 * @param amount 추가할 코인 수
+	 */
+	public void addEarnedCoins(int amount) {
+		gameStateManager.addEarnedCoins(amount);
+	}
+	
+	/**
+	 * 코인 획득 표시
+	 * 
+	 * @param x X 좌표
+	 * @param y Y 좌표
+	 * @param coinAmount 획득한 코인 수
+	 */
+	public void showCoinEarned(int x, int y, int coinAmount) {
+		try {
+			// 코인 획득량을 게임 상태에 추가
+			addEarnedCoins(coinAmount);
+			
+			// 코인 표시 엔티티 생성
+			CoinDisplayEntity coinDisplay = new CoinDisplayEntity(this, x, y, coinAmount);
+			addEntity(coinDisplay);
+			
+			System.out.println("💰 Coin earned display created: +" + coinAmount + " at (" + x + ", " + y + ")");
+		} catch (Exception e) {
+			System.err.println("Error creating coin earned display: " + e.getMessage());
+			e.printStackTrace();
+		}
+	}
+	
+	/**
+	 * 코인과 플레이 시간을 DB에 저장
+	 */
+	public void saveCoinsAndPlayTime() {
+		if (userManager != null && userManager.isLoggedIn()) {
+			int earnedCoins = gameStateManager.getEarnedCoins();
+			if (earnedCoins > 0) {
+				// 획득한 코인을 유저의 총 코인에 추가
+				userManager.addCoins(earnedCoins);
+				System.out.println("💰 Game coins saved to DB: " + earnedCoins + " coins");
+			}
+			
+			// 플레이 기록 저장
+			long playTimeMs = gameStateManager.getPlayTimeMs();
+			boolean completed = gameStateManager.getCurrentRound() >= gameStateManager.getMaxRound() || gameStateManager.isGameCompleted();
+			int finalRound = gameStateManager.getCurrentRound();
+			
+			// GameRecord 생성
+			org.newdawn.spaceinvaders.database.GameRecord gameRecord = 
+				new org.newdawn.spaceinvaders.database.GameRecord(
+					userManager.getCurrentUser().getUid(),
+					userManager.getCurrentUser().getUsername(),
+					playTimeMs,
+					earnedCoins,
+					completed,
+					finalRound
+				);
+			
+			// Firebase DB에 플레이 기록 저장
+			saveGameRecordToDB(gameRecord);
+			
+			System.out.println("⏱️ Play time: " + gameStateManager.getPlayTime() + " (" + playTimeMs + "ms)");
+			System.out.println("📊 Game record saved: " + gameRecord.toString());
+		} else {
+			System.out.println("⚠️ Cannot save coins: User not logged in");
+		}
+	}
+	
+	/**
+	 * 게임 기록을 Firebase DB에 저장
+	 * 
+	 * @param gameRecord 저장할 게임 기록
+	 */
+	private void saveGameRecordToDB(org.newdawn.spaceinvaders.database.GameRecord gameRecord) {
+		try {
+			// Firebase DB 경로: users/{uid}/gameRecords/single/{recordId}
+			String dbPath = "users/" + gameRecord.getUserId() + "/gameRecords/single/" + gameRecord.getRecordId();
+			
+			// GameRecord를 Map으로 변환
+			java.util.Map<String, Object> recordData = new java.util.HashMap<>();
+			recordData.put("recordId", gameRecord.getRecordId());
+			recordData.put("userId", gameRecord.getUserId());
+			recordData.put("username", gameRecord.getUsername());
+			recordData.put("playTimeMs", gameRecord.getPlayTimeMs());
+			recordData.put("playTime", gameRecord.getPlayTime());
+			recordData.put("earnedCoins", gameRecord.getEarnedCoins());
+			recordData.put("completed", gameRecord.isCompleted());
+			recordData.put("finalRound", gameRecord.getFinalRound());
+			recordData.put("playDate", gameRecord.getPlayDateString());
+			
+			// Firebase DB에 저장
+			boolean success = userManager.getFirebaseDB().putData(dbPath, recordData);
+			
+			if (success) {
+				System.out.println("✅ Game record saved to Firebase DB: " + dbPath);
+			} else {
+				System.err.println("❌ Failed to save game record to Firebase DB");
+			}
+		} catch (Exception e) {
+			System.err.println("Error saving game record to DB: " + e.getMessage());
+			e.printStackTrace();
+		}
+	}
+	
+	/**
 	 * The main game loop. This loop is running during all game
 	 * play as is responsible for the following activities:
 	 * <p>
@@ -519,23 +682,49 @@ public class Game extends Canvas implements Screen
 	 * <p>
 	 */
 	public void update(long delta) {
-		// 게임플레이 업데이트 (Game 화면은 항상 게임플레이)
+		// 라운드 정보 창 자동 닫기 (7초 후)
+		if (gameStateManager.shouldAutoCloseRoundInfo()) {
+			gameStateManager.hideRoundInfo();
+			gameStateManager.setWaitingForKeyPress(false);
+		}
+		
+		// 일시정지 상태 변화 감지
+		boolean currentlyPaused = gameStateManager.isPaused();
+		
+		if (currentlyPaused && !wasPaused) {
+			// 일시정지 시작
+			gameStateManager.startPause();
+		} else if (!currentlyPaused && wasPaused) {
+			// 일시정지 종료
+			gameStateManager.endPause();
+		}
+		
+		wasPaused = currentlyPaused;
+		
+		// 게임플레이 업데이트 (일시정지 상태가 아닐 때만)
 		if (!gameStateManager.isWaitingForKeyPress() &&
 			!gameStateManager.isShowingPauseMenu() &&
-			!gameStateManager.isShowingSkillMenu()) {
+			!gameStateManager.isShowingSkillMenu() &&
+			!gameStateManager.isShowingRoundInfo() &&
+			!gameStateManager.isShowingQuitConfirm()) {
 			// Update skill effects
 			skillManager.updateSkillEffects();
 			
-			// Create a copy to avoid ConcurrentModificationException
-			ArrayList<Entity> entities = new ArrayList<>(gameStateManager.getEntities());
-			for (Entity entity : entities) {
-				entity.move(delta);
+			// Use direct iteration to avoid ArrayList copy overhead
+			ArrayList<Entity> entities = gameStateManager.getEntities();
+			for (int i = 0; i < entities.size(); i++) {
+				Entity entity = entities.get(i);
+				if (entity != null) {
+					entity.move(delta);
+				}
 			}
 			tryAlienFire();
 		}
 
-		// Ship movement & fire
-		if (ship != null && !gameStateManager.isShowingPauseMenu() && !gameStateManager.isShowingSkillMenu()) {
+		// Ship movement & fire (일시정지 상태가 아닐 때만)
+		if (ship != null && !gameStateManager.isShowingPauseMenu() && 
+			!gameStateManager.isShowingSkillMenu() && !gameStateManager.isShowingRoundInfo() &&
+			!gameStateManager.isShowingQuitConfirm()) {
 			ship.setHorizontalMovement(0);
 			if (inputManager.isLeftPressed() && !inputManager.isRightPressed()) {
 				ship.setHorizontalMovement(-moveSpeed);
@@ -547,9 +736,10 @@ public class Game extends Canvas implements Screen
 			}
 		}
 
-		// collisions
+		// collisions (일시정지 상태가 아닐 때만)
 		ArrayList<Entity> entities = gameStateManager.getEntities();
-		if (!gameStateManager.isShowingPauseMenu() && !gameStateManager.isShowingSkillMenu()) {
+		if (!gameStateManager.isShowingPauseMenu() && !gameStateManager.isShowingSkillMenu() &&
+			!gameStateManager.isShowingRoundInfo() && !gameStateManager.isShowingQuitConfirm()) {
 			for (int i=0;i<entities.size();i++) {
 				Entity e1 = entities.get(i);
 				for (int j=i+1;j<entities.size();j++) {
@@ -586,6 +776,8 @@ public class Game extends Canvas implements Screen
 		uiRenderer.drawGameUI(g, gameStateManager, skillManager);
 		if (gameStateManager.isShowingPauseMenu()) { drawPauseMenu(g); }
 		if (gameStateManager.isShowingSkillMenu()) { drawSkillMenu(g); }
+		if (gameStateManager.isShowingRoundInfo()) { drawRoundInfoOverlay(g, gameStateManager); }
+		if (gameStateManager.isShowingQuitConfirm()) { drawQuitConfirmOverlay(g, gameStateManager); }
 		if (gameStateManager.isWaitingForKeyPress()) {
 			uiRenderer.drawMessage(g, gameStateManager.getMessage());
 		}
@@ -613,6 +805,18 @@ public class Game extends Canvas implements Screen
 	
 	public boolean isWaitingForKeyPress() {
 		return gameStateManager.isWaitingForKeyPress();
+	}
+	
+	/**
+	 * 메인메뉴로 돌아가기
+	 */
+	public void returnToMainMenu() {
+		// 게임 상태 초기화
+		gameStateManager.resetGame();
+		// 메인메뉴로 이동
+		if (navigator != null) {
+			navigator.showMainMenu();
+		}
 	}
 	
 	public void setWaitingForKeyPress(boolean waiting) {
@@ -683,6 +887,20 @@ public class Game extends Canvas implements Screen
 	 */
 	public void drawPauseMenu(java.awt.Graphics2D g2d) {
 		uiRenderer.drawPauseOverlay(g2d, gameStateManager.getSelectedPauseMenuItem());
+	}
+	
+	/**
+	 * 라운드 설명 창 그리기
+	 */
+	public void drawRoundInfoOverlay(java.awt.Graphics2D g2d, GameStateManager gameStateManager) {
+		uiRenderer.drawRoundInfoOverlay(g2d, gameStateManager);
+	}
+	
+	/**
+	 * 그만두기 확인 창 그리기
+	 */
+	public void drawQuitConfirmOverlay(java.awt.Graphics2D g2d, GameStateManager gameStateManager) {
+		uiRenderer.drawQuitConfirmOverlay(g2d, gameStateManager);
 	}
 
 	
@@ -935,6 +1153,12 @@ public class Game extends Canvas implements Screen
 	public void notifyBossDefeated() {
 		// 보스 처치 완료
 		
+		// 보스 처치 보상 지급
+		int currentRound = gameStateManager.getCurrentRound();
+		int bossReward = currentRound * 15; // 보스 처치 시 더 큰 보상
+		gameStateManager.addEarnedCoins(bossReward);
+		System.out.println("🎉 Boss " + currentRound + " defeated! Reward: " + bossReward + " coins");
+		
 		gameStateManager.setMessage("🎉 BOSS DEFEATED! 🎉 Round " + gameStateManager.getCurrentRound() + " Complete!");
 		gameStateManager.setWaitingForKeyPress(true);
 		
@@ -957,8 +1181,17 @@ public class Game extends Canvas implements Screen
 			}
 		} else {
 			// Game completed
-			gameStateManager.setMessage("🏆 GAME COMPLETED! 🏆 Congratulations!");
+			// 코인과 플레이 시간 저장
+			saveCoinsAndPlayTime();
+			
+			int totalCoins = gameStateManager.getEarnedCoins();
+			String playTime = gameStateManager.getPlayTime();
+			String clearMessage = "경--축\n" +
+								"걸린시간 : " + playTime + "\n" +
+								"획득코인 : " + totalCoins + "개";
+			gameStateManager.setMessage(clearMessage);
 			gameStateManager.setWaitingForKeyPress(true);
+			gameStateManager.setGameCompleted(true); // 게임 클리어 상태 설정
 		}
 	}
 
@@ -986,6 +1219,13 @@ public class Game extends Canvas implements Screen
 		// If no near monsters left, advance to boss round
 		if (nearMonsterCount == 0) {
 			System.out.println("🎯 All near monsters defeated! Advancing to boss round...");
+			
+			// Near 몬스터 클리어 보상 지급
+			int currentRound = gameStateManager.getCurrentRound();
+			int nearReward = currentRound * 8; // Near 몬스터 클리어 보상
+			gameStateManager.addEarnedCoins(nearReward);
+			System.out.println("🎯 Near monsters cleared! Reward: " + nearReward + " coins");
+			
 			gameStateManager.setMessage("🎯 ALL NEAR MONSTERS DEFEATED! 🎯");
 			
 			// Advance to boss round
@@ -1011,8 +1251,17 @@ public class Game extends Canvas implements Screen
 				gameStateManager.setWaitingForKeyPress(false);
 			} else {
 				// Game completed
-				gameStateManager.setMessage("🏆 GAME COMPLETED! 🏆 Congratulations!");
+				// 코인과 플레이 시간 저장
+				saveCoinsAndPlayTime();
+				
+				int totalCoins = gameStateManager.getEarnedCoins();
+				String playTime = gameStateManager.getPlayTime();
+				String clearMessage = "경--축\n" +
+									"걸린시간 : " + playTime + "\n" +
+									"획득코인 : " + totalCoins + "개";
+				gameStateManager.setMessage(clearMessage);
 				gameStateManager.setWaitingForKeyPress(true);
+				gameStateManager.setGameCompleted(true); // 게임 클리어 상태 설정
 			}
 		} else {
 			System.out.println("🎯 Still " + nearMonsterCount + " near monsters remaining, waiting...");

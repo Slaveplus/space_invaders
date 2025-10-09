@@ -16,6 +16,53 @@ import org.newdawn.spaceinvaders.app.ScreenNavigator;
  * 우주 배경을 사용한 메인 메뉴 시스템
  */
 public class MainMenu {
+    // Kostar 폰트 로드
+    private static Font KOSTAR_FONT = null;
+    
+    static {
+        loadKostarFont();
+    }
+    
+    /**
+     * Kostar 폰트 로드
+     */
+    private static void loadKostarFont() {
+        try {
+            InputStream fontStream = MainMenu.class.getClassLoader().getResourceAsStream("fonts/Kostar.ttf");
+            if (fontStream != null) {
+                KOSTAR_FONT = Font.createFont(Font.TRUETYPE_FONT, fontStream);
+                fontStream.close();
+                System.out.println("✅ MainMenu Kostar 폰트 로드 성공");
+            } else {
+                System.err.println("❌ MainMenu Kostar 폰트 파일을 찾을 수 없습니다");
+                KOSTAR_FONT = new Font("Arial", Font.PLAIN, 12); // 폴백
+            }
+        } catch (Exception e) {
+            System.err.println("❌ MainMenu Kostar 폰트 로드 실패: " + e.getMessage());
+            KOSTAR_FONT = new Font("Arial", Font.PLAIN, 12); // 폴백
+        }
+    }
+    
+    /**
+     * Kostar 폰트를 지정된 크기로 반환
+     */
+    public static Font getKostarFont(int size) {
+        if (KOSTAR_FONT != null) {
+            return KOSTAR_FONT.deriveFont(Font.PLAIN, size);
+        }
+        return new Font("Arial", Font.PLAIN, size);
+    }
+    
+    /**
+     * Kostar 폰트를 지정된 크기와 스타일로 반환
+     */
+    public static Font getKostarFont(int style, int size) {
+        if (KOSTAR_FONT != null) {
+            return KOSTAR_FONT.deriveFont(style, size);
+        }
+        return new Font("Arial", style, size);
+    }
+    
     // 상점 클래스 연결
     private Shop shop;
     private boolean showingShop = false;
@@ -33,7 +80,8 @@ public class MainMenu {
         INVENTORY,      // 인벤토리 메뉴
         SETTINGS,       // 설정 메뉴
         RESOLUTION,     // 해상도 변경 메뉴
-        ACCOUNT         // 계정 메뉴
+        ACCOUNT,        // 계정 메뉴
+        LEADERBOARD     // 플레이기록 메뉴
     }
     
     private MenuState currentState = MenuState.MAIN;
@@ -48,6 +96,9 @@ public class MainMenu {
     // 애니메이션 시스템
     private ShopAnimation settingsAnimation;
     private ShopAnimation accountAnimation;
+    
+    // 플레이기록 관련
+    private PlayRecordsManager playRecordsManager;
     
     // 싱글플레이 서브메뉴 옵션들
     private String[] singlePlayerOptions = {
@@ -104,6 +155,8 @@ public class MainMenu {
         shop = new Shop(userManager); // UserManager를 Shop에 전달
         this.userManager = userManager;
         this.navigator = navigator;
+        // 플레이기록 관리자 초기화
+        this.playRecordsManager = new PlayRecordsManager(userManager);
         // 애니메이션 초기화
         this.settingsAnimation = new ShopAnimation();
         this.accountAnimation = new ShopAnimation();
@@ -189,16 +242,16 @@ public class MainMenu {
             } else {
                 // 폰트 로드 실패 시 기본 폰트 사용
                 System.err.println("Kostar 폰트를 로드할 수 없습니다. 기본 폰트를 사용합니다.");
-                titleFont = new Font("Arial", Font.BOLD, 48);
-                menuFont = new Font("Arial", Font.BOLD, 24);
-                submenuFont = new Font("Arial", Font.BOLD, 20);
+                titleFont = getKostarFont(Font.BOLD, 48);
+                menuFont = getKostarFont(Font.BOLD, 24);
+                submenuFont = getKostarFont(Font.BOLD, 20);
             }
         } catch (Exception e) {
             System.err.println("폰트 로드 중 오류 발생: " + e.getMessage());
             // 오류 발생 시 기본 폰트 사용
-            titleFont = new Font("Arial", Font.BOLD, 48);
-            menuFont = new Font("Arial", Font.BOLD, 24);
-            submenuFont = new Font("Arial", Font.BOLD, 20);
+            titleFont = getKostarFont(Font.BOLD, 48);
+            menuFont = getKostarFont(Font.BOLD, 24);
+            submenuFont = getKostarFont(Font.BOLD, 20);
         }
     }
     
@@ -275,6 +328,12 @@ public class MainMenu {
                 shop.handleInventoryInput(keyCode);
                 return;
             }
+        }
+        
+        // 리더보드 키 입력 처리
+        if (currentState == MenuState.LEADERBOARD) {
+            handleLeaderboardInput(keyCode);
+            return;
         }
         
         switch (keyCode) {
@@ -382,6 +441,9 @@ public class MainMenu {
                 // 상점 진입 애니메이션 시작
                 shop.startEntryAnimation();
                 break;
+            case LEADERBOARD:
+                // 리더보드는 키 입력으로만 처리됨 (handleLeaderboardInput)
+                break;
         }
     }
     
@@ -447,6 +509,10 @@ public class MainMenu {
                 gameStartRequested = true;
                 break;
             case 1: // 플레이기록
+                playRecordsManager.loadGameRecords();
+                currentState = MenuState.LEADERBOARD;
+                selectedOption = 0;
+                playRecordsManager.resetScrollOffset();
                 break;
             case 2: // 이전메뉴
                 currentState = MenuState.MAIN;
@@ -619,14 +685,16 @@ public class MainMenu {
         g2d.setColor(new Color(0, 0, 0, 100));
         g2d.fillRect(0, 0, 800, 600);
         
-        // 제목 그리기
-        g2d.setColor(Color.WHITE);
-        g2d.setFont(titleFont);
-        FontMetrics titleMetrics = g2d.getFontMetrics();
-        String title = "SPACE INVADERS";
-        int titleX = (800 - titleMetrics.stringWidth(title)) / 2;
-        int titleY = 120;
-        g2d.drawString(title, titleX, titleY);
+        // 제목 그리기 (LEADERBOARD 상태가 아닐 때만)
+        if (currentState != MenuState.LEADERBOARD) {
+            g2d.setColor(Color.WHITE);
+            g2d.setFont(titleFont);
+            FontMetrics titleMetrics = g2d.getFontMetrics();
+            String title = "SPACE INVADERS";
+            int titleX = (800 - titleMetrics.stringWidth(title)) / 2;
+            int titleY = 120;
+            g2d.drawString(title, titleX, titleY);
+        }
         
         // 상태에 따라 다른 화면 그리기
         if (currentState == MenuState.ACCOUNT) {
@@ -635,6 +703,8 @@ public class MainMenu {
             drawSettingsMenu(g2d);
         } else if (currentState == MenuState.RESOLUTION) {
             drawResolutionMenu(g2d);
+        } else if (currentState == MenuState.LEADERBOARD) {
+            playRecordsManager.drawLeaderboard(g2d);
         } else {
             // 메뉴 옵션들 그리기
             drawMenuOptions(g2d);
@@ -761,7 +831,7 @@ public class MainMenu {
         
         // 디버깅 정보 표시
         g2d.setColor(Color.YELLOW);
-        g2d.setFont(new Font("Arial", Font.PLAIN, 12));
+        g2d.setFont(getKostarFont(12));
         g2d.drawString("UserManager 상태: " + (userManager != null ? "존재" : "null"), 50, 50);
         g2d.drawString("로그인 상태: " + (userManager != null ? userManager.isLoggedIn() : "false"), 50, 70);
         
@@ -921,7 +991,7 @@ public class MainMenu {
      */
     private void drawControls(Graphics2D g2d) {
         g2d.setColor(Color.GRAY);
-        g2d.setFont(new Font("Arial", Font.PLAIN, 14));
+        g2d.setFont(getKostarFont(14));
         g2d.drawString("↑↓: 이동  Enter/Space: 선택  ESC: 뒤로가기", 280, 550);
     }
     
@@ -1038,7 +1108,7 @@ public class MainMenu {
         
         // 현재 해상도 정보 표시 (하단)
         g2d.setColor(Color.YELLOW);
-        g2d.setFont(new Font("Arial", Font.BOLD, 14));
+        g2d.setFont(getKostarFont(Font.BOLD, 14));
         String currentResolution = "현재 해상도: ";
         String scaleInfo = "";
         if (navigator != null) {
@@ -1057,7 +1127,7 @@ public class MainMenu {
         
         // 조작 안내
         g2d.setColor(Color.LIGHT_GRAY);
-        g2d.setFont(new Font("Arial", Font.PLAIN, 12));
+        g2d.setFont(getKostarFont(12));
         String instructions = "↑↓: 선택  Enter: 확인  ESC: 뒤로가기";
         FontMetrics instructionMetrics = g2d.getFontMetrics();
         int instructionX = (800 - instructionMetrics.stringWidth(instructions)) / 2;
@@ -1065,12 +1135,22 @@ public class MainMenu {
         
         // 스케일링 설명
         g2d.setColor(Color.CYAN);
-        g2d.setFont(new Font("Arial", Font.PLAIN, 11));
+        g2d.setFont(getKostarFont(11));
         String scaleDescription = "※ 균등 스케일링: 게임 비율을 유지하면서 크기만 조정합니다";
         FontMetrics descMetrics = g2d.getFontMetrics();
         int descX = (800 - descMetrics.stringWidth(scaleDescription)) / 2;
         g2d.drawString(scaleDescription, descX, 550);
     }
     
+    /**
+     * 리더보드 키 입력 처리
+     */
+    private void handleLeaderboardInput(int keyCode) {
+        if (playRecordsManager.handleLeaderboardInput(keyCode)) {
+            // 뒤로가기 요청
+            currentState = MenuState.SINGLE_PLAYER;
+            selectedOption = 1; // 플레이기록 옵션으로 돌아가기
+        }
+    }
         
 }

@@ -139,6 +139,12 @@ public class Round3RandomAttack extends Entity {
     public void collidedWith(Entity other) {
         // if we've hit the player's ship, check for delayed damage
         if (other instanceof org.newdawn.spaceinvaders.gameplay.entity.ShipEntity) {
+            // Check if player is invincible
+            if (game.isPlayerInvincible()) {
+                System.out.println("🛡️ Player is invincible, random laser attack blocked");
+                return;
+            }
+            
             // Rectangle-based collision detection for laser
             double playerX = other.getX();
             double playerY = other.getY();

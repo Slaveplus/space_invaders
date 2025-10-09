@@ -137,6 +137,13 @@ public class Round4PlayerLineAttack extends Entity {
     public void collidedWith(Entity other) {
         // If we've hit the player's ship, deal moderate damage
         if (other instanceof org.newdawn.spaceinvaders.gameplay.entity.ShipEntity) {
+            // Check if player is invincible
+            if (game.isPlayerInvincible()) {
+                System.out.println("🛡️ Player is invincible, round4 line attack blocked");
+                game.removeEntity(this);
+                return;
+            }
+            
             try {
                 // Get player's current HP
                 org.newdawn.spaceinvaders.gameplay.entity.ShipEntity player = (org.newdawn.spaceinvaders.gameplay.entity.ShipEntity) other;

@@ -88,6 +88,13 @@ public class Round2Phase2Attack extends Entity {
     public void collidedWith(Entity other) {
         // if we've hit the player's ship, damage it
         if (other instanceof org.newdawn.spaceinvaders.gameplay.entity.ShipEntity) {
+            // Check if player is invincible
+            if (game.isPlayerInvincible()) {
+                System.out.println("🛡️ Player is invincible, phase2 attack blocked");
+                game.removeEntity(this);
+                return;
+            }
+            
             // Debug: Check actual collision distance
             double distance = Math.sqrt(
                 Math.pow(this.x - other.getX(), 2) + Math.pow(this.y - other.getY(), 2)

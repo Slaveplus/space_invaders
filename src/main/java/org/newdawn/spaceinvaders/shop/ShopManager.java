@@ -472,7 +472,7 @@ public class ShopManager {
     // 경고창 설정 (7초간 표시)
     public void setWarningMessage(String message) {
         this.warningMessage = message;
-        this.warningTimer = 600; 
+        this.warningTimer = 2000; 
         System.out.println("경고창 설정: " + message + " (타이머: " + warningTimer + ")");
     }
     

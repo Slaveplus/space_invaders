@@ -85,7 +85,6 @@ public class ShotEntity extends Entity {
 	public ShotEntity(Game game,String sprite,int x,int y,int skillType,int skillValue) {
 		super(sprite,x,y);
 		
-		System.out.println("🎁 ShotEntity skill drop created: sprite=" + sprite + ", type=" + skillType + ", value=" + skillValue + " at (" + x + ", " + y + ")");
 		
 		this.game = game;
 		this.isSkillDrop = true;
@@ -95,7 +94,6 @@ public class ShotEntity extends Entity {
 		// 스킬 드롭은 천천히 떨어지도록 속도 조정
 		dy = 100; // 기본 moveSpeed 대신 100으로 고정 (천천히 떨어짐)
 		
-		System.out.println("🎁 ShotEntity initialized: isSkillDrop=" + isSkillDrop + ", skillType=" + this.skillType + ", skillValue=" + this.skillValue + ", dy=" + dy);
 	}
 	
 	/**
@@ -117,7 +115,6 @@ public class ShotEntity extends Entity {
 		// 스킬 드롭은 더 오래 화면에 남아있도록 경계 조정
 		if (y < -50 || y > 700) { // y > 600을 700으로 변경
 			if (isSkillDrop) {
-				System.out.println("🎁 Skill drop removed (off screen): y=" + y);
 			}
 			game.removeEntity(this);
 		}
@@ -153,6 +150,16 @@ public class ShotEntity extends Entity {
 		// prevents double kills, if we've already hit something,
 		// don't collide
 		if (used) {
+			return;
+		}
+		
+		// Prevent player shots from colliding with each other
+		if (other instanceof ShotEntity && !isAlienShot && !((ShotEntity) other).isAlienShot) {
+			return;
+		}
+		
+		// Prevent player shots from hitting the player (only if this is actually a player shot)
+		if (other instanceof ShipEntity && !isAlienShot && !isSkillDrop) {
 			return;
 		}
 		
@@ -224,6 +231,7 @@ public class ShotEntity extends Entity {
 		
 		// if we've hit the player's ship, damage it (but not if this is a player shot)
 		if (other instanceof ShipEntity && isAlienShot) {
+			
 			// remove the shot
 			game.removeEntity(this);
 			
@@ -238,7 +246,6 @@ public class ShotEntity extends Entity {
 			game.removeEntity(this);
 			
 			// TODO: Implement skill collection logic
-			System.out.println("Skill collected: Type=" + skillType + ", Value=" + skillValue);
 			used = true;
 		}
 	}

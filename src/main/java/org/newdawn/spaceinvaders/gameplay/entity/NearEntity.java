@@ -231,7 +231,7 @@ public class NearEntity extends Entity {
             
             // Create shot moving towards player with round-specific sprite
             String shotSprite = getShotSpriteForRound(round);
-            ShotEntity shot = new ShotEntity(game, shotSprite, (int)x, (int)y + nearHeight/2);
+            ShotEntity shot = new ShotEntity(game, shotSprite, (int)x, (int)y + nearHeight/2, true); // isAlienShot = true
             shot.setVerticalMovement(300); // Move down at 300 pixels/sec
             shot.setNearMonsterShot(true); // Mark as near monster shot for smaller size
             
@@ -264,19 +264,23 @@ public class NearEntity extends Entity {
                 game.addScore(100 * bossRound);
                 game.addSkillPoints(2 + bossRound); // 3, 4, 5, 6 skill points
                 
-                // Random chance to drop skill or skill points
+                // Random chance to drop skill, skill points, or coins
                 double dropChance = Math.random();
-                System.out.println("🎁 Drop chance: " + dropChance + " (need <0.2 for skill, <0.5 for points)");
+                System.out.println("🎁 Drop chance: " + dropChance + " (need <0.2 for skill, <0.4 for points, <0.6 for coins)");
                 
                 if (dropChance < 0.2) { // 20% chance to drop skill
                     System.out.println("🎁 SKILL DROP TRIGGERED! Calling dropRandomSkill...");
                     game.dropRandomSkill((int)x, (int)y);
-                } else if (dropChance < 0.5) { // 30% chance to drop skill points
+                } else if (dropChance < 0.4) { // 20% chance to drop skill points
                     System.out.println("🎁 SKILL POINTS DROP TRIGGERED! Calling dropRandomSkillPoints...");
                     game.dropRandomSkillPoints((int)x, (int)y);
                 } else {
                     System.out.println("🎁 No drop this time (chance: " + dropChance + ")");
                 }
+                
+                // Near 몬스터 처치 시 코인 획득 표시
+                int coinReward = 5 + bossRound; // 6, 7, 8, 9 코인
+                game.showCoinEarned((int)x, (int)y, coinReward);
                 
                 System.out.println("🎯 Removing Near Monster " + monsterId + " from game...");
                 game.removeEntity(this);

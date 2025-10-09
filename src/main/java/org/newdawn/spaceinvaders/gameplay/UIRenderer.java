@@ -5,12 +5,16 @@ import java.awt.*;
 import java.awt.image.BufferedImage;
 import javax.imageio.ImageIO;
 import java.io.InputStream;
+import java.io.File;
 
 /**
  * UI 렌더링을 담당하는 클래스
  * 게임 UI, 메시지 등을 그리는 역할
  */
 public class UIRenderer {
+    // Kostar 폰트 로드
+    private static Font KOSTAR_FONT = null;
+    
     // 재사용 가능한 폰트/스트로크 (매 프레임 객체 생성 방지)
     private static final Font FONT_TITLE_18_B = new Font("Arial", Font.BOLD, 18);
     private static final Font FONT_TEXT_16_B = new Font("Arial", Font.BOLD, 16);
@@ -19,6 +23,53 @@ public class UIRenderer {
     private static final Font FONT_TEXT_14_P = new Font("Arial", Font.PLAIN, 14);
     private static final Font FONT_TEXT_10_P = new Font("Arial", Font.PLAIN, 10);
     private static final BasicStroke STROKE_2PX = new BasicStroke(2);
+    
+    static {
+        loadKostarFont();
+    }
+    
+    /**
+     * Kostar 폰트 로드
+     */
+    private static void loadKostarFont() {
+        try {
+            InputStream fontStream = UIRenderer.class.getClassLoader().getResourceAsStream("fonts/Kostar.ttf");
+            if (fontStream != null) {
+                KOSTAR_FONT = Font.createFont(Font.TRUETYPE_FONT, fontStream);
+                fontStream.close();
+                System.out.println("✅ Kostar 폰트 로드 성공");
+            } else {
+                System.err.println("❌ Kostar 폰트 파일을 찾을 수 없습니다");
+                KOSTAR_FONT = new Font("Arial", Font.PLAIN, 12); // 폴백
+            }
+        } catch (Exception e) {
+            System.err.println("❌ Kostar 폰트 로드 실패: " + e.getMessage());
+            KOSTAR_FONT = new Font("Arial", Font.PLAIN, 12); // 폴백
+        }
+    }
+    
+    /**
+     * Kostar 폰트를 지정된 크기로 반환
+     */
+    public static Font getKostarFont(int size) {
+        if (KOSTAR_FONT != null) {
+            return KOSTAR_FONT.deriveFont(Font.PLAIN, size);
+        }
+        return new Font("Arial", Font.PLAIN, size);
+    }
+    
+    /**
+     * Kostar 폰트를 지정된 크기와 스타일로 반환
+     */
+    public static Font getKostarFont(int style, int size) {
+        if (KOSTAR_FONT != null) {
+            return KOSTAR_FONT.deriveFont(style, size);
+        }
+        return new Font("Arial", style, size);
+    }
+    
+    // 이미지 캐싱
+    private BufferedImage cachedCoinImage = null;
 
     public UIRenderer(Game game) {
         // Game reference not currently used, but kept for future extensibility
@@ -35,7 +86,7 @@ public class UIRenderer {
 
         // HP display
         g.setColor(Color.WHITE);
-        g.setFont(FONT_TEXT_16_B);
+        g.setFont(getKostarFont(Font.BOLD, 16));
         g.drawString("HP: " + gameStateManager.getCurrentHP() + "/" + gameStateManager.getMaxHP(), 20, 50);
 
         // HP bar
@@ -51,6 +102,9 @@ public class UIRenderer {
         if (gameStateManager.isShowingSkillMenu()) {
             drawUpgradeStats(g, gameStateManager);
         }
+        
+        // 우측 상단에 플레이 시간과 획득 코인 표시
+        drawPlayTimeAndCoins(g, gameStateManager);
     }
 
     /**
@@ -124,7 +178,7 @@ public class UIRenderer {
 
         if (skillManager.isInvincible()) {
             g.setColor(Color.YELLOW);
-            g.setFont(FONT_TEXT_14_B);
+            g.setFont(getKostarFont(Font.BOLD, 14));
             long remainingTime = skillManager.getRemainingTime(skillManager.getInvincibleEndTime());
             if (remainingTime > 0) {
                 g.drawString("무적: " + remainingTime + "초", 20, effectY);
@@ -136,7 +190,7 @@ public class UIRenderer {
 
         if (skillManager.hasTripleShot()) {
             g.setColor(Color.BLUE);
-            g.setFont(FONT_TEXT_14_B);
+            g.setFont(getKostarFont(Font.BOLD, 14));
             long remainingTime = skillManager.getRemainingTime(skillManager.getTripleShotEndTime());
             if (remainingTime > 0) {
                 g.drawString("3줄공격: " + remainingTime + "초", 20, effectY);
@@ -262,18 +316,132 @@ public class UIRenderer {
      */
     public void drawMessage(Graphics2D g, String message) {
         if (message != null && !message.isEmpty()) {
-            g.setColor(Color.white);
-            g.setFont(FONT_TITLE_18_B);
-            FontMetrics fm = g.getFontMetrics();
-            int messageX = (800 - fm.stringWidth(message)) / 2;
-            g.drawString(message, messageX, 250);
-
-            g.setFont(FONT_TEXT_14_P);
-            fm = g.getFontMetrics();
-            String pressKey = "Press any key";
-            int pressKeyX = (800 - fm.stringWidth(pressKey)) / 2;
-            g.drawString(pressKey, pressKeyX, 300);
+            // 게임 클리어 메시지인지 확인
+            if (message.startsWith("경")) {
+                drawGameClearMessage(g, message);
+            } else {
+                drawGameOverMessage(g, message);
+            }
         }
+    }
+    
+    /**
+     * 게임 오버 메시지 그리기 (첫 번째 이미지 스타일)
+     */
+    private void drawGameOverMessage(Graphics2D g, String message) {
+        // 반투명 배경
+        g.setColor(new Color(0, 0, 0, 150));
+        g.fillRect(0, 0, 800, 600);
+        
+        // 메시지 창 (첫 번째 이미지 스타일)
+        int windowWidth = 400;
+        int windowHeight = 150;
+        int windowX = (800 - windowWidth) / 2;
+        int windowY = (600 - windowHeight) / 2;
+        
+        // 창 배경 (연한 파란색)
+        g.setColor(new Color(224, 235, 245)); // 연한 파란색
+        g.fillRect(windowX, windowY, windowWidth, windowHeight);
+        
+        // 창 테두리 (진한 파란색)
+        g.setColor(new Color(25, 118, 210)); // 진한 파란색
+        g.setStroke(new BasicStroke(4));
+        g.drawRect(windowX, windowY, windowWidth, windowHeight);
+        
+        // 메시지 텍스트 (Kostar 폰트, 손글씨체)
+        g.setColor(Color.BLACK);
+        g.setFont(getKostarFont(Font.BOLD, 24));
+        String[] lines = message.split("\n");
+        
+        int textY = windowY + 60;
+        for (String line : lines) {
+            if (!line.trim().isEmpty()) {
+                FontMetrics fm = g.getFontMetrics();
+                int textX = windowX + (windowWidth - fm.stringWidth(line)) / 2;
+                g.drawString(line, textX, textY);
+                textY += 35;
+            } else {
+                textY += 15; // 빈 줄은 더 작은 간격
+            }
+        }
+        
+        // 안내 텍스트
+        g.setColor(new Color(100, 100, 100));
+        g.setFont(getKostarFont(16));
+        String pressKey = "아무 키나 눌러서 다시 시작";
+        FontMetrics fm = g.getFontMetrics();
+        int pressKeyX = windowX + (windowWidth - fm.stringWidth(pressKey)) / 2;
+        g.drawString(pressKey, pressKeyX, windowY + windowHeight - 20);
+    }
+    
+    /**
+     * 게임 클리어 메시지 그리기 (두 번째 이미지 스타일)
+     */
+    private void drawGameClearMessage(Graphics2D g, String message) {
+        // 반투명 배경
+        g.setColor(new Color(0, 0, 0, 150));
+        g.fillRect(0, 0, 800, 600);
+        
+        // 메시지 창 (첨부 이미지 스타일)
+        int windowWidth = 400;
+        int windowHeight = 250;
+        int windowX = (800 - windowWidth) / 2;
+        int windowY = (600 - windowHeight) / 2;
+        
+        // 그라데이션 배경을 위한 색상 (스톱워치 box와 동일)
+        Color bgColor1 = new Color(20, 20, 40, 130); // 어두운 보라색
+        Color bgColor2 = new Color(10, 10, 25, 130);  // 더 어두운 보라색
+        
+        // 배경 그라데이션 효과
+        g.setColor(bgColor1);
+        g.fillRoundRect(windowX, windowY, windowWidth, windowHeight, 15, 15);
+        
+        // 내부 그라데이션 효과
+        g.setColor(bgColor2);
+        g.fillRoundRect(windowX + 2, windowY + 2, windowWidth - 4, windowHeight - 4, 13, 13);
+        
+        // 외곽 테두리 (글로우 효과)
+        g.setColor(new Color(100, 150, 255, 50));
+        g.setStroke(new BasicStroke(2f));
+        g.drawRoundRect(windowX, windowY, windowWidth, windowHeight, 15, 15);
+        
+        // 내부 테두리
+        g.setColor(new Color(150, 200, 255, 100));
+        g.setStroke(new BasicStroke(1f));
+        g.drawRoundRect(windowX + 1, windowY + 1, windowWidth - 2, windowHeight - 2, 14, 14);
+        
+        // 경축 텍스트 (큰 글씨, 중앙정렬)
+        g.setColor(Color.WHITE);
+        g.setFont(getKostarFont(Font.BOLD, 28));
+        String[] lines = message.split("\n");
+        String title = "경축"; // "경축"만 표시
+        
+        FontMetrics titleFm = g.getFontMetrics();
+        int titleX = windowX + (windowWidth - titleFm.stringWidth(title)) / 2;
+        int titleY = windowY + 50;
+        g.drawString(title, titleX, titleY);
+        
+        // 정보 텍스트 (걸린시간, 획득코인, 중앙정렬)
+        g.setFont(getKostarFont(16));
+        g.setColor(Color.WHITE);
+        int infoY = windowY + 100;
+        for (int i = 1; i < lines.length; i++) {
+            if (!lines[i].trim().isEmpty()) {
+                FontMetrics infoFm = g.getFontMetrics();
+                int infoX = windowX + (windowWidth - infoFm.stringWidth(lines[i])) / 2;
+                g.drawString(lines[i], infoX, infoY);
+                infoY += 30;
+            }
+        }
+        
+        // 안내 텍스트 (하단 중앙)
+        g.setColor(Color.WHITE);
+        g.setFont(getKostarFont(14));
+        String pressKey = "아무키나 눌러서 메인화면 이동";
+        FontMetrics fm = g.getFontMetrics();
+        int pressKeyX = windowX + (windowWidth - fm.stringWidth(pressKey)) / 2;
+        int pressKeyY = windowY + windowHeight - 20;
+        g.drawString(pressKey, pressKeyX, pressKeyY);
     }
 
     /**
@@ -331,7 +499,7 @@ public class UIRenderer {
         g.setStroke(STROKE_2PX);
         g.drawRect(x, y, w, h);
         // 텍스트
-        g.setFont(FONT_TEXT_16_B);
+        g.setFont(getKostarFont(Font.BOLD, 16));
         g.setColor(Color.WHITE);
         int tx = x + (w - g.getFontMetrics().stringWidth(text)) / 2;
         int ty = y + (h + g.getFontMetrics().getAscent()) / 2 - 2;
@@ -346,11 +514,11 @@ public class UIRenderer {
         g.drawRoundRect(x, y, w, h, 10, 10);
 
         g.setColor(Color.WHITE);
-        g.setFont(FONT_TEXT_14_B);
+        g.setFont(getKostarFont(Font.BOLD, 14));
         int tx = x + (w - g.getFontMetrics().stringWidth(title)) / 2;
         g.drawString(title, tx, y + 55);
 
-        g.setFont(FONT_TEXT_12_P);
+        g.setFont(getKostarFont(12));
         int sx = x + (w - g.getFontMetrics().stringWidth(sub)) / 2;
         g.setColor(Color.YELLOW);
         g.drawString(sub, sx, y + 80);
@@ -372,7 +540,7 @@ public class UIRenderer {
         
         // Q키 안내를 스킬 UI 아래로 이동
         g.setColor(Color.CYAN);
-        g.setFont(FONT_TEXT_10_P);
+        g.setFont(getKostarFont(10));
         g.drawString("Q: 강화창", barX + 5, barY + barHeight + 15);
     }
 
@@ -499,13 +667,274 @@ public class UIRenderer {
         
         // 스킬 포인트 표시
         g.setColor(Color.YELLOW);
-        g.setFont(FONT_TEXT_16_B);
+        g.setFont(getKostarFont(Font.BOLD, 16));
         g.drawString("스킬 포인트: " + gameStateManager.getSkillPoints(), 20, startY);
 
         // 공격력과 공격속도 표시
         g.setColor(Color.WHITE);
-        g.setFont(FONT_TEXT_12_P);
+        g.setFont(getKostarFont(12));
         g.drawString("공격력: " + gameStateManager.getAttackPower(), 20, startY + 25);
         g.drawString("공격속도: " + String.format("%.1f", gameStateManager.getAttackSpeed()) + "x", 20, startY + 40);
+    }
+    
+    /**
+     * 우측 상단에 플레이 시간과 획득 코인 표시
+     */
+    private void drawPlayTimeAndCoins(Graphics2D g, GameStateManager gameStateManager) {
+        int screenWidth = 800;
+        int panelWidth = 180;
+        int panelHeight = 70;
+        int startX = screenWidth - panelWidth - 20; // 우측에서 20px 떨어진 위치
+        int startY = 20;
+        
+        // 그라데이션 배경을 위한 색상
+        Color bgColor1 = new Color(20, 20, 40, 130); // 어두운 보라색
+        Color bgColor2 = new Color(10, 10, 25, 130);  // 더 어두운 보라색
+        
+        // 배경 그라데이션 효과
+        g.setColor(bgColor1);
+        g.fillRoundRect(startX, startY, panelWidth, panelHeight, 15, 15);
+        
+        // 내부 그라데이션 효과
+        g.setColor(bgColor2);
+        g.fillRoundRect(startX + 2, startY + 2, panelWidth - 4, panelHeight - 4, 13, 13);
+        
+        // 외곽 테두리 (글로우 효과)
+        g.setColor(new Color(100, 150, 255, 50));
+        g.setStroke(new BasicStroke(2f));
+        g.drawRoundRect(startX, startY, panelWidth, panelHeight, 15, 15);
+        
+        // 내부 테두리
+        g.setColor(new Color(150, 200, 255, 100));
+        g.setStroke(new BasicStroke(1f));
+        g.drawRoundRect(startX + 1, startY + 1, panelWidth - 2, panelHeight - 2, 14, 14);
+        
+        // 플레이 시간 표시
+        g.setColor(new Color(100, 255, 255)); // 밝은 청록색
+        g.setFont(new Font("Arial", Font.BOLD, 16));
+        String playTime = gameStateManager.getPlayTime();
+        g.drawString("TIME: " + playTime, startX + 15, startY + 25);
+        
+        // 획득 코인 표시
+        g.setColor(new Color(255, 215, 0)); // 골드 색상
+        g.setFont(new Font("Arial", Font.BOLD, 16));
+        String earnedCoins = String.valueOf(gameStateManager.getEarnedCoins());
+        g.drawString("COINS: " + earnedCoins, startX + 15, startY + 50);
+        
+        // 코인 아이콘 표시 (크기 조정)
+        BufferedImage coinImage = loadCoinImage();
+        if (coinImage != null) {
+            int iconSize = 24; // 크기 증가
+            int iconX = startX + panelWidth - iconSize - 15;
+            int iconY = startY + 35; // 코인 텍스트와 정렬
+            
+            // 코인 아이콘 배경 (원형)
+            g.setColor(new Color(255, 215, 0, 50));
+            g.fillOval(iconX - 2, iconY - 2, iconSize + 4, iconSize + 4);
+            
+            // 코인 아이콘 테두리
+            g.setColor(new Color(255, 215, 0, 150));
+            g.setStroke(new BasicStroke(1.5f));
+            g.drawOval(iconX - 2, iconY - 2, iconSize + 4, iconSize + 4);
+            
+            // 코인 이미지 그리기
+            g.drawImage(coinImage, iconX, iconY, iconSize, iconSize, null);
+        }
+    }
+    
+    /**
+     * 코인 이미지 로드
+     */
+    private BufferedImage loadCoinImage() {
+        if (cachedCoinImage == null) {
+            try {
+                InputStream is = getClass().getClassLoader().getResourceAsStream("sprites/star coin normal.png");
+                if (is != null) {
+                    cachedCoinImage = ImageIO.read(is);
+                    is.close();
+                }
+            } catch (Exception e) {
+                System.err.println("Failed to load coin image: sprites/star coin normal.png");
+            }
+        }
+        return cachedCoinImage;
+    }
+    
+    /**
+     * 라운드 설명 창 그리기 (상점 경고창 스타일)
+     */
+    public void drawRoundInfoOverlay(Graphics2D g, GameStateManager gameStateManager) {
+        // 전체 화면 어둡게 처리
+        g.setColor(new Color(0, 0, 0, 120));
+        g.fillRect(0, 0, 800, 600);
+        
+        // 경고창 크기 계산
+        int dialogWidth = 500;
+        int dialogHeight = 250;
+        int dialogX = (800 - dialogWidth) / 2;
+        int dialogY = (600 - dialogHeight) / 2;
+        
+        // 경고창 배경 (상점 스타일 적용)
+        g.setColor(new Color(220, 50, 50, 240));
+        g.fillRect(dialogX, dialogY, dialogWidth, dialogHeight);
+        
+        // 경고창 테두리
+        g.setColor(Color.WHITE);
+        g.setStroke(new BasicStroke(3));
+        g.drawRect(dialogX, dialogY, dialogWidth, dialogHeight);
+        g.setStroke(new BasicStroke(1)); // 기본 스트로크로 복원
+        
+        // 경고 아이콘 (삼각형 + 느낌표)
+        int iconX = dialogX + 30;
+        int iconY = dialogY + 30;
+        int iconSize = 40;
+        
+        // 삼각형 경고 아이콘
+        g.setColor(Color.YELLOW);
+        int[] triangleX = {iconX + iconSize/2, iconX, iconX + iconSize};
+        int[] triangleY = {iconY, iconY + iconSize, iconY + iconSize};
+        g.fillPolygon(triangleX, triangleY, 3);
+        
+        // 삼각형 테두리
+        g.setColor(Color.BLACK);
+        g.setStroke(new BasicStroke(2f));
+        g.drawPolygon(triangleX, triangleY, 3);
+        g.setStroke(new BasicStroke(1f));
+        
+        // 느낌표
+        g.setColor(Color.BLACK);
+        g.setFont(new Font("Arial", Font.BOLD, 24));
+        g.drawString("!", iconX + iconSize/2 - 6, iconY + iconSize - 8);
+        
+        // 메인 메시지
+        g.setColor(Color.WHITE);
+        g.setFont(new Font("Arial", Font.BOLD, 20));
+        String mainMessage = "곧 " + gameStateManager.getCurrentRound() + " 라운드가 시작됩니다";
+        int messageX = iconX + iconSize + 20;
+        int messageY = dialogY + 60;
+        g.drawString(mainMessage, messageX, messageY);
+        
+        // 서브 메시지
+        g.setColor(Color.WHITE);
+        g.setFont(new Font("Arial", Font.BOLD, 18));
+        String subMessage = "대비하세요 !!";
+        g.drawString(subMessage, messageX, messageY + 35);
+        
+        // 라운드 설명 텍스트
+        g.setColor(Color.WHITE);
+        g.setFont(new Font("Arial", Font.PLAIN, 14));
+        String description = gameStateManager.getRoundDescription(gameStateManager.getCurrentRound());
+        String[] lines = description.split("\n");
+        
+        int textY = messageY + 70;
+        for (String line : lines) {
+            if (!line.trim().isEmpty()) {
+                g.drawString(line, messageX, textY);
+                textY += 18;
+            } else {
+                textY += 8; // 빈 줄은 더 작은 간격
+            }
+        }
+        
+        // 자동 닫기 안내 텍스트
+        g.setColor(Color.CYAN);
+        g.setFont(new Font("Arial", Font.PLAIN, 12));
+        String autoCloseText = "이 경고창은 7초 후 자동으로 닫힙니다";
+        FontMetrics fm = g.getFontMetrics();
+        int autoCloseX = dialogX + (dialogWidth - fm.stringWidth(autoCloseText)) / 2;
+        g.drawString(autoCloseText, autoCloseX, dialogY + dialogHeight - 20);
+    }
+    
+    /**
+     * 그만두기 확인 창 그리기
+     */
+    public void drawQuitConfirmOverlay(Graphics2D g, GameStateManager gameStateManager) {
+        // 전체 화면 어둡게 처리
+        g.setColor(new Color(0, 0, 0, 120));
+        g.fillRect(0, 0, 800, 600);
+        
+        // 경고창 크기 계산
+        int dialogWidth = 450;
+        int dialogHeight = 200;
+        int dialogX = (800 - dialogWidth) / 2;
+        int dialogY = (600 - dialogHeight) / 2;
+        
+        // 경고창 배경 (상점 스타일 적용)
+        g.setColor(new Color(220, 50, 50, 240));
+        g.fillRect(dialogX, dialogY, dialogWidth, dialogHeight);
+        
+        // 경고창 테두리
+        g.setColor(Color.WHITE);
+        g.setStroke(new BasicStroke(3));
+        g.drawRect(dialogX, dialogY, dialogWidth, dialogHeight);
+        g.setStroke(new BasicStroke(1)); // 기본 스트로크로 복원
+        
+        // 경고 아이콘 (삼각형 + 느낌표)
+        int iconX = dialogX + 30;
+        int iconY = dialogY + 30;
+        int iconSize = 30;
+        
+        // 삼각형 경고 아이콘
+        g.setColor(Color.YELLOW);
+        int[] triangleX = {iconX + iconSize/2, iconX, iconX + iconSize};
+        int[] triangleY = {iconY, iconY + iconSize, iconY + iconSize};
+        g.fillPolygon(triangleX, triangleY, 3);
+        
+        // 느낌표
+        g.setColor(Color.RED);
+        g.setFont(new Font("Arial", Font.BOLD, 20));
+        g.drawString("!", iconX + iconSize/2 - 4, iconY + iconSize - 5);
+        
+        // 메인 메시지
+        g.setColor(Color.WHITE);
+        g.setFont(new Font("Arial", Font.BOLD, 18));
+        String mainMessage = "정말 그만두시겠습니까?";
+        int messageX = iconX + iconSize + 20;
+        int messageY = dialogY + 50;
+        g.drawString(mainMessage, messageX, messageY);
+        
+        // 서브 메시지
+        g.setColor(Color.WHITE);
+        g.setFont(new Font("Arial", Font.PLAIN, 14));
+        String subMessage = "게임을 그만두면 획득한 코인이 저장됩니다.";
+        g.drawString(subMessage, messageX, messageY + 25);
+        
+        // 버튼들
+        int buttonWidth = 100;
+        int buttonHeight = 35;
+        int buttonSpacing = 20;
+        int totalButtonWidth = buttonWidth * 2 + buttonSpacing;
+        int startButtonX = dialogX + (dialogWidth - totalButtonWidth) / 2;
+        int buttonY = dialogY + dialogHeight - 60;
+        
+        // 아니요 버튼
+        boolean noSelected = (gameStateManager.getSelectedQuitOption() == 0);
+        drawConfirmButton(g, "아니요", startButtonX, buttonY, buttonWidth, buttonHeight, noSelected);
+        
+        // 예 버튼
+        boolean yesSelected = (gameStateManager.getSelectedQuitOption() == 1);
+        drawConfirmButton(g, "예", startButtonX + buttonWidth + buttonSpacing, buttonY, buttonWidth, buttonHeight, yesSelected);
+    }
+    
+    /**
+     * 확인 창 버튼 그리기
+     */
+    private void drawConfirmButton(Graphics2D g, String text, int x, int y, int width, int height, boolean selected) {
+        // 버튼 배경
+        g.setColor(selected ? new Color(70, 130, 180) : new Color(50, 50, 100));
+        g.fillRoundRect(x, y, width, height, 10, 10);
+        
+        // 버튼 테두리
+        g.setColor(selected ? new Color(100, 149, 237) : new Color(80, 80, 120));
+        g.setStroke(new BasicStroke(2));
+        g.drawRoundRect(x, y, width, height, 10, 10);
+        
+        // 버튼 텍스트
+        g.setColor(Color.WHITE);
+        g.setFont(getKostarFont(Font.BOLD, 14));
+        FontMetrics fm = g.getFontMetrics();
+        int textX = x + (width - fm.stringWidth(text)) / 2;
+        int textY = y + (height + fm.getAscent()) / 2 - 2;
+        g.drawString(text, textX, textY);
     }
 }

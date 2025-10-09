@@ -84,7 +84,7 @@ public class SpaceInvadersApp extends JFrame implements ScreenNavigator {
         // 스크린 생성 (UserManager 공유)
         loginScreenCanvas = new LoginScreenCanvas(this, userManager);
         mainMenuCanvas = new MainMenuCanvas(this, userManager);
-        gameScreen = new Game(); // Game을 스크린(캔버스)으로 사용
+        gameScreen = new Game(this); // Game을 스크린(캔버스)으로 사용, ScreenNavigator 전달
         gameScreen.setUserManager(userManager); // Game에 UserManager 전달
         gameScreen.setResolutionManager(resolutionManager); // Game에 ResolutionManager 전달
 

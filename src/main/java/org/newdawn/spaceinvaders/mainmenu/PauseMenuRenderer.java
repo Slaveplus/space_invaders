@@ -58,7 +58,7 @@ public class PauseMenuRenderer {
         drawTitle(g);
         
         // Menu buttons
-        String[] pauseMenuItems = {"계속하기", "메인메뉴", "설정"};
+        String[] pauseMenuItems = {"계속하기", "그만두기"};
         int buttonY = 280;
         
         for (int i = 0; i < pauseMenuItems.length; i++) {
@@ -66,14 +66,6 @@ public class PauseMenuRenderer {
             drawButton(g, pauseMenuItems[i], 325, buttonY, 150, 40, isSelected);
             buttonY += 65;
         }
-        
-        // Instructions
-        g.setColor(Color.YELLOW);
-        g.setFont(new Font("Arial", Font.PLAIN, 14));
-        FontMetrics fm = g.getFontMetrics();
-        String instruction = "ESC: 메뉴 닫기";
-        int instX = (800 - fm.stringWidth(instruction)) / 2;
-        g.drawString(instruction, instX, 520);
     }
     
     private void drawButton(Graphics2D g, String text, int x, int y, int width, int height, boolean isSelected) {

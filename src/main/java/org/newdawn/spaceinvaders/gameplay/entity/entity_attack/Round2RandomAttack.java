@@ -130,6 +130,12 @@ public class Round2RandomAttack extends Entity {
     public void collidedWith(Entity other) {
         // if we've hit the player's ship, damage it
         if (other instanceof org.newdawn.spaceinvaders.gameplay.entity.ShipEntity) {
+            // Check if player is invincible
+            if (game.isPlayerInvincible()) {
+                System.out.println("🛡️ Player is invincible, random slash attack blocked");
+                return;
+            }
+            
             // Check if player is within the static slash area
             // Static slash covers from Y:150 to Y:550, X: (x-150) to (x+150) - 히트범위 더 축소
             double playerX = other.getX();

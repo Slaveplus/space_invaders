@@ -218,6 +218,15 @@ public class BossEntity extends Entity {
                 createBossExplosion();
                 game.addScore(1000 * round);
                 game.addSkillPoints(5 * round);
+                
+                // 보스 처치 시 코인 획득 표시
+                int[] bossCoinValues = {10, 15, 20, 25, 30};
+                int randomIndex = (int)(Math.random() * bossCoinValues.length);
+                int coinValue = bossCoinValues[randomIndex];
+                
+                game.showCoinEarned((int)x, (int)y, coinValue);
+                System.out.println("💰 Boss defeated! Earned coin worth: " + coinValue);
+                
                 game.notifyBossDefeated();
                 game.removeEntity(this);
                 used = true;

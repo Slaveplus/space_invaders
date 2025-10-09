@@ -160,6 +160,13 @@ public class Round3BlackHoleAttack extends Entity {
     public void collidedWith(Entity other) {
         // if we've hit the player's ship, damage it
         if (other instanceof org.newdawn.spaceinvaders.gameplay.entity.ShipEntity) {
+            // Check if player is invincible
+            if (game.isPlayerInvincible()) {
+                System.out.println("🛡️ Player is invincible, black hole attack blocked");
+                game.removeEntity(this);
+                return;
+            }
+            
             // Distance-based collision detection
             double dx = this.x - other.getX();
             double dy = this.y - other.getY();
