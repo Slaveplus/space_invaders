@@ -4,6 +4,7 @@ import java.awt.Canvas;
 import java.awt.Graphics2D;
 // no direct AWT listeners here; handled via InputManager
 import java.util.ArrayList;
+import java.util.List;
 
 import org.newdawn.spaceinvaders.gameplay.entity.AlienEntity;
 import org.newdawn.spaceinvaders.gameplay.entity.BossEntity;
@@ -15,6 +16,8 @@ import org.newdawn.spaceinvaders.gameplay.entity.entity_attack.IceAttack;
 import org.newdawn.spaceinvaders.gameplay.entity.MissileEntity;
 import org.newdawn.spaceinvaders.gameplay.entity.ShipEntity;
 import org.newdawn.spaceinvaders.gameplay.entity.ShotEntity;
+import org.newdawn.spaceinvaders.gameplay.core.GameplayContext;
+import org.newdawn.spaceinvaders.gameplay.core.SharedGameplayCoordinator;
 import org.newdawn.spaceinvaders.login.UserManager;
 import org.newdawn.spaceinvaders.shop.ShopCategory;
 import org.newdawn.spaceinvaders.shop.ShopItem;
@@ -38,7 +41,7 @@ import org.newdawn.spaceinvaders.gameplay.net.LocalLoopbackNetworkAdapter;
  * 
  * @author Kevin Glass
  */
-public class Game extends Canvas implements Screen
+public class Game extends Canvas implements Screen, GameplayContext
 {
 	/** The stragey that allows us to use accelerate page flipping */
 	// BufferStrategy는 상위 App에서 관리
@@ -76,6 +79,8 @@ public class Game extends Canvas implements Screen
 	private UIRenderer uiRenderer;
 	/** Background renderer (cached) */
 	private BackgroundRenderer backgroundRenderer;
+	/** Shared gameplay coordinator */
+	private final SharedGameplayCoordinator gameplayCoordinator;
 	// gameplay는 mainmenu 패키지에 의존하지 않도록, 오버레이는 UIRenderer에서 처리
 	
 	/** 메인메뉴 전환 요청 플래그 */
@@ -102,10 +107,11 @@ public class Game extends Canvas implements Screen
 		// initialize the game state manager
 		gameStateManager = new GameStateManager();
 		
-		// initialize the skill manager
-		skillManager = new SkillManager(this);
-		
-		// initialize the UI renderer
+	// initialize the skill manager
+	skillManager = new SkillManager(this);
+	gameplayCoordinator = new SharedGameplayCoordinator(this);
+
+	// initialize the UI renderer
 		uiRenderer = new UIRenderer(this);
 
 		// background & overlays
@@ -143,12 +149,6 @@ public class Game extends Canvas implements Screen
 	public void startGame() {
 		System.out.println("🎮 startGame() called!");
 		
-		// 게임플레이 상태 초기화 (entities.clear() 포함)
-		gameStateManager.startNewGame();
-		
-		// 1라운드 배경 설정
-		updateBackgroundForRound(1);
-		
 		// ShopManager에 아이템들 추가 및 장착 정보 로드
 		if (userManager != null && userManager.isLoggedIn()) {
 			System.out.println("Game: 게임 시작 시 ShopManager 초기화");
@@ -161,8 +161,11 @@ public class Game extends Canvas implements Screen
 		// 장착된 아이템 적용 (ShopManager 초기화 후)
 		applyEquippedItems();
 		
-		// 엔티티 초기화 (스킨 적용 후)
-		initEntities();
+		// 게임플레이 상태 초기화 및 라운드 준비
+		String playerId = gameStateManager.getLocalPlayerId();
+		gameplayCoordinator.startNewGame(playerId);
+		ship = getShip(playerId);
+		applyEquippedItems();
 		
 		// 입력 상태 초기화
 		inputManager.reset();
@@ -178,20 +181,9 @@ public class Game extends Canvas implements Screen
 	 */
 	private void initEntities() {
 		System.out.println("🎮 initEntities() called for Round " + gameStateManager.getCurrentRound());
-		
-		// create the player ship and place it roughly in the center of the screen
-		ship = new ShipEntity(this, currentSpaceshipSkin, 370, 550);
-		gameStateManager.getEntities().add(ship);
-		
-		// Check if this is a near monster round (1,3,5,7) or boss round (2,4,6,8)
-		int currentRound = gameStateManager.getCurrentRound();
-		if (isNearRound(currentRound)) {
-			System.out.println("🎮 Spawning Near Monsters for Round " + currentRound);
-			spawnNearMonsters();
-		} else {
-			System.out.println("🎮 Spawning Boss for Round " + currentRound);
-			spawnBoss();
-		}
+		String playerId = gameStateManager.getLocalPlayerId();
+		gameplayCoordinator.initializeRound(playerId);
+		ship = getShip(playerId);
 	}
 	
 	/**
@@ -209,6 +201,7 @@ public class Game extends Canvas implements Screen
 	 * 
 	 * @param entity The entity that should be removed
 	 */
+	@Override
 	public void removeEntity(Entity entity) {
 		gameStateManager.getRemoveList().add(entity);
 	}
@@ -260,96 +253,14 @@ public class Game extends Canvas implements Screen
 	 * are dead.
 	 */
 	public void notifyWin() {
-		boolean roundAdvanced = gameStateManager.advanceRound();
-		
-		if (roundAdvanced) {
-			// 라운드 클리어 보상 지급 (10, 20, 30, 40, 50, 60, 70, 80)
-			int currentRound = gameStateManager.getCurrentRound() - 1; // 이전 라운드 번호
-			int roundReward = currentRound * 10;
-			gameStateManager.addEarnedCoins(roundReward);
-			System.out.println("🎉 Round " + currentRound + " cleared! Reward: " + roundReward + " coins");
-			
-			// Update background for new round
-			updateBackgroundForRound(gameStateManager.getCurrentRound());
-			
-			// Check if next round is near or boss round
-			int nextRound = gameStateManager.getCurrentRound();
-			if (isNearRound(nextRound)) {
-				spawnNearMonsters();
-			} else {
-				spawnBoss();
-			}
-		} else {
-			// Game completed - 최종 클리어 보상
-			int finalReward = 100; // 최종 클리어 보상
-			gameStateManager.addEarnedCoins(finalReward);
-			System.out.println("🏆 Game completed! Final reward: " + finalReward + " coins");
-			
-			// 코인과 플레이 시간 저장
-			saveCoinsAndPlayTime();
-			
-			// 클리어 화면 메시지 생성
-			int totalCoins = gameStateManager.getEarnedCoins();
-			String playTime = gameStateManager.getPlayTime();
-			String clearMessage = "경축\n" +
-								"걸린시간 : " + playTime + "\n" +
-								"획득코인 : " + totalCoins + "개";
-			
-			gameStateManager.setMessage(clearMessage);
-			gameStateManager.setWaitingForKeyPress(true);
-			gameStateManager.setGameCompleted(true); // 게임 클리어 상태 설정
-		}
+		gameplayCoordinator.handleRoundClear(gameStateManager.getLocalPlayerId());
 	}
 	
 	/**
 	 * Notification that an alien has been killed
 	 */
 	public void notifyAlienKilled() {
-		// Give random skill points for killing aliens
-		int earnedPoints = skillManager.getRandomSkillPoints(gameStateManager.getCurrentRound());
-		gameStateManager.addSkillPoints(earnedPoints);
-		
-		// Random chance to drop a skill
-		double dropChance = skillManager.getSkillDropChance(gameStateManager.getCurrentRound());
-		if (Math.random() < dropChance) {
-			skillManager.dropSkill(gameStateManager.getCurrentRound());
-		}
-		
-		
-		// Count remaining aliens and check if boss is alive
-		int remainingAliens = 0;
-		boolean bossAlive = false;
-		ArrayList<Entity> entities = gameStateManager.getEntities();
-		ArrayList<Entity> removeList = gameStateManager.getRemoveList();
-		
-		for (Entity entity : entities) {
-			if (entity instanceof AlienEntity && !removeList.contains(entity)) {
-				remainingAliens++;
-			}
-			// Check for NearEntity as well
-			if (entity.getClass().getSimpleName().equals("NearEntity") && !removeList.contains(entity)) {
-				remainingAliens++;
-			}
-			if (entity instanceof BossEntity && !removeList.contains(entity)) {
-				bossAlive = true;
-			}
-		}
-		
-		// Only advance round if all aliens are dead AND boss is also dead
-		// AND it's not a near monster round (near rounds are handled by checkAllNearMonstersDefeated)
-		if (remainingAliens == 0 && !bossAlive && !isNearRound(gameStateManager.getCurrentRound())) {
-			notifyWin();
-		}
-		
-		// Speed up remaining aliens
-		for (Entity entity : entities) {
-			if (entity instanceof AlienEntity) {
-				// speed up by 1.5% + round-based bonus (more gradual increase)
-				double speedMultiplier = 1.015 + (gameStateManager.getCurrentRound() * 0.01);
-				entity.setHorizontalMovement(entity.getHorizontalMovement() * speedMultiplier);
-				entity.setVerticalMovement(entity.getVerticalMovement() * speedMultiplier);
-			}
-		}
+		gameplayCoordinator.handleAlienKilled(gameStateManager.getLocalPlayerId());
 	}
 	
 	/**
@@ -548,6 +459,7 @@ public class Game extends Canvas implements Screen
 	 * 
 	 * @param entity The entity to add
 	 */
+	@Override
 	public void addEntity(Entity entity) {
 		gameStateManager.getEntities().add(entity);
 	}
@@ -602,6 +514,71 @@ public class Game extends Canvas implements Screen
 			System.err.println("Error creating coin earned display: " + e.getMessage());
 			e.printStackTrace();
 		}
+	}
+
+	@Override
+	public SkillManager getSkillManager(String playerId) {
+		return skillManager;
+	}
+
+	@Override
+	public ShipEntity getShip(String playerId) {
+		return ship;
+	}
+
+	@Override
+	public ShipEntity createPlayerShip(String playerId) {
+		ship = new ShipEntity(this, currentSpaceshipSkin, 370, 550);
+		return ship;
+	}
+
+	@Override
+	public Entity createAlienEntity(int x, int y) {
+		return new AlienEntity(this, x, y);
+	}
+
+	@Override
+	public Entity createNearEntity(int round, int index) {
+		int posX = 150 + (index * 100);
+		return new NearEntity(this, posX, 120, round, index);
+	}
+
+	@Override
+	public Entity createBossEntity(int bossRound) {
+		return new BossEntity(this, 400, 120, bossRound);
+	}
+
+	@Override
+	public List<Entity> getActiveEntities() {
+		return gameStateManager.getEntities();
+	}
+
+    @Override
+    public List<Entity> getPendingRemovals() {
+        return gameStateManager.getRemoveList();
+    }
+
+	@Override
+	public void onRoundBackgroundChanged(int round) {
+		updateBackgroundForRound(round);
+	}
+
+	@Override
+	public void addEarnedCoins(String playerId, int amount) {
+		addEarnedCoins(amount);
+	}
+
+	@Override
+	public void showCoinEarned(String playerId, int x, int y, int coinAmount) {
+		showCoinEarned(x, y, coinAmount);
+	}
+
+	@Override
+	public void onGameCompleted(String message) {
+		saveCoinsAndPlayTime();
+		gameStateManager.setMessage(message);
+		gameStateManager.setWaitingForKeyPress(true);
+		gameStateManager.setGameCompleted(true);
 	}
 	
 	/**
@@ -1065,73 +1042,22 @@ public class Game extends Canvas implements Screen
 	 * Spawn near monsters for the current round
 	 */
 	public void spawnNearMonsters() {
-		try {
-			int round = gameStateManager.getCurrentRound();
-			
-			// Spawn 6 near monsters per round with unique IDs
-			NearEntity near1 = new NearEntity(this, 150, 120, round, 0);
-			NearEntity near2 = new NearEntity(this, 250, 120, round, 1);
-			NearEntity near3 = new NearEntity(this, 350, 120, round, 2);
-			NearEntity near4 = new NearEntity(this, 450, 120, round, 3);
-			NearEntity near5 = new NearEntity(this, 550, 120, round, 4);
-			NearEntity near6 = new NearEntity(this, 650, 120, round, 5);
-			
-			gameStateManager.getEntities().add(near1);
-			gameStateManager.getEntities().add(near2);
-			gameStateManager.getEntities().add(near3);
-			gameStateManager.getEntities().add(near4);
-			gameStateManager.getEntities().add(near5);
-			gameStateManager.getEntities().add(near6);
-			
-			// Set alien count: 6 near monsters
-			gameStateManager.setAlienCount(6);
-			
-			System.out.println("NEAR MONSTERS SPAWNED! Round " + round + " - 6 Near Monsters with " + near1.getMaxHP() + " HP each!");
-			
-			gameStateManager.setMessage("🎯 NEAR MONSTERS APPEARED! 🎯");
-			gameStateManager.setWaitingForKeyPress(false); // Near monsters 등장 시 바로 게임 시작
-		} catch (Exception e) {
-			System.err.println("Error spawning near monsters: " + e.getMessage());
-			e.printStackTrace();
-		}
-	}
-	
+	String playerId = gameStateManager.getLocalPlayerId();
+	gameplayCoordinator.initializeRound(playerId);
+	ship = getShip(playerId);
+}
+
+
 	/**
 	 * Spawn a boss for the current round
 	 */
 	public void spawnBoss() {
-		try {
-			int round = gameStateManager.getCurrentRound();
-			int bossRound;
-			
-			// Determine boss round number
-			if (isNearRound(round)) {
-				// This shouldn't happen, but handle it gracefully
-				bossRound = getBossRoundFromNearRound(round);
-			} else {
-				// Boss rounds: 2,4,6,8 -> boss types: 1,2,3,4
-				if (round == 2) bossRound = 1;
-				else if (round == 4) bossRound = 2;
-				else if (round == 6) bossRound = 3;
-				else bossRound = 4; // Round 8 = final boss
-			}
-			
-			BossEntity boss = new BossEntity(this, 400, 120, bossRound); // Center, slightly lower
-			gameStateManager.getEntities().add(boss);
-			
-			System.out.println("BOSS SPAWNED! Round " + round + " -> Boss Type " + bossRound + " with " + boss.getMaxHP() + " HP!");
-			
-			// Set alien count: Boss (1) only
-			gameStateManager.setAlienCount(1);
-			
-			gameStateManager.setMessage("⚠️ BOSS APPEARED! ⚠️");
-			gameStateManager.setWaitingForKeyPress(false); // 보스 등장 시 바로 게임 시작
-		} catch (Exception e) {
-			System.err.println("Error spawning boss: " + e.getMessage());
-			e.printStackTrace();
-		}
-	}
-	
+	String playerId = gameStateManager.getLocalPlayerId();
+	gameplayCoordinator.initializeRound(playerId);
+	ship = getShip(playerId);
+}
+
+
 	/**
 	 * Check if there's currently a boss in the game
 	 * 
@@ -1213,80 +1139,10 @@ public class Game extends Canvas implements Screen
 	 * Check if all near monsters are defeated and advance to boss round
 	 */
 	public void checkAllNearMonstersDefeated() {
-		try {
-			System.out.println("🎯 checkAllNearMonstersDefeated() called!");
-			
-			// Count remaining near monsters
-			int nearMonsterCount = 0;
-			int totalEntities = gameStateManager.getEntities().size();
-			System.out.println("🎯 Total entities in game: " + totalEntities);
-			
-		for (Entity entity : gameStateManager.getEntities()) {
-			// System.out.println("🎯 Entity type: " + entity.getClass().getSimpleName());
-			if (entity instanceof org.newdawn.spaceinvaders.gameplay.entity.NearEntity && !gameStateManager.getRemoveList().contains(entity)) {
-				nearMonsterCount++;
-			}
-		}
-			
-			System.out.println("🎯 Near monsters remaining: " + nearMonsterCount);
-			
-		// If no near monsters left, advance to boss round
-		if (nearMonsterCount == 0) {
-			System.out.println("🎯 All near monsters defeated! Advancing to boss round...");
-			
-			// Near 몬스터 클리어 보상 지급
-			int currentRound = gameStateManager.getCurrentRound();
-			int nearReward = currentRound * 8; // Near 몬스터 클리어 보상
-			gameStateManager.addEarnedCoins(nearReward);
-			System.out.println("🎯 Near monsters cleared! Reward: " + nearReward + " coins");
-			
-			gameStateManager.setMessage("🎯 ALL NEAR MONSTERS DEFEATED! 🎯");
-			
-			// Advance to boss round
-			boolean roundAdvanced = gameStateManager.advanceRound();
-			System.out.println("🎯 Round advanced: " + roundAdvanced + ", Current round: " + gameStateManager.getCurrentRound());
-			
-			if (roundAdvanced) {
-				// Clear entities except player
-				gameStateManager.getEntities().clear();
-				
-				// Re-add player ship
-				ship = new ShipEntity(this, currentSpaceshipSkin, 370, 550);
-				gameStateManager.getEntities().add(ship);
-				
-				// Update background for new round
-				updateBackgroundForRound(gameStateManager.getCurrentRound());
-				
-				// Spawn boss for current round
-				System.out.println("🎯 Spawning boss for round " + gameStateManager.getCurrentRound());
-				spawnBoss();
-				
-				// Continue game without waiting for key press
-				gameStateManager.setWaitingForKeyPress(false);
-			} else {
-				// Game completed
-				// 코인과 플레이 시간 저장
-				saveCoinsAndPlayTime();
-				
-				int totalCoins = gameStateManager.getEarnedCoins();
-				String playTime = gameStateManager.getPlayTime();
-				String clearMessage = "경--축\n" +
-									"걸린시간 : " + playTime + "\n" +
-									"획득코인 : " + totalCoins + "개";
-				gameStateManager.setMessage(clearMessage);
-				gameStateManager.setWaitingForKeyPress(true);
-				gameStateManager.setGameCompleted(true); // 게임 클리어 상태 설정
-			}
-		} else {
-			System.out.println("🎯 Still " + nearMonsterCount + " near monsters remaining, waiting...");
-		}
-		} catch (Exception e) {
-			System.err.println("Error checking near monsters: " + e.getMessage());
-			e.printStackTrace();
-		}
-	}
-	
-	/**
+	gameplayCoordinator.handleNearMonstersCleared(gameStateManager.getLocalPlayerId());
+}
+
+/**
 	 * Add a boss shot to the game
 	 * 
 	 * @param x X coordinate
@@ -1326,6 +1182,7 @@ public class Game extends Canvas implements Screen
 	/**
 	 * Get the GameStateManager
 	 */
+	@Override
 	public GameStateManager getGameStateManager() {
 		return gameStateManager;
 	}

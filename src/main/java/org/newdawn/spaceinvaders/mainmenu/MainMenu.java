@@ -79,16 +79,15 @@ public class MainMenu {
 
     /** 현재 메뉴 상태 */
     public enum MenuState {
-        MAIN,           // 메인 메뉴
-        SINGLE_PLAYER,  // 싱글플레이 서브메뉴
-        MULTI_PLAYER,   // 멀티플레이 서브메뉴
-        SHOP,           // 상점 메뉴
-        INVENTORY,      // 인벤토리 메뉴
-        SETTINGS,       // 설정 메뉴
-        RESOLUTION,     // 해상도 변경 메뉴
-        ACCOUNT,        // 계정 메뉴
-        LEADERBOARD,    // 플레이기록 메뉴
-        SERVER_CONNECT  // 서버 접속 정보 입력
+        MAIN,            // 메인 메뉴
+        GAMEPLAY,        // 통합 게임플레이(싱글/멀티)
+        SHOP,            // 상점 메뉴
+        INVENTORY,       // 인벤토리 메뉴
+        SETTINGS,        // 설정 메뉴
+        RESOLUTION,      // 해상도 변경 메뉴
+        ACCOUNT,         // 계정 메뉴
+        LEADERBOARD,     // 플레이기록 메뉴
+        SERVER_CONNECT   // 서버 접속 정보 입력
     }
     
     private MenuState currentState = MenuState.MAIN;
@@ -107,9 +106,10 @@ public class MainMenu {
     // 플레이기록 관련
     private PlayRecordsManager playRecordsManager;
     
-    // 싱글플레이 서브메뉴 옵션들
-    private String[] singlePlayerOptions = {
-        "새게임",
+    // 통합 게임플레이 서브메뉴 옵션
+    private String[] gameplayOptions = {
+        "게임참가",
+        "리더보드",
         "플레이기록",
         "이전메뉴"
     };
@@ -381,6 +381,9 @@ public class MainMenu {
                     }
                     currentState = MenuState.MAIN;
                     selectedOption = 5; // 계정 인덱스 조정
+                } else if (currentState == MenuState.GAMEPLAY) {
+                    currentState = MenuState.MAIN;
+                    selectedOption = 0;
                 } else if (currentState != MenuState.MAIN) {
                     currentState = MenuState.MAIN;
                     selectedOption = 0;
@@ -394,10 +397,8 @@ public class MainMenu {
      */
     private String[] getCurrentMenuOptions() {
         switch (currentState) {
-            case SINGLE_PLAYER:
-                return singlePlayerOptions;
-            case MULTI_PLAYER:
-                return multiPlayerOptions;
+            case GAMEPLAY:
+                return gameplayOptions;
             case SETTINGS:
                 return getSettingsOptions();
             case RESOLUTION:
@@ -430,11 +431,8 @@ public class MainMenu {
             case MAIN:
                 handleMainMenuSelection();
                 break;
-            case SINGLE_PLAYER:
-                handleSinglePlayerSelection();
-                break;
-            case MULTI_PLAYER:
-                handleMultiPlayerSelection();
+            case GAMEPLAY:
+                handleGameplaySelection();
                 break;
             case SETTINGS:
                 handleSettingsSelection();
@@ -467,21 +465,17 @@ public class MainMenu {
      */
     private void handleMainMenuSelection() {
         switch (selectedOption) {
-            case 0: // 싱글플레이
-                currentState = MenuState.SINGLE_PLAYER;
+            case 0: // 게임플레이 통합
+                currentState = MenuState.GAMEPLAY;
                 selectedOption = 0;
                 break;
-            case 1: // 멀티플레이
-                currentState = MenuState.MULTI_PLAYER;
-                selectedOption = 0;
-                break;
-            case 2: // 상점
+            case 1: // 상점
                 showingShop = true;
                 shop.reset();
                 // 상점 진입 애니메이션 시작
                 shop.startEntryAnimation();
                 break;
-            case 3: // 인벤토리
+            case 2: // 인벤토리
                 currentState = MenuState.INVENTORY;
                 selectedOption = 0;
                 // 인벤토리 진입 시 경고창 초기화
@@ -493,7 +487,7 @@ public class MainMenu {
                     shop.startInventoryEntryAnimation();
                 }
                 break;
-            case 4: // 설정
+            case 3: // 설정
                 currentState = MenuState.SETTINGS;
                 selectedOption = 0;
                 // 설정 진입 애니메이션 시작
@@ -501,7 +495,7 @@ public class MainMenu {
                     settingsAnimation.startAnimation(ShopAnimation.AnimationType.SLIDE_IN);
                 }
                 break;
-            case 5: // 계정 (사용자)
+            case 4: // 계정 (사용자)
                 currentState = MenuState.ACCOUNT;
                 selectedOption = 0;
                 // 계정 진입 애니메이션 시작
@@ -509,46 +503,31 @@ public class MainMenu {
                     accountAnimation.startAnimation(ShopAnimation.AnimationType.SLIDE_IN);
                 }
                 break;
-            case 6: // 게임 종료
+            case 5: // 게임 종료
                 System.exit(0);
                 break;
         }
     }
     
     /**
-     * 싱글플레이 메뉴 선택을 처리합니다
+     * 게임플레이 메뉴 선택을 처리합니다
      */
-    private void handleSinglePlayerSelection() {
-        switch (selectedOption) {
-            case 0: // 새게임
-                gameStartRequested = true;
-                break;
-            case 1: // 플레이기록
-                playRecordsManager.loadGameRecords();
-                currentState = MenuState.LEADERBOARD;
-                selectedOption = 0;
-                playRecordsManager.resetScrollOffset();
-                break;
-            case 2: // 이전메뉴
-                currentState = MenuState.MAIN;
-                selectedOption = 0;
-                break;
-        }
-    }
-    
-    /**
-     * 멀티플레이 메뉴 선택을 처리합니다
-     */
-    private void handleMultiPlayerSelection() {
+    private void handleGameplaySelection() {
         switch (selectedOption) {
             case 0: // 게임참가
                 currentState = MenuState.SERVER_CONNECT;
                 resetServerConnectInputs();
                 break;
             case 1: // 리더보드
-                // TODO: 멀티플레이 리더보드 구현
+                // TODO: 멀티 리더보드 구현
                 break;
-            case 2: // 이전메뉴
+            case 2: // 플레이기록
+                playRecordsManager.loadGameRecords();
+                currentState = MenuState.LEADERBOARD;
+                selectedOption = 0;
+                playRecordsManager.resetScrollOffset();
+                break;
+            case 3: // 이전메뉴
                 currentState = MenuState.MAIN;
                 selectedOption = 0;
                 break;
