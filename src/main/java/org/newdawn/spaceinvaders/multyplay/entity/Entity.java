@@ -1,10 +1,10 @@
-package org.newdawn.spaceinvaders.gameplay.entity;
+package org.newdawn.spaceinvaders.multyplay.entity;
 
 import java.awt.Graphics;
 import java.awt.Rectangle;
 
-import org.newdawn.spaceinvaders.gameplay.sprite.Sprite;
-import org.newdawn.spaceinvaders.gameplay.sprite.SpriteStore;
+import org.newdawn.spaceinvaders.multyplay.sprite.Sprite;
+import org.newdawn.spaceinvaders.multyplay.sprite.SpriteStore;
 
 /**
  * An entity represents any element that appears in the game. The
@@ -33,6 +33,7 @@ public abstract class Entity {
 	protected double y;
 	/** The sprite that represents this entity */
 	protected Sprite sprite;
+	protected String spritePath;
 	/** The current speed of this entity horizontally (pixels/sec) */
 	protected double dx;
 	/** The current speed of this entity vertically (pixels/sec) */
@@ -50,6 +51,7 @@ public abstract class Entity {
 	 * @param y The initial y location of this entity
 	 */
 	public Entity(String ref,int x,int y) {
+		this.spritePath = ref;
 		this.sprite = SpriteStore.get().getSprite(ref);
 		this.x = x;
 		this.y = y;
@@ -64,15 +66,40 @@ public abstract class Entity {
 	 * 상태 스냅샷 직렬화용 DTO (간단 버전). 실제 네트워크 전송 시 확장 가능.
 	 */
 	public EntitySnapshot toSnapshot() {
-		return new EntitySnapshot(entityId, ownerId, spriteRef(), x, y, dx, dy, getBounds().width, getBounds().height);
+		return new EntitySnapshot(
+				entityId,
+				ownerId,
+				typeId(),
+				spriteRef(),
+				x,
+				y,
+				dx,
+				dy,
+				getBounds().width,
+				getBounds().height,
+				snapshotMetadata());
 	}
 
 	/** 서브클래스가 sprite 경로를 알 수 있도록 기본 ref 표시 (SpriteStore 내부 구조 의존 회피) */
-	protected String spriteRef() { return null; /* Sprite 원본 경로 관리 필요시 SpriteStore 개선 후 구현 */ }
+	protected String spriteRef() { return spritePath; }
+	/** 네트워크 동기화를 위한 타입 식별자 */
+	protected String typeId() { return getClass().getSimpleName(); }
+	/** 추가 메타 데이터 직렬화 (필요없는 경우 null) */
+	protected String snapshotMetadata() { return null; }
+	/** 스냅샷 적용 시 메타데이터 반영 */
+	protected void applySnapshotMetadata(String metadata) { /* default no-op */ }
 
 	/** 스냅샷으로부터 좌표/속도 등 갱신 (예: 클라이언트 보간) */
 	public void applySnapshot(EntitySnapshot snap) {
+		if (snap.sprite != null && !snap.sprite.equals(spritePath)) {
+			spritePath = snap.sprite;
+			sprite = SpriteStore.get().getSprite(spritePath);
+		}
+		this.ownerId = snap.ownerId;
 		this.x = snap.x; this.y = snap.y; this.dx = snap.dx; this.dy = snap.dy; // sprite 교체는 필요 시 별도 처리
+		if (snap.metadata != null) {
+			applySnapshotMetadata(snap.metadata);
+		}
 	}
 	
 	/**
@@ -190,6 +217,7 @@ public abstract class Entity {
 	 * @param newSkinPath 새로운 스킨 파일 경로
 	 */
 	public void changeSkin(String newSkinPath) {
+		this.spritePath = newSkinPath;
 		this.sprite = SpriteStore.get().getSprite(newSkinPath);
 	}
 	
@@ -199,22 +227,4 @@ public abstract class Entity {
 	 * @param other The entity with which this entity collided.
 	 */
 	public abstract void collidedWith(Entity other);
-	
-	// Getters and setters for dx and dy
-	public double getDX() {
-		return dx;
-	}
-	
-	public double getDY() {
-		return dy;
-	}
-	
-	public void setDX(double dx) {
-		this.dx = dx;
-	}
-	
-	public void setDY(double dy) {
-		this.dy = dy;
-	}
-	
 }

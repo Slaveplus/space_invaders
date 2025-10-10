@@ -3,6 +3,10 @@ package org.newdawn.spaceinvaders.mainmenu;
 import java.awt.*;
 import java.awt.image.BufferedImage;
 import javax.imageio.ImageIO;
+
+import org.newdawn.spaceinvaders.multyplay.core.MultiplayerSkillManager;
+import org.newdawn.spaceinvaders.gameplay.SkillManager;
+
 import java.io.IOException;
 import java.io.InputStream;
 
@@ -17,7 +21,7 @@ public class SkillMenuRenderer {
      */
     public void drawSkillMenu(Graphics2D g, int skillPoints, int attackPower, double attackSpeed, 
                              int maxHP, int attackPowerCost, int attackSpeedCost, int hpUpCost,
-                             int selectedSkill, org.newdawn.spaceinvaders.gameplay.SkillManager skillManager) {
+                             int selectedSkill, MultiplayerSkillManager skillManager) {
         // Enable anti-aliasing for smoother shapes
         g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
         
@@ -215,6 +219,34 @@ public class SkillMenuRenderer {
             g.drawRect(panelX, panelY, panelWidth, panelHeight);
         }
     }
+
+    /* ================= Overloads for single-player SkillManager ================= */
+    /** Single-player 버전을 위한 오버로드 */
+    public void drawSkillMenu(Graphics2D g, int skillPoints, int attackPower, double attackSpeed,
+                              int maxHP, int attackPowerCost, int attackSpeedCost, int hpUpCost,
+                              int selectedSkill, SkillManager skillManager) {
+        // MultiplayerSkillManager 시그니처와 동일하게 래핑 (기능 현재 동일)
+        drawSkillMenu(g, skillPoints, attackPower, attackSpeed, maxHP,
+                attackPowerCost, attackSpeedCost, hpUpCost, selectedSkill,
+                (MultiplayerSkillManager) null);
+        // 싱글 플레이어 강화 상태 테두리 재그리기 위해 개별 루프 수행 (skillManager 값 활용)
+        int panelWidth = 180;
+        int panelHeight = 280;
+        int startX = (800 - (panelWidth * 3 + 40 * 2)) / 2;
+        int panelY = 100;
+        for (int i=0;i<3;i++) {
+            int panelX = startX + i * (panelWidth + 40);
+            boolean isSelected = (i == selectedSkill);
+            boolean canAfford = true; // 단순 처리: 비용 가능 여부는 외부 호출자가 이미 표시
+            drawSkillBorder(g, panelX, panelY, panelWidth, panelHeight, isSelected, canAfford, i, skillManager);
+        }
+    }
+
+    /** 호환성: MultiplayerSkillManager 오버로드 내부 구현 공유 (null 처리) */
+    private void drawSkillBorder(Graphics2D g, int panelX, int panelY, int panelWidth, int panelHeight, boolean isSelected, boolean canAfford, int skillIndex, MultiplayerSkillManager mpSkillManager) {
+        // Multiplayer 전용 상태 판단: 현재는 동일 로직 없으므로 SkillManager null 전달
+        drawSkillBorder(g, panelX, panelY, panelWidth, panelHeight, isSelected, canAfford, skillIndex, (SkillManager) null);
+    }
     
     /**
      * Load panel background image based on affordability
@@ -266,6 +298,7 @@ public class SkillMenuRenderer {
     /**
      * Draw Force Select border around skill panel (legacy method)
      */
+    @SuppressWarnings("unused")
     private void drawForceSelectBorder(Graphics2D g, int panelX, int panelY, int panelWidth, int panelHeight, boolean isSelected) {
         BufferedImage forceSelectImage = loadForceSelectImage();
         
@@ -360,29 +393,25 @@ public class SkillMenuRenderer {
         g.setFont(new Font("Arial", Font.PLAIN, 13));
         FontMetrics fm = g.getFontMetrics();
         
-        String currentText = "";
-        String nextText = "";
-        String costText = "";
-        boolean canAfford = false;
+    String currentText = "";
+    String nextText = "";
+    String costText = "";
         
         switch (skillType) {
             case 0: 
                 currentText = "현재: " + (100 + attackPower * 20) + "%";
                 nextText = "다음 단계: " + (100 + (attackPower + 1) * 20) + "%";
                 costText = "비용: " + attackPowerCost + "포인트";
-                canAfford = skillPoints >= attackPowerCost;
                 break;
             case 1: 
                 currentText = "현재: " + String.format("%.1f", attackSpeed) + "x";
                 nextText = "다음 단계: " + String.format("%.1f", attackSpeed + 0.2) + "x";
                 costText = "비용: " + attackSpeedCost + "포인트";
-                canAfford = skillPoints >= attackSpeedCost;
                 break;
             case 2: 
                 currentText = "현재: " + maxHP + " HP";
                 nextText = "다음 단계: " + (maxHP + 3) + " HP";
                 costText = "비용: " + hpUpCost + "포인트";
-                canAfford = skillPoints >= hpUpCost;
                 break;
         }
         

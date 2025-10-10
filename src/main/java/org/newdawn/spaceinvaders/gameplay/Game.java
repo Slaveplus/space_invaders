@@ -20,6 +20,8 @@ import org.newdawn.spaceinvaders.shop.ShopCategory;
 import org.newdawn.spaceinvaders.shop.ShopItem;
 import org.newdawn.spaceinvaders.app.Screen;
 import org.newdawn.spaceinvaders.app.ScreenNavigator;
+import org.newdawn.spaceinvaders.gameplay.net.GameNetworkAdapter;
+import org.newdawn.spaceinvaders.gameplay.net.LocalLoopbackNetworkAdapter;
 
 /**
  * The main hook of our game. This class with both act as a manager
@@ -82,6 +84,9 @@ public class Game extends Canvas implements Screen
 	private ScreenNavigator navigator;
 	/** 게임 시작 시간 (3초 공격 지연용) */
 	private long gameStartTime = 0;
+
+	/** 네트워크 어댑터 (싱글: LocalLoopback 기본) */
+	private GameNetworkAdapter networkAdapter;
 	
 	/**
 	 * Construct our game and set it running.
@@ -118,6 +123,9 @@ public class Game extends Canvas implements Screen
 		// to see at startup
 		System.out.println("🎮 Game constructor calling initEntities()...");
 		initEntities();
+
+		// 기본 로컬 네트워크 어댑터 설정 (멀티 환경에서는 외부에서 교체)
+		this.networkAdapter = new LocalLoopbackNetworkAdapter(gameStateManager);
 	}
 
 	
@@ -682,6 +690,12 @@ public class Game extends Canvas implements Screen
 	 * <p>
 	 */
 	public void update(long delta) {
+		// 1) 네트워크 틱 (authoritative 스냅샷 생성 또는 수신)
+		if (networkAdapter != null) {
+			networkAdapter.tick(System.currentTimeMillis());
+			// 향후: 클라이언트 모드에서 snapshot 적용/보간 로직 위치
+		}
+
 		// 라운드 정보 창 자동 닫기 (7초 후)
 		if (gameStateManager.shouldAutoCloseRoundInfo()) {
 			gameStateManager.hideRoundInfo();
