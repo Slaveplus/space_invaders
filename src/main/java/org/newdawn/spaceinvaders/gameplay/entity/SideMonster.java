@@ -189,7 +189,7 @@ public class SideMonster extends Entity {
 		if (currentHP <= 0) {
 			System.out.println("SideMonster destroyed!");
 			// Create explosion
-			ExplosionEntity explosion = new ExplosionEntity(game, "sprites/alien.gif", (int)x, (int)y, 1000);
+			ExplosionEntity explosion = new ExplosionEntity(game, "sprites/Skill/Explosion.png", (int)x, (int)y, 1000);
 			game.addEntity(explosion);
 			
 			// Remove this entity

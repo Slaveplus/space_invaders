@@ -123,7 +123,7 @@ public class MultiplayerUIRenderer {
      * 활성화된 스킬 효과 표시
      */
     private void drawSkillEffects(Graphics2D g, MultiplayerSkillManager skillManager) {
-        int effectY = 200;
+        int effectY = 160;
 
         if (skillManager.isInvincible()) {
             g.setColor(Color.YELLOW);
@@ -155,13 +155,13 @@ public class MultiplayerUIRenderer {
         int barX = 20;
         int barY = 145;
 
-        g.setColor(new Color(0, 0, 0, 150));
-        g.fillRoundRect(barX - 8, barY - 8, barWidth + 16, barHeight + 16, 10, 10);
-        g.setColor(new Color(255, 255, 255, 100));
-        g.drawRoundRect(barX - 8, barY - 8, barWidth + 16, barHeight + 16, 10, 10);
+        g.setColor(new Color(0, 0, 0, 140));
+        g.fillRoundRect(barX - 6, barY - 6, barWidth + 12, barHeight + 12, 10, 10);
+        g.setColor(new Color(255, 255, 255, 90));
+        g.drawRoundRect(barX - 6, barY - 6, barWidth + 12, barHeight + 12, 10, 10);
 
-        int itemSize = 24;
-        int itemSpacing = 70;
+        int itemSize = 18;
+        int itemSpacing = 35;
         int startX = barX + 10;
         int centerY = barY + (barHeight - itemSize) / 2;
 
@@ -175,15 +175,21 @@ public class MultiplayerUIRenderer {
 
         for (int i = 0; i < skillTypes.length; i++) {
             int itemX = startX + (i * itemSpacing);
+            // shadow
+            g.setColor(new Color(0, 0, 0, 200));
+            g.fillRect(itemX + 2, centerY + 2, itemSize, itemSize);
+            g.setColor(new Color(0, 0, 0, 150));
+            g.fillRect(itemX + 1, centerY + 1, itemSize, itemSize);
+
             drawSkillIconWithCount(g, skillTypes[i], itemX, centerY, itemSize, counts[i]);
 
-            g.setFont(new Font("Arial", Font.BOLD, 11));
+            g.setFont(new Font("Arial", Font.BOLD, 10));
             String label = skillNames[i];
             int labelWidth = g.getFontMetrics().stringWidth(label);
             int labelX = itemX + (itemSize - labelWidth) / 2;
-            int labelY = centerY + itemSize + 14;
+            int labelY = centerY + itemSize + 12;
 
-            g.setColor(new Color(0, 0, 0, 200));
+            g.setColor(new Color(0, 0, 0, 220));
             g.drawString(label, labelX + 1, labelY + 1);
             g.setColor(Color.WHITE);
             g.drawString(label, labelX, labelY);
@@ -191,7 +197,7 @@ public class MultiplayerUIRenderer {
 
         g.setColor(Color.CYAN);
         g.setFont(UIRenderer.getKostarFont(Font.PLAIN, 10));
-        g.drawString("Q: 강화창", barX + 5, barY + barHeight + 18);
+        g.drawString("Q: 강화창", barX + 5, barY + barHeight + 16);
     }
 
     private BufferedImage getCoinImage() {

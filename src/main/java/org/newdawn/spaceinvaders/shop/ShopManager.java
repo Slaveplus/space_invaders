@@ -143,49 +143,49 @@ public class ShopManager {
         // 파워업 아이템들
         ShopItem healthBoost = new ShopItem("health_boost", "체력 부스트", "체력을 50% 증가", 150, 
                                        ShopCategory.POWERUPS, ItemRarity.COMMON);
-        healthBoost.setIconPath("sprites/powerups/health_boost.png");
+        healthBoost.setIconPath("sprites/Skill/1.png");
         shopManager.addItem(healthBoost);
-        
+
         ShopItem speedBoost = new ShopItem("speed_boost", "속도 부스트", "이동 속도를 30% 증가", 200, 
                                        ShopCategory.POWERUPS, ItemRarity.RARE);
-        speedBoost.setIconPath("sprites/powerups/speed_boost.png");
+        speedBoost.setIconPath("sprites/Skill/2.png");
         shopManager.addItem(speedBoost);
-        
+
         ShopItem shield = new ShopItem("shield", "방어막", "일정 시간 무적", 300, 
                                        ShopCategory.POWERUPS, ItemRarity.EPIC);
-        shield.setIconPath("sprites/powerups/shield.png");
+        shield.setIconPath("sprites/Skill/Icon.6_26.png");
         shopManager.addItem(shield);
-        
+
         // 장식품 아이템들
         ShopItem neonLights = new ShopItem("neon_lights", "네온 라이트", "우주선에 네온 장식", 100, 
                                        ShopCategory.DECORATIONS, ItemRarity.COMMON);
-        neonLights.setIconPath("sprites/decorations/neon_lights.png");
+        neonLights.setIconPath("sprites/Force/Force True.png");
         shopManager.addItem(neonLights);
-        
+
         ShopItem goldenPaint = new ShopItem("golden_paint", "골든 페인트", "황금색 도색", 250, 
                                        ShopCategory.DECORATIONS, ItemRarity.RARE);
-        goldenPaint.setIconPath("sprites/decorations/golden_paint.png");
+        goldenPaint.setIconPath("sprites/Force/Force Select.png");
         shopManager.addItem(goldenPaint);
-        
+
         ShopItem rainbowTrail = new ShopItem("rainbow_trail", "무지개 궤적", "무지개색 궤적 효과", 400, 
                                        ShopCategory.DECORATIONS, ItemRarity.EPIC);
-        rainbowTrail.setIconPath("sprites/decorations/rainbow_trail.png");
+        rainbowTrail.setIconPath("sprites/star coin normal.png");
         shopManager.addItem(rainbowTrail);
-        
+
         // 업그레이드 아이템들
         ShopItem engineUpgrade = new ShopItem("engine_upgrade", "엔진 업그레이드", "엔진 성능 향상", 300, 
                                        ShopCategory.UPGRADES, ItemRarity.COMMON);
-        engineUpgrade.setIconPath("sprites/upgrades/engine_upgrade.png");
+        engineUpgrade.setIconPath("sprites/weapons/plasma.png");
         shopManager.addItem(engineUpgrade);
-        
+
         ShopItem weaponUpgrade = new ShopItem("weapon_upgrade", "무기 업그레이드", "무기 성능 향상", 500, 
                                        ShopCategory.UPGRADES, ItemRarity.RARE);
-        weaponUpgrade.setIconPath("sprites/upgrades/weapon_upgrade.png");
+        weaponUpgrade.setIconPath("sprites/weapons/green_laser.png");
         shopManager.addItem(weaponUpgrade);
-        
+
         ShopItem shieldUpgrade = new ShopItem("shield_upgrade", "방어막 업그레이드", "방어막 성능 향상", 700, 
                                        ShopCategory.UPGRADES, ItemRarity.EPIC);
-        shieldUpgrade.setIconPath("sprites/upgrades/shield_upgrade.png");
+        shieldUpgrade.setIconPath("sprites/weapons/missile.png");
         shopManager.addItem(shieldUpgrade);
     }
     

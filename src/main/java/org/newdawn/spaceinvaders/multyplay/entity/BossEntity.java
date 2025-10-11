@@ -48,16 +48,15 @@ public class BossEntity extends Entity {
     private static String getBossSpriteForRound(int round) {
         switch (round) {
             case 1:
-                return "sprites/Boss/2round_Boss.png";
+                return "sprites/Boss/1Boss.png";
             case 2:
-                return "sprites/Boss/2round_Boss.png";
+                return "sprites/Boss/2Boss.png";
             case 3:
-                return "sprites/Boss/2round_Boss.png";
+                return "sprites/Boss/3Boss.png";
             case 4:
-                return "sprites/Boss/2round_Boss.png";
+                return "sprites/Boss/4Boss.png";
             default:
-                // For rounds 5 and above, use 1round_Boss
-                return "sprites/Boss/2round_Boss.png";
+                return "sprites/Boss/5Boss.png";
         }
     }
     

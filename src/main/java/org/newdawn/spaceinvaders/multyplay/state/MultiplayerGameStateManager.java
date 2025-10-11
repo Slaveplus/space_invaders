@@ -322,16 +322,20 @@ public class MultiplayerGameStateManager {
      * 스킬 메뉴 표시
      */
     public void showSkillMenu() {
-        showingSkillMenu = true;
-        // 게임플레이 상태는 유지하고 오버레이로 표시
+        if (!showingSkillMenu) {
+            showingSkillMenu = true;
+            startPauseTimer();
+        }
     }
     
     /**
      * 스킬 메뉴 숨기기
      */
     public void hideSkillMenu() {
-        showingSkillMenu = false;
-        // 게임플레이 상태 유지
+        if (showingSkillMenu) {
+            showingSkillMenu = false;
+            endPauseTimerIfInactive();
+        }
     }
     
     /**
@@ -361,14 +365,20 @@ public class MultiplayerGameStateManager {
      * 일시정지 메뉴 표시
      */
     public void showPauseMenu() {
-        showingPauseMenu = true;
+        if (!showingPauseMenu) {
+            showingPauseMenu = true;
+            startPauseTimer();
+        }
     }
-    
+
     /**
      * 일시정지 메뉴 숨기기
      */
     public void hidePauseMenu() {
-        showingPauseMenu = false;
+        if (showingPauseMenu) {
+            showingPauseMenu = false;
+            endPauseTimerIfInactive();
+        }
     }
     
     /**
@@ -383,5 +393,22 @@ public class MultiplayerGameStateManager {
      */
     public void setSelectedPauseMenuItem(int item) {
         selectedPauseMenuItem = item;
+    }
+
+    private void startPauseTimer() {
+        if (pauseStartTime == 0) {
+            pauseStartTime = System.currentTimeMillis();
+        }
+    }
+
+    private void endPauseTimerIfInactive() {
+        if (pauseStartTime > 0 && !isAnyOverlayActive()) {
+            pausedTime += System.currentTimeMillis() - pauseStartTime;
+            pauseStartTime = 0;
+        }
+    }
+
+    private boolean isAnyOverlayActive() {
+        return showingPauseMenu || showingSkillMenu;
     }
 }

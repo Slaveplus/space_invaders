@@ -923,8 +923,8 @@ public class MultiplayerGameCanvas extends Canvas implements Screen, Multiplayer
 				return new RemoteShotEntity(snapshot, meta);
 			case "ExplosionEntity":
 				return new RemoteExplosionEntity(snapshot, meta);
-			case "BossEntity":
-				return new RemoteBossEntity(snapshot, meta);
+		case "BossEntity":
+			return new RemoteBossEntity(snapshot, meta);
 			case "BossShotEntity":
 				return new RemoteBossShotEntity(snapshot, meta);
 			case "HeatEffectEntity":
@@ -938,12 +938,12 @@ public class MultiplayerGameCanvas extends Canvas implements Screen, Multiplayer
 				near.setOwnerId(snapshot.ownerId);
 				return near;
 			}
-			case "AlienEntity": {
-				String spritePath = snapshot.sprite != null && !snapshot.sprite.isEmpty()
-						? snapshot.sprite
-						: "sprites/Boss/1near.png";
-				return new RemoteAlienEntity(spritePath, snapshot.x, snapshot.y);
-			}
+		case "AlienEntity": {
+			String spritePath = snapshot.sprite != null && !snapshot.sprite.isEmpty()
+					? snapshot.sprite
+					: "sprites/Boss/1near.png";
+			return new RemoteAlienEntity(spritePath, snapshot.x, snapshot.y);
+		}
 			default:
 				String spritePath = snapshot.sprite != null && !snapshot.sprite.isEmpty() ? snapshot.sprite : null;
 				if (spritePath == null || spritePath.isEmpty()) {
@@ -1014,7 +1014,7 @@ public class MultiplayerGameCanvas extends Canvas implements Screen, Multiplayer
 		private int phase = 1;
 
 		RemoteBossEntity(EntitySnapshot snapshot, Map<String, String> meta) {
-			super(snapshot.sprite != null && !snapshot.sprite.isEmpty() ? snapshot.sprite : "sprites/Boss/2round_Boss.png",
+			super(snapshot.sprite != null && !snapshot.sprite.isEmpty() ? snapshot.sprite : "sprites/Boss/1Boss.png",
 				(int) Math.round(snapshot.x), (int) Math.round(snapshot.y));
 			this.x = snapshot.x;
 			this.y = snapshot.y;
