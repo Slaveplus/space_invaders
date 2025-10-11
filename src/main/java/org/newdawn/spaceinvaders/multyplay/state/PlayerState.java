@@ -10,8 +10,9 @@ public class PlayerState {
     private int attackPower = 1;
     private double attackSpeed = 1.0;
     private int maxHP = 3;
-    private int currentHP = 3;
-    private int skillPoints = 0;
+   private int currentHP = 3;
+   private int skillPoints = 0;
+    private int earnedCoins = 0;
 
     public PlayerState(String playerId) {
         this.playerId = playerId;
@@ -36,12 +37,17 @@ public class PlayerState {
 
     public void addSkillPoints(int delta) { this.skillPoints += delta; }
 
+    public int getEarnedCoins() { return earnedCoins; }
+    public void setEarnedCoins(int earnedCoins) { this.earnedCoins = earnedCoins; }
+    public void addCoins(int delta) { this.earnedCoins += delta; }
+
     public void resetForNewGame() {
         attackPower = 1;
         attackSpeed = 1.0;
         maxHP = 3;
         currentHP = 3;
         skillPoints = 0;
+        earnedCoins = 0;
     }
 
     public void takeDamage(int amount) {

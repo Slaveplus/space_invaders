@@ -26,7 +26,9 @@ import org.newdawn.spaceinvaders.multyplay.entity.BossEntity;
 import org.newdawn.spaceinvaders.multyplay.entity.Entity;
 import org.newdawn.spaceinvaders.multyplay.entity.ExplosionEntity;
 import org.newdawn.spaceinvaders.multyplay.entity.MissileEntity;
+import org.newdawn.spaceinvaders.multyplay.entity.NearEntity;
 import org.newdawn.spaceinvaders.multyplay.entity.EntitySnapshot;
+import org.newdawn.spaceinvaders.multyplay.entity.CoinDisplayEntity;
 import org.newdawn.spaceinvaders.multyplay.entity.ShipEntity;
 import org.newdawn.spaceinvaders.multyplay.entity.ShotEntity;
 import org.newdawn.spaceinvaders.login.UserManager;
@@ -70,7 +72,7 @@ public class MultiplayerGameCanvas extends Canvas implements Screen, Multiplayer
 	// BufferStrategy는 상위 App에서 관리
 	// entities and removeList are now managed by MultiplayerGameStateManager
 	/** The entity representing the player */
-	private Entity ship;
+	private ShipEntity ship;
 	/** The speed at which the player's ship should move (pixels/sec) */
 	private double moveSpeed = 300;
 	/** UserManager for accessing equipped items */
@@ -78,9 +80,6 @@ public class MultiplayerGameCanvas extends Canvas implements Screen, Multiplayer
 	/** ResolutionManager for handling resolution scaling */
 	private ResolutionManager resolutionManager;
 	// lastFire and firingInterval are now managed by MultiplayerGameStateManager
-	/** The number of aliens left on the screen */
-	private int alienCount;
-	
 	/** 현재 장착된 우주선 스킨 경로 */
 	private String currentSpaceshipSkin = "sprites/ship.gif";
 	/** 현재 장착된 무기 스킨 경로 */
@@ -324,43 +323,21 @@ public class MultiplayerGameCanvas extends Canvas implements Screen, Multiplayer
 	 * entitiy will be added to the overall list of entities in the game.
 	 */
 	private void initEntities() {
-		// create the player ship and place it roughly in the center of the screen
-		ship = new ShipEntity(this, currentSpaceshipSkin, 370, 550);
-		ship.setOwnerId(localPlayerId);
-		gameStateManager.getEntities().add(ship);
-		
-		// Create aliens based on current round with balanced progression
-		alienCount = 0;
-		int rows, cols;
-		
-		switch (gameStateManager.getCurrentRound()) {
-			case 1: rows = 2; cols = 5; break;  // 10 aliens (이전: 18)
-			case 2: rows = 3; cols = 5; break;  // 15 aliens (이전: 21)
-			case 3: rows = 3; cols = 6; break;  // 18 aliens (이전: 28)
-			case 4: rows = 3; cols = 7; break;  // 21 aliens (이전: 32)
-			case 5: rows = 4; cols = 7; break;  // 28 aliens (이전: 40)
-			default: rows = 2; cols = 5; break;
+		if (remoteMode) {
+			return;
 		}
-		
-		// 화면 너비에 맞춰서 적들을 균등하게 배치
-		int screenWidth = 800;
-		int margin = 50; // 양쪽 여백
-		int usableWidth = screenWidth - (2 * margin);
-		int spacingX = usableWidth / (cols + 1); // 적들 사이 간격
-		int spacingY = 80; // 세로 간격
-		
-		for (int row=0; row<rows; row++) {
-			for (int x=0; x<cols; x++) {
-				// 적들을 화면에 균등하게 배치
-				int posX = margin + spacingX * (x + 1);
-				int posY = 80 + (row * spacingY);
-				Entity alien = new AlienEntity(this, posX, posY);
-				gameStateManager.getEntities().add(alien);
-				alienCount++;
-			}
+
+		ArrayList<Entity> entities = gameStateManager.getEntities();
+		entities.clear();
+		gameStateManager.getRemoveList().clear();
+
+		ship = createPlayerShip(localPlayerId);
+		if (ship != null) {
+			ship.setOwnerId(localPlayerId);
+			entities.add(ship);
 		}
-		
-		gameStateManager.setAlienCount(alienCount);
+
+		SharedMultiplayerRoundCoordinator.setupRound(this, gameStateManager.getCurrentRound());
 	}
 	
 	/**
@@ -407,23 +384,15 @@ public class MultiplayerGameCanvas extends Canvas implements Screen, Multiplayer
 	 * are dead.
 	 */
 	public void notifyWin() {
+		if (remoteMode) {
+			return;
+		}
+
 		boolean roundAdvanced = gameStateManager.advanceRound();
-		
 		if (roundAdvanced) {
-			// Check if this is a boss round (after round 1, 3, 5, etc.)
-			if (gameStateManager.getCurrentRound() == 2 || 
-				gameStateManager.getCurrentRound() == 4 || 
-				gameStateManager.getCurrentRound() == 6) {
-				// Boss round - spawn boss instead of regular aliens
-				spawnBoss();
-			} else {
-				// Regular round - clear current entities and initialize next round
-				gameStateManager.getEntities().clear();
-				initEntities();
-			}
+			SharedMultiplayerRoundCoordinator.setupRound(this, gameStateManager.getCurrentRound());
 		} else {
-			// Game completed
-			gameStateManager.setMessage("Well done! You Win!");
+			gameStateManager.setMessage("🏆 GAME COMPLETED! 🏆 Congratulations!");
 			gameStateManager.setWaitingForKeyPress(true);
 		}
 	}
@@ -433,6 +402,10 @@ public class MultiplayerGameCanvas extends Canvas implements Screen, Multiplayer
 	 */
 	@Override
 	public void notifyAlienKilled(String killerPlayerId, double killX, double killY) {
+		if (remoteMode) {
+			return;
+		}
+
 		String targetId = killerPlayerId != null ? killerPlayerId : gameStateManager.getLocalPlayerId();
 
 		// Give random skill points for killing aliens
@@ -480,6 +453,9 @@ public class MultiplayerGameCanvas extends Canvas implements Screen, Multiplayer
 	 * point, i.e. has he/she waited long enough between shots
 	 */
 	public void tryToFire() {
+		if (ship == null) {
+			return;
+		}
 		// Calculate firing interval based on attack speed skill
 		long currentFiringInterval = (long) (gameStateManager.getFiringInterval() / gameStateManager.getAttackSpeed());
 		
@@ -522,6 +498,16 @@ public class MultiplayerGameCanvas extends Canvas implements Screen, Multiplayer
 		ShotEntity shot = new ShotEntity(this, "sprites/shot.gif", x, y, true);
 		gameStateManager.getEntities().add(shot);
 	}
+
+	@Override
+	public void onNearMonsterDestroyed(NearEntity nearEntity, String killerPlayerId, double killX, double killY) {
+		if (remoteMode) {
+			return;
+		}
+
+		SharedMultiplayerRoundCoordinator.handleNearMonsterDestroyed(this, nearEntity, killerPlayerId, killX, killY);
+		checkAllNearMonstersDefeated();
+	}
 	
 	/**
 	 * Add an alien shot with slight aim adjustment towards player
@@ -554,6 +540,33 @@ public class MultiplayerGameCanvas extends Canvas implements Screen, Multiplayer
 		// Create skill drop using ShotEntity with skill drop functionality
 		ShotEntity skillDrop = new ShotEntity(this, "sprites/shot.gif", x, y, false, skillType, skillValue);
 		gameStateManager.getEntities().add(skillDrop);
+	}
+
+	@Override
+	public void addCoins(String playerId, int amount) {
+		if (amount == 0) {
+			return;
+		}
+		if (playerId == null) {
+			playerId = gameStateManager.getLocalPlayerId();
+		}
+		if (playerId == null) {
+			return;
+		}
+		gameStateManager.addCoins(playerId, amount);
+	}
+
+	@Override
+	public void showCoinEarned(String playerId, int x, int y, int coinAmount) {
+		if (remoteMode) {
+			return;
+		}
+		String localId = gameStateManager.getLocalPlayerId();
+		if (playerId != null && localId != null && !playerId.equals(localId)) {
+			return;
+		}
+		CoinDisplayEntity display = new CoinDisplayEntity(this, x, y, coinAmount);
+		addEntity(display);
 	}
 	
 	/**
@@ -660,7 +673,7 @@ public class MultiplayerGameCanvas extends Canvas implements Screen, Multiplayer
 	@Override
 	public void fireMissile(String playerId, double targetX, double targetY) {
 		try {
-			Entity source = getShip(playerId);
+			ShipEntity source = getShip(playerId);
 			if (source == null) {
 				return;
 			}
@@ -820,8 +833,9 @@ public class MultiplayerGameCanvas extends Canvas implements Screen, Multiplayer
 		gameStateManager.getEntities().clear();
 		gameStateManager.getEntities().addAll(snapshotEntitiesBuffer);
 		gameStateManager.getRemoveList().clear();
-		if (localShipCandidate != null) {
-			ship = localShipCandidate;
+		onRoundBackgroundChanged(snapshot.round);
+		if (localShipCandidate instanceof ShipEntity) {
+			ship = (ShipEntity) localShipCandidate;
 		} else if (ship != null && !remoteEntities.containsValue(ship)) {
 			ship = null;
 		}
@@ -834,6 +848,7 @@ public class MultiplayerGameCanvas extends Canvas implements Screen, Multiplayer
 				ps.setAttackPower(state.atk);
 				ps.setAttackSpeed(state.aspd);
 				ps.setSkillPoints(state.skillPts);
+				ps.setEarnedCoins(state.coins);
 				if (entry.getKey() != null && entry.getKey().equals(localPlayerId)) {
 					skillManager.setInvincibleSkills(state.invincibleCharges);
 					skillManager.setPiercingSkills(state.piercingCharges);
@@ -914,6 +929,15 @@ public class MultiplayerGameCanvas extends Canvas implements Screen, Multiplayer
 				return new RemoteBossShotEntity(snapshot, meta);
 			case "HeatEffectEntity":
 				return new RemoteHeatEffectEntity(snapshot.x, snapshot.y);
+			case "NearEntity": {
+				int round = 1;
+				int monster = 0;
+				try { round = Integer.parseInt(meta.getOrDefault("round", "1")); } catch (NumberFormatException ignore) {}
+				try { monster = Integer.parseInt(meta.getOrDefault("monster", "0")); } catch (NumberFormatException ignore) {}
+				NearEntity near = new NearEntity(this, (int) Math.round(snapshot.x), (int) Math.round(snapshot.y), round, monster);
+				near.setOwnerId(snapshot.ownerId);
+				return near;
+			}
 			case "AlienEntity": {
 				String spritePath = snapshot.sprite != null && !snapshot.sprite.isEmpty()
 						? snapshot.sprite
@@ -1658,13 +1682,13 @@ public class MultiplayerGameCanvas extends Canvas implements Screen, Multiplayer
 	 * Getter methods for MultiplayerInputManager
 	 */
 	@Override
-	public Entity getShip(String playerId) {
+	public ShipEntity getShip(String playerId) {
 		if (playerId == null) {
 			return ship;
 		}
 		for (Entity entity : gameStateManager.getEntities()) {
 			if (entity instanceof ShipEntity && playerId.equals(entity.getOwnerId())) {
-				return entity;
+				return (ShipEntity) entity;
 			}
 		}
 		return null;
@@ -1986,37 +2010,23 @@ public class MultiplayerGameCanvas extends Canvas implements Screen, Multiplayer
 		PlayerState ps = gameStateManager.ensurePlayer(targetId);
 		ps.addSkillPoints(points);
 	}
-	
-	/**
-	 * Spawn a boss for the current round
-	 */
-	public void spawnBoss() {
-		try {
-			int round = gameStateManager.getCurrentRound();
-			BossEntity boss = new BossEntity(this, 400, 120, round); // Center, slightly lower
-			gameStateManager.getEntities().add(boss);
-			
-			// 보스 좌우에 1round_small.png 몬스터 추가 (조금 띄어서 배치)
-			AlienEntity leftAlien = new AlienEntity(this, 200, 120); // 보스 왼쪽 (더 멀리)
-			AlienEntity rightAlien = new AlienEntity(this, 600, 120); // 보스 오른쪽 (더 멀리)
-			gameStateManager.getEntities().add(leftAlien);
-			gameStateManager.getEntities().add(rightAlien);
-			
-		// 보스 스폰 완료
-			
-			gameStateManager.setMessage("⚠️ BOSS APPEARED! ⚠️");
-			gameStateManager.setWaitingForKeyPress(true);
-		} catch (Exception e) {
-			System.err.println("Error spawning boss: " + e.getMessage());
-			e.printStackTrace();
-		}
+
+	@Override
+	public ShipEntity createPlayerShip(String playerId) {
+		return new ShipEntity(this, currentSpaceshipSkin, 370, 550);
+	}
+
+	@Override
+	public Entity createNearEntity(int round, int index) {
+		int posX = 150 + (index * 100);
+		return new NearEntity(this, posX, 140, round, index);
+	}
+
+	@Override
+	public Entity createBossEntity(int bossRound) {
+		return new BossEntity(this, 400, 160, bossRound);
 	}
 	
-	/**
-	 * Check if there's currently a boss in the game
-	 * 
-	 * @return True if boss exists
-	 */
 	public boolean hasBoss() {
 		for (Object obj : gameStateManager.getEntities()) {
 			if (obj instanceof BossEntity) {
@@ -2039,25 +2049,65 @@ public class MultiplayerGameCanvas extends Canvas implements Screen, Multiplayer
 		}
 		return null;
 	}
+
+	@Override
+	public void onRoundBackgroundChanged(int round) {
+		if (backgroundRenderer == null) {
+			backgroundRenderer = new BackgroundRenderer();
+		}
+		String backgroundFileName;
+		if (round == 1 || round == 2) {
+			backgroundFileName = "1.png";
+		} else if (round == 3 || round == 4) {
+			backgroundFileName = "2.png";
+		} else if (round == 5 || round == 6) {
+			backgroundFileName = "3.png";
+		} else if (round == 7 || round == 8) {
+			backgroundFileName = "4.png";
+		} else {
+			backgroundFileName = "1.png";
+		}
+		String backgroundPath = "sprites/stage_background/" + backgroundFileName;
+		backgroundRenderer.setResourcePath(backgroundPath);
+	}
+
+	public void checkAllNearMonstersDefeated() {
+		if (remoteMode) {
+			return;
+		}
+		ArrayList<Entity> entities = gameStateManager.getEntities();
+		ArrayList<Entity> removeList = gameStateManager.getRemoveList();
+		int nearCount = 0;
+		for (Entity entity : entities) {
+			if (entity instanceof NearEntity && !removeList.contains(entity)) {
+				nearCount++;
+			}
+		}
+		if (nearCount == 0) {
+			boolean advanced = gameStateManager.advanceRound();
+			if (advanced) {
+				SharedMultiplayerRoundCoordinator.setupRound(this, gameStateManager.getCurrentRound());
+			} else {
+				gameStateManager.setMessage("🏆 GAME COMPLETED! 🏆 Congratulations!");
+				gameStateManager.setWaitingForKeyPress(true);
+			}
+		}
+	}
 	
 	/**
 	 * Handle boss defeat
 	 */
 	@Override
 	public void notifyBossDefeated(String playerId) {
-		// 보스 처치 완료
-		
-		gameStateManager.setMessage("🎉 BOSS DEFEATED! 🎉 Round " + gameStateManager.getCurrentRound() + " Complete!");
-		gameStateManager.setWaitingForKeyPress(true);
-		
-		// Advance to next round after boss defeat
+		if (remoteMode) {
+			return;
+		}
+
+		SharedMultiplayerRoundCoordinator.handleBossDefeated(this, playerId);
 		boolean roundAdvanced = gameStateManager.advanceRound();
 		if (roundAdvanced) {
-			// Clear entities and start next round
-			gameStateManager.getEntities().clear();
-			initEntities();
+			SharedMultiplayerRoundCoordinator.setupRound(this, gameStateManager.getCurrentRound());
 		} else {
-			// Game completed
 			gameStateManager.setMessage("🏆 GAME COMPLETED! 🏆 Congratulations!");
 			gameStateManager.setWaitingForKeyPress(true);
 		}

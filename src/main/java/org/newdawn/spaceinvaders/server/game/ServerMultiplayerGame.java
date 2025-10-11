@@ -15,12 +15,14 @@ import java.util.Random;
 import org.newdawn.spaceinvaders.multyplay.core.MultiplayerGameContext;
 import org.newdawn.spaceinvaders.multyplay.state.MultiplayerGameStateManager;
 import org.newdawn.spaceinvaders.multyplay.core.MultiplayerSkillManager;
+import org.newdawn.spaceinvaders.multyplay.core.SharedMultiplayerRoundCoordinator;
 import org.newdawn.spaceinvaders.multyplay.entity.AlienEntity;
 import org.newdawn.spaceinvaders.multyplay.entity.BossEntity;
 import org.newdawn.spaceinvaders.multyplay.entity.Entity;
 import org.newdawn.spaceinvaders.multyplay.entity.EntitySnapshot;
 import org.newdawn.spaceinvaders.multyplay.entity.ExplosionEntity;
 import org.newdawn.spaceinvaders.multyplay.entity.MissileEntity;
+import org.newdawn.spaceinvaders.multyplay.entity.NearEntity;
 import org.newdawn.spaceinvaders.multyplay.entity.ShipEntity;
 import org.newdawn.spaceinvaders.multyplay.entity.ShotEntity;
 import org.newdawn.spaceinvaders.multyplay.net.GameSnapshot;
@@ -435,6 +437,7 @@ public class ServerMultiplayerGame implements MultiplayerGameContext {
                 pierceCount,
                 tripleCount,
                 missileCount,
+                ps.getEarnedCoins(),
                 invRem,
                 pierceRem,
                 tripleRem,
@@ -459,38 +462,11 @@ public class ServerMultiplayerGame implements MultiplayerGameContext {
                 ? playerRuntimes.get(primaryPlayerId).ship
                 : playerRuntimes.values().stream().map(r -> r.ship).findFirst().orElse(null);
 
-        alienCount = 0;
-        int rows, cols;
-        switch (gameStateManager.getCurrentRound()) {
-            case 1: rows = 2; cols = 5; break;
-            case 2: rows = 3; cols = 5; break;
-            case 3: rows = 3; cols = 6; break;
-            case 4: rows = 3; cols = 7; break;
-            case 5: rows = 4; cols = 7; break;
-            default: rows = 2; cols = 5; break;
-        }
+        int currentRound = gameStateManager.getCurrentRound();
+        gameStateManager.getRemoveList().clear();
 
-        int screenWidth = 800;
-        int margin = 50;
-        int usableWidth = screenWidth - (2 * margin);
-        int spacingX = usableWidth / (cols + 1);
-        int spacingY = 80;
-
-        for (int row=0; row<rows; row++) {
-            for (int x=0; x<cols; x++) {
-                int posX = margin + spacingX * (x + 1);
-                int posY = 80 + (row * spacingY);
-                Entity alien = new AlienEntity(this, posX, posY);
-                gameStateManager.getEntities().add(alien);
-                alienCount++;
-            }
-        }
-
-        gameStateManager.setAlienCount(alienCount);
-    }
-
-    private boolean isBossRound(int round) {
-        return round == 2 || round == 4 || round == 6 || (round > 6 && round % 2 == 0);
+        SharedMultiplayerRoundCoordinator.setupRound(this, currentRound);
+        alienCount = gameStateManager.getAlienCount();
     }
 
     private void tryToFire(String playerId, PlayerRuntime runtime) {
@@ -732,7 +708,7 @@ public class ServerMultiplayerGame implements MultiplayerGameContext {
 
     @Override
     public void fireMissile(String playerId, double targetX, double targetY) {
-        ShipEntity source = playerId != null ? (ShipEntity) getShip(playerId) : ship;
+        ShipEntity source = playerId != null ? getShip(playerId) : ship;
         if (source == null) {
             return;
         }
@@ -781,34 +757,36 @@ public class ServerMultiplayerGame implements MultiplayerGameContext {
         if (inIntermission || pendingRoundInitializer != null) {
             return;
         }
+        SharedMultiplayerRoundCoordinator.handleBossDefeated(this, killerPlayerId);
+        alienCount = gameStateManager.getAlienCount();
         int completedRound = gameStateManager.getCurrentRound();
         boolean roundAdvanced = gameStateManager.advanceRound();
         if (roundAdvanced) {
             int nextRound = gameStateManager.getCurrentRound();
-            boolean bossNext = isBossRound(nextRound);
+            SharedMultiplayerRoundCoordinator.TransitionDescriptor descriptor =
+                    SharedMultiplayerRoundCoordinator.bossDefeatedTransition(completedRound, nextRound);
             Runnable initializer = () -> {
-                if (bossNext) {
-                    spawnBoss(false);
-                } else {
-                    initEntities();
-                }
+                SharedMultiplayerRoundCoordinator.setupRound(this, gameStateManager.getCurrentRound());
+                alienCount = gameStateManager.getAlienCount();
             };
             scheduleIntermission(
                     new RoundTransition(
-                            RoundTransition.Type.BOSS_DEFEATED,
+                            mapTransitionKind(descriptor.kind),
                             completedRound,
                             nextRound,
-                            bossNext,
-                            "보스를 처치했습니다! 다음 라운드를 준비하세요."),
+                            descriptor.bossNext,
+                            descriptor.message),
                     initializer);
         } else {
+            SharedMultiplayerRoundCoordinator.TransitionDescriptor descriptor =
+                    SharedMultiplayerRoundCoordinator.gameCompletedTransition(completedRound);
             scheduleIntermission(
                     new RoundTransition(
-                            RoundTransition.Type.GAME_COMPLETED,
+                            mapTransitionKind(descriptor.kind),
                             completedRound,
                             completedRound,
-                            false,
-                            "모든 보스를 물리쳤습니다!"),
+                            descriptor.bossNext,
+                            descriptor.message),
                     null);
         }
     }
@@ -864,30 +842,30 @@ public class ServerMultiplayerGame implements MultiplayerGameContext {
         boolean roundAdvanced = gameStateManager.advanceRound();
         if (roundAdvanced) {
             int nextRound = gameStateManager.getCurrentRound();
-            boolean bossNext = isBossRound(nextRound);
+            SharedMultiplayerRoundCoordinator.TransitionDescriptor descriptor =
+                    SharedMultiplayerRoundCoordinator.waveClearedTransition(completedRound, nextRound);
             Runnable initializer = () -> {
-                if (bossNext) {
-                    spawnBoss(false);
-                } else {
-                    initEntities();
-                }
+                SharedMultiplayerRoundCoordinator.setupRound(this, gameStateManager.getCurrentRound());
+                alienCount = gameStateManager.getAlienCount();
             };
             scheduleIntermission(
                     new RoundTransition(
-                            RoundTransition.Type.WAVE_CLEARED,
+                            mapTransitionKind(descriptor.kind),
                             completedRound,
                             nextRound,
-                            bossNext,
-                            "라운드 " + completedRound + " 클리어! 모든 플레이어 준비 후 다음 라운드가 시작됩니다."),
+                            descriptor.bossNext,
+                            descriptor.message),
                     initializer);
         } else {
+            SharedMultiplayerRoundCoordinator.TransitionDescriptor descriptor =
+                    SharedMultiplayerRoundCoordinator.gameCompletedTransition(completedRound);
             scheduleIntermission(
                     new RoundTransition(
-                            RoundTransition.Type.GAME_COMPLETED,
+                            mapTransitionKind(descriptor.kind),
                             completedRound,
                             completedRound,
-                            false,
-                            "축하합니다! 모든 라운드를 클리어했습니다."),
+                            descriptor.bossNext,
+                            descriptor.message),
                     null);
         }
     }
@@ -917,7 +895,7 @@ public class ServerMultiplayerGame implements MultiplayerGameContext {
     }
 
     @Override
-    public Entity getShip(String playerId) {
+    public ShipEntity getShip(String playerId) {
         if (playerId == null) {
             return ship;
         }
@@ -927,13 +905,13 @@ public class ServerMultiplayerGame implements MultiplayerGameContext {
 
     @Override
     public int getShipX(String playerId) {
-        Entity target = getShip(playerId);
+        ShipEntity target = getShip(playerId);
         return target != null ? target.getX() : 370;
     }
 
     @Override
     public int getShipY(String playerId) {
-        Entity target = getShip(playerId);
+        ShipEntity target = getShip(playerId);
         return target != null ? target.getY() : 550;
     }
 
@@ -958,6 +936,56 @@ public class ServerMultiplayerGame implements MultiplayerGameContext {
         ps.addSkillPoints(points);
     }
 
+    @Override
+    public void addCoins(String playerId, int amount) {
+        if (amount == 0) {
+            return;
+        }
+        if (playerId == null) {
+            playerId = primaryPlayerId;
+        }
+        if (playerId == null) {
+            return;
+        }
+        gameStateManager.addCoins(playerId, amount);
+    }
+
+    @Override
+    public ShipEntity createPlayerShip(String playerId) {
+        return new ShipEntity(this, currentSpaceshipSkin, 370, 550);
+    }
+
+    @Override
+    public Entity createNearEntity(int round, int index) {
+        int posX = 150 + (index * 100);
+        return new NearEntity(this, posX, 140, round, index);
+    }
+
+    @Override
+    public Entity createBossEntity(int bossRound) {
+        return new BossEntity(this, 400, 160, bossRound);
+    }
+
+    @Override
+    public void onRoundBackgroundChanged(int round) {
+        // Server has no rendering surface; background changes are client-side concerns.
+    }
+
+    @Override
+    public void showCoinEarned(String playerId, int x, int y, int coinAmount) {
+        // server side only needs to track coins; visual feedback handled client-side
+    }
+
+    @Override
+    public void onNearMonsterDestroyed(NearEntity nearEntity, String killerPlayerId, double killX, double killY) {
+        SharedMultiplayerRoundCoordinator.handleNearMonsterDestroyed(this, nearEntity, killerPlayerId, killX, killY);
+        alienCount = gameStateManager.getAlienCount();
+
+        if (gameStateManager.getAlienCount() <= 0) {
+            notifyWin();
+        }
+    }
+
     public void removePlayer(String playerId) {
         PlayerRuntime runtime = playerRuntimes.remove(playerId);
         if (runtime != null && runtime.ship != null) {
@@ -980,13 +1008,22 @@ public class ServerMultiplayerGame implements MultiplayerGameContext {
         }
     }
 
+    private RoundTransition.Type mapTransitionKind(SharedMultiplayerRoundCoordinator.TransitionKind kind) {
+        switch (kind) {
+            case WAVE_CLEARED:
+                return RoundTransition.Type.WAVE_CLEARED;
+            case BOSS_DEFEATED:
+                return RoundTransition.Type.BOSS_DEFEATED;
+            case GAME_COMPLETED:
+            default:
+                return RoundTransition.Type.GAME_COMPLETED;
+        }
+    }
+
     private void spawnBoss(boolean announce) {
-        BossEntity boss = new BossEntity(this, 400, 120, gameStateManager.getCurrentRound());
-        gameStateManager.getEntities().add(boss);
-        AlienEntity leftAlien = new AlienEntity(this, 200, 120);
-        AlienEntity rightAlien = new AlienEntity(this, 600, 120);
-        gameStateManager.getEntities().add(leftAlien);
-        gameStateManager.getEntities().add(rightAlien);
+        int round = gameStateManager.getCurrentRound();
+        SharedMultiplayerRoundCoordinator.spawnBoss(this, round);
+        alienCount = gameStateManager.getAlienCount();
         if (announce) {
             gameStateManager.setMessage("BOSS APPEARED!");
             gameStateManager.setWaitingForKeyPress(true);

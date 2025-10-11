@@ -6,6 +6,7 @@ import java.io.InputStream;
 
 import javax.imageio.ImageIO;
 
+import org.newdawn.spaceinvaders.gameplay.UIRenderer;
 import org.newdawn.spaceinvaders.multyplay.core.MultiplayerGameCanvas;
 import org.newdawn.spaceinvaders.multyplay.core.MultiplayerSkillManager;
 import org.newdawn.spaceinvaders.multyplay.state.MultiplayerGameStateManager;
@@ -15,13 +16,9 @@ import org.newdawn.spaceinvaders.multyplay.state.MultiplayerGameStateManager;
  * 게임 UI, 메시지 등을 그리는 역할
  */
 public class MultiplayerUIRenderer {
-    // 재사용 가능한 폰트/스트로크 (매 프레임 객체 생성 방지)
-    private static final Font FONT_TITLE_18_B = new Font("Arial", Font.BOLD, 18);
-    private static final Font FONT_TEXT_16_B = new Font("Arial", Font.BOLD, 16);
-    private static final Font FONT_TEXT_14_B = new Font("Arial", Font.BOLD, 14);
-    private static final Font FONT_TEXT_12_P = new Font("Arial", Font.PLAIN, 12);
-    private static final Font FONT_TEXT_14_P = new Font("Arial", Font.PLAIN, 14);
+    // 재사용 가능한 스트로크 (매 프레임 객체 생성 방지)
     private static final BasicStroke STROKE_2PX = new BasicStroke(2);
+    private BufferedImage coinImage;
 
     public MultiplayerUIRenderer(MultiplayerGameCanvas game) {
         // MultiplayerGameCanvas reference not currently used, but kept for future extensibility
@@ -33,12 +30,12 @@ public class MultiplayerUIRenderer {
     public void drawGameUI(Graphics2D g, MultiplayerGameStateManager gameStateManager, MultiplayerSkillManager skillManager) {
         // Round display
         g.setColor(Color.CYAN);
-        g.setFont(FONT_TITLE_18_B);
+        g.setFont(UIRenderer.getKostarFont(Font.BOLD, 18));
         g.drawString("라운드: " + gameStateManager.getCurrentRound() + "/" + gameStateManager.getMaxRound(), 20, 25);
 
         // HP display
         g.setColor(Color.WHITE);
-        g.setFont(FONT_TEXT_16_B);
+        g.setFont(UIRenderer.getKostarFont(Font.BOLD, 16));
         g.drawString("HP: " + gameStateManager.getCurrentHP() + "/" + gameStateManager.getMaxHP(), 20, 50);
 
         // HP bar
@@ -46,12 +43,12 @@ public class MultiplayerUIRenderer {
 
         // Skill points display
         g.setColor(Color.YELLOW);
-        g.setFont(FONT_TEXT_16_B);
+        g.setFont(UIRenderer.getKostarFont(Font.BOLD, 16));
         g.drawString("스킬 포인트: " + gameStateManager.getSkillPoints(), 20, 100);
 
         // Stats display
         g.setColor(Color.WHITE);
-        g.setFont(FONT_TEXT_12_P);
+        g.setFont(UIRenderer.getKostarFont(Font.PLAIN, 12));
         g.drawString("공격력: " + gameStateManager.getAttackPower(), 20, 120);
         g.drawString("공격속도: " + String.format("%.1f", gameStateManager.getAttackSpeed()) + "x", 20, 135);
 
@@ -60,7 +57,8 @@ public class MultiplayerUIRenderer {
 
         // Skill inventory display
         drawSkillInventory(g, skillManager);
-        
+        drawCoinSummary(g, gameStateManager);
+
         // Instructions moved to drawSkillInventory to avoid overlap
     }
 
@@ -135,7 +133,7 @@ public class MultiplayerUIRenderer {
 
         if (skillManager.isInvincible()) {
             g.setColor(Color.YELLOW);
-            g.setFont(FONT_TEXT_14_B);
+            g.setFont(UIRenderer.getKostarFont(Font.BOLD, 14));
             long remainingTime = skillManager.getRemainingTime(skillManager.getInvincibleEndTime());
             if (remainingTime > 0) {
                 g.drawString("무적: " + remainingTime + "초", 20, effectY);
@@ -145,7 +143,7 @@ public class MultiplayerUIRenderer {
 
         if (skillManager.hasPiercing()) {
             g.setColor(Color.RED);
-            g.setFont(FONT_TEXT_14_B);
+            g.setFont(UIRenderer.getKostarFont(Font.BOLD, 14));
             long remainingTime = skillManager.getRemainingTime(skillManager.getPiercingEndTime());
             if (remainingTime > 0) {
                 g.drawString("관통: " + remainingTime + "초", 20, effectY);
@@ -155,7 +153,7 @@ public class MultiplayerUIRenderer {
 
         if (skillManager.hasTripleShot()) {
             g.setColor(Color.BLUE);
-            g.setFont(FONT_TEXT_14_B);
+            g.setFont(UIRenderer.getKostarFont(Font.BOLD, 14));
             long remainingTime = skillManager.getRemainingTime(skillManager.getTripleShotEndTime());
             if (remainingTime > 0) {
                 g.drawString("3줄공격: " + remainingTime + "초", 20, effectY);
@@ -187,7 +185,7 @@ public class MultiplayerUIRenderer {
         g.drawRect(startX - 8, startY - 8, inventoryWidth + 16, inventoryHeight + 16);
         
         g.setColor(Color.YELLOW);
-        g.setFont(new Font("Arial", Font.BOLD, 14));
+        g.setFont(UIRenderer.getKostarFont(Font.BOLD, 14));
         g.drawString("스킬:", startX, startY - 5);
         
         // Skill 1: Attack Power (무적)
@@ -204,8 +202,43 @@ public class MultiplayerUIRenderer {
         
         // Instructions (위쪽으로 이동)
         g.setColor(Color.CYAN);
-        g.setFont(new Font("Arial", Font.PLAIN, 11));
+        g.setFont(UIRenderer.getKostarFont(Font.PLAIN, 11));
         g.drawString("Q: 강화", startX, startY - 25);
+    }
+
+    private BufferedImage getCoinImage() {
+        if (coinImage != null) {
+            return coinImage;
+        }
+        try {
+            InputStream is = getClass().getClassLoader().getResourceAsStream("sprites/star coin normal.png");
+            if (is != null) {
+                coinImage = ImageIO.read(is);
+            }
+        } catch (Exception ignored) {
+        }
+        return coinImage;
+    }
+
+    private void drawCoinSummary(Graphics2D g, MultiplayerGameStateManager gameStateManager) {
+        int coins = gameStateManager.getEarnedCoins();
+        g.setFont(UIRenderer.getKostarFont(Font.BOLD, 14));
+        int x = 640;
+        int y = 28;
+        BufferedImage image = getCoinImage();
+        if (image != null) {
+            g.drawImage(image, x - 30, y - 18, 24, 24, null);
+        } else {
+            g.setColor(Color.YELLOW);
+            g.fillOval(x - 30, y - 18, 24, 24);
+            g.setColor(Color.ORANGE);
+            g.setStroke(new BasicStroke(2));
+            g.drawOval(x - 30, y - 18, 24, 24);
+        }
+        g.setColor(Color.BLACK);
+        g.drawString(Integer.toString(coins), x + 1, y + 1);
+        g.setColor(Color.WHITE);
+        g.drawString(Integer.toString(coins), x, y);
     }
     
     /**
@@ -226,7 +259,7 @@ public class MultiplayerUIRenderer {
         
         // Draw count
         g.setColor(Color.WHITE);
-        g.setFont(new Font("Arial", Font.BOLD, 10));
+        g.setFont(UIRenderer.getKostarFont(Font.BOLD, 10));
         String countText = String.valueOf(count);
         FontMetrics fm = g.getFontMetrics();
         int textX = x + iconSize - fm.stringWidth(countText) - 2;
@@ -286,12 +319,12 @@ public class MultiplayerUIRenderer {
     public void drawMessage(Graphics2D g, String message) {
         if (message != null && !message.isEmpty()) {
             g.setColor(Color.white);
-            g.setFont(FONT_TITLE_18_B);
+            g.setFont(UIRenderer.getKostarFont(Font.BOLD, 18));
             FontMetrics fm = g.getFontMetrics();
             int messageX = (800 - fm.stringWidth(message)) / 2;
             g.drawString(message, messageX, 250);
 
-            g.setFont(FONT_TEXT_14_P);
+            g.setFont(UIRenderer.getKostarFont(Font.PLAIN, 14));
             fm = g.getFontMetrics();
             String pressKey = "Press any key";
             int pressKeyX = (800 - fm.stringWidth(pressKey)) / 2;
@@ -313,7 +346,7 @@ public class MultiplayerUIRenderer {
         g.fillRect(0, 0, 800, 600);
 
         // 제목
-        g.setFont(new Font("Arial", Font.BOLD, 36));
+        g.setFont(UIRenderer.getKostarFont(Font.BOLD, 36));
         g.setColor(Color.WHITE);
         String title = "일시정지";
         FontMetrics fm = g.getFontMetrics();
@@ -330,7 +363,7 @@ public class MultiplayerUIRenderer {
         }
 
         // 안내
-        g.setFont(FONT_TEXT_14_P);
+        g.setFont(UIRenderer.getKostarFont(Font.PLAIN, 14));
         g.setColor(Color.YELLOW);
         String hint = "ESC: 메뉴 닫기";
         int hintX = (800 - g.getFontMetrics().stringWidth(hint)) / 2;
@@ -361,7 +394,7 @@ public class MultiplayerUIRenderer {
         g.setStroke(STROKE_2PX);
         g.drawRect(x, y, w, h);
         // 텍스트
-        g.setFont(FONT_TEXT_16_B);
+        g.setFont(UIRenderer.getKostarFont(Font.BOLD, 16));
         g.setColor(Color.WHITE);
         int tx = x + (w - g.getFontMetrics().stringWidth(text)) / 2;
         int ty = y + (h + g.getFontMetrics().getAscent()) / 2 - 2;
@@ -376,11 +409,11 @@ public class MultiplayerUIRenderer {
         g.drawRoundRect(x, y, w, h, 10, 10);
 
         g.setColor(Color.WHITE);
-        g.setFont(FONT_TEXT_14_B);
+        g.setFont(UIRenderer.getKostarFont(Font.BOLD, 14));
         int tx = x + (w - g.getFontMetrics().stringWidth(title)) / 2;
         g.drawString(title, tx, y + 55);
 
-        g.setFont(FONT_TEXT_12_P);
+        g.setFont(UIRenderer.getKostarFont(Font.PLAIN, 12));
         int sx = x + (w - g.getFontMetrics().stringWidth(sub)) / 2;
         g.setColor(Color.YELLOW);
         g.drawString(sub, sx, y + 80);

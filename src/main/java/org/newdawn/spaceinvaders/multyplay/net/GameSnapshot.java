@@ -71,6 +71,7 @@ public class GameSnapshot {
         public final int piercingCharges;
         public final int tripleShotCharges;
         public final int missileCharges;
+        public final int coins;
         public final long invincibleRemainingMs;
         public final long piercingRemainingMs;
         public final long tripleShotRemainingMs;
@@ -87,6 +88,7 @@ public class GameSnapshot {
                                  int piercingCharges,
                                  int tripleShotCharges,
                                  int missileCharges,
+                                 int coins,
                                  long invincibleRemainingMs,
                                  long piercingRemainingMs,
                                  long tripleShotRemainingMs,
@@ -102,6 +104,7 @@ public class GameSnapshot {
             this.piercingCharges = piercingCharges;
             this.tripleShotCharges = tripleShotCharges;
             this.missileCharges = missileCharges;
+            this.coins = coins;
             this.invincibleRemainingMs = invincibleRemainingMs;
             this.piercingRemainingMs = piercingRemainingMs;
             this.tripleShotRemainingMs = tripleShotRemainingMs;
@@ -113,6 +116,7 @@ public class GameSnapshot {
         public PlayerScalarState(int hp, int maxHp, int atk, double aspd, int skillPts) {
             this(hp, maxHp, atk, aspd, skillPts,
                     0, 0, 0, 0,
+                    0,
                     0L, 0L, 0L,
                     0, 0, 0);
         }

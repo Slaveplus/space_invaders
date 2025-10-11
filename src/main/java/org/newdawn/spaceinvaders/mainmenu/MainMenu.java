@@ -108,7 +108,8 @@ public class MainMenu {
     
     // 통합 게임플레이 서브메뉴 옵션
     private String[] gameplayOptions = {
-        "게임참가",
+        "싱글 플레이",
+        "멀티 플레이",
         "리더보드",
         "플레이기록",
         "이전메뉴"
@@ -338,7 +339,7 @@ public class MainMenu {
         // 서버 연결 입력 모드일 경우 별도 처리 (방향키 중 일부는 옵션 이동 대신 입력 전용)
         if (currentState == MenuState.SERVER_CONNECT) {
             if (keyCode == KeyEvent.VK_ESCAPE) {
-                currentState = MenuState.MULTI_PLAYER;
+                currentState = MenuState.GAMEPLAY;
                 selectedOption = 0;
                 return;
             }
@@ -514,20 +515,23 @@ public class MainMenu {
      */
     private void handleGameplaySelection() {
         switch (selectedOption) {
-            case 0: // 게임참가
+            case 0: // 싱글 플레이
+                gameStartRequested = true;
+                break;
+            case 1: // 멀티 플레이
                 currentState = MenuState.SERVER_CONNECT;
                 resetServerConnectInputs();
                 break;
-            case 1: // 리더보드
+            case 2: // 리더보드
                 // TODO: 멀티 리더보드 구현
                 break;
-            case 2: // 플레이기록
+            case 3: // 플레이기록
                 playRecordsManager.loadGameRecords();
                 currentState = MenuState.LEADERBOARD;
                 selectedOption = 0;
                 playRecordsManager.resetScrollOffset();
                 break;
-            case 3: // 이전메뉴
+            case 4: // 이전메뉴
                 currentState = MenuState.MAIN;
                 selectedOption = 0;
                 break;
@@ -1063,7 +1067,7 @@ public class MainMenu {
                     if (serverSelectedButton == 0) {
                         attemptServerConnection();
                     } else {
-                        currentState = MenuState.MULTI_PLAYER;
+                        currentState = MenuState.GAMEPLAY;
                         selectedOption = 0;
                     }
                 }
@@ -1336,7 +1340,7 @@ public class MainMenu {
     private void handleLeaderboardInput(int keyCode) {
         if (playRecordsManager.handleLeaderboardInput(keyCode)) {
             // 뒤로가기 요청
-            currentState = MenuState.SINGLE_PLAYER;
+            currentState = MenuState.GAMEPLAY;
             selectedOption = 1; // 플레이기록 옵션으로 돌아가기
         }
     }

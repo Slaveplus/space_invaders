@@ -47,7 +47,7 @@ public class Game extends Canvas implements Screen, GameplayContext
 	// BufferStrategy는 상위 App에서 관리
 	// entities and removeList are now managed by GameStateManager
 	/** The entity representing the player */
-	private Entity ship;
+	private ShipEntity ship;
 	/** The speed at which the player's ship should move (pixels/sec) */
 	private double moveSpeed = 300;
 	/** UserManager for accessing equipped items */
@@ -55,9 +55,6 @@ public class Game extends Canvas implements Screen, GameplayContext
 	/** ResolutionManager for handling resolution scaling */
 	private ResolutionManager resolutionManager;
 	// lastFire and firingInterval are now managed by GameStateManager
-	/** The number of aliens left on the screen */
-	private int alienCount;
-	
 	/** 현재 장착된 우주선 스킨 경로 */
 	private String currentSpaceshipSkin = "sprites/ship.gif";
 	/** 현재 장착된 무기 스킨 경로 */
@@ -1006,59 +1003,6 @@ public class Game extends Canvas implements Screen, GameplayContext
 	}
 
 	/**
-	 * Check if the current round is a near monster round
-	 * 
-	 * @param round The round number
-	 * @return true if it's a near monster round (1,3,5,7), false if it's a boss round (2,4,6,8,9)
-	 */
-	private boolean isNearRound(int round) {
-		boolean isNear = round == 1 || round == 3 || round == 5 || round == 7;
-		System.out.println("🎮 isNearRound(" + round + ") = " + isNear);
-		return isNear;
-	}
-
-	/**
-	 * Get the boss round number from near round number
-	 * 
-	 * @param nearRound The near round number (1,3,5,7)
-	 * @return The corresponding boss round number (1,2,3,4)
-	 */
-	private int getBossRoundFromNearRound(int nearRound) {
-		switch (nearRound) {
-			case 1:
-				return 1; // 1라운드 보스 전
-			case 3:
-				return 2; // 2라운드 보스 전
-			case 5:
-				return 3; // 3라운드 보스 전
-			case 7:
-				return 4; // 4라운드 보스 전
-			default:
-				return 1;
-		}
-	}
-	
-	/**
-	 * Spawn near monsters for the current round
-	 */
-	public void spawnNearMonsters() {
-	String playerId = gameStateManager.getLocalPlayerId();
-	gameplayCoordinator.initializeRound(playerId);
-	ship = getShip(playerId);
-}
-
-
-	/**
-	 * Spawn a boss for the current round
-	 */
-	public void spawnBoss() {
-	String playerId = gameStateManager.getLocalPlayerId();
-	gameplayCoordinator.initializeRound(playerId);
-	ship = getShip(playerId);
-}
-
-
-	/**
 	 * Check if there's currently a boss in the game
 	 * 
 	 * @return True if boss exists
@@ -1091,58 +1035,18 @@ public class Game extends Canvas implements Screen, GameplayContext
 	 * Handle boss defeat
 	 */
 	public void notifyBossDefeated() {
-		// 보스 처치 완료
-		
-		// 보스 처치 보상 지급
-		int currentRound = gameStateManager.getCurrentRound();
-		int bossReward = currentRound * 15; // 보스 처치 시 더 큰 보상
-		gameStateManager.addEarnedCoins(bossReward);
-		System.out.println("🎉 Boss " + currentRound + " defeated! Reward: " + bossReward + " coins");
-		
-		gameStateManager.setMessage("🎉 BOSS DEFEATED! 🎉 Round " + gameStateManager.getCurrentRound() + " Complete!");
-		gameStateManager.setWaitingForKeyPress(true);
-		
-		// Advance to next round after boss defeat
-		boolean roundAdvanced = gameStateManager.advanceRound();
-		if (roundAdvanced) {
-			// Clear entities and start next round
-			gameStateManager.getEntities().clear();
-			
-			// Re-add player ship
-			ship = new ShipEntity(this, currentSpaceshipSkin, 370, 550);
-			gameStateManager.getEntities().add(ship);
-			
-			// Check if next round is near or boss round
-			int nextRound = gameStateManager.getCurrentRound();
-			if (isNearRound(nextRound)) {
-				spawnNearMonsters();
-			} else {
-				spawnBoss();
-			}
-		} else {
-			// Game completed
-			// 코인과 플레이 시간 저장
-			saveCoinsAndPlayTime();
-			
-			int totalCoins = gameStateManager.getEarnedCoins();
-			String playTime = gameStateManager.getPlayTime();
-			String clearMessage = "경--축\n" +
-								"걸린시간 : " + playTime + "\n" +
-								"획득코인 : " + totalCoins + "개";
-			gameStateManager.setMessage(clearMessage);
-			gameStateManager.setWaitingForKeyPress(true);
-			gameStateManager.setGameCompleted(true); // 게임 클리어 상태 설정
-		}
+		String playerId = gameStateManager.getLocalPlayerId();
+		gameplayCoordinator.handleRoundClear(playerId);
 	}
 
 	/**
 	 * Check if all near monsters are defeated and advance to boss round
 	 */
 	public void checkAllNearMonstersDefeated() {
-	gameplayCoordinator.handleNearMonstersCleared(gameStateManager.getLocalPlayerId());
-}
+		gameplayCoordinator.handleNearMonstersCleared(gameStateManager.getLocalPlayerId());
+	}
 
-/**
+	/**
 	 * Add a boss shot to the game
 	 * 
 	 * @param x X coordinate

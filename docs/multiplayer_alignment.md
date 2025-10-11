@@ -18,3 +18,9 @@ This incremental approach keeps the first step safe: no runtime wiring has chang
 - Implemented `SharedGameplayCoordinator` with initial round/kill lifecycle logic.
 - `Game` now implements `GameplayContext` and delegates start-up, round transitions, and alien-kill bookkeeping to the coordinator.
 - Multiplayer code remains untouched for now; future phases will introduce an adapter so `MultiplayerGameCanvas` and the server reuse the same coordinator.
+- Boss defeat rewards and subsequent round initialisation now flow through the coordinator, allowing the single-player `Game` to drop its bespoke spawn helpers.
+- Multiplayer canvas/server now spawn near waves and bosses using the updated sprites, and round transitions mirror single-player messaging/backgrounds.
+- Added `SharedMultiplayerRoundCoordinator` to consolidate round layout (near vs boss, background changes) across the multiplayer canvas and server implementations.
+- Coordinator now owns near/boss reward bookkeeping (skill points, drops, alien count) so both multiplayer runtime paths stay in sync.
+- Server intermission messaging is now derived from the shared coordinator, keeping wave/boss transitions aligned between authoritative and client runtimes.
+- Multiplayer HUD now mirrors coin popups/total tracking from single-player, and snapshots include per-player coin totals for remote clients.

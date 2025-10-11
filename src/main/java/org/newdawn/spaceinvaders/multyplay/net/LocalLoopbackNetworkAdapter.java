@@ -51,7 +51,11 @@ public class LocalLoopbackNetworkAdapter implements GameNetworkAdapter {
                     ps.getMaxHP(),
                     ps.getAttackPower(),
                     ps.getAttackSpeed(),
-                    ps.getSkillPoints()));
+                    ps.getSkillPoints(),
+                    0, 0, 0, 0,
+                    ps.getEarnedCoins(),
+                    0L, 0L, 0L,
+                    0, 0, 0));
         }
         latest = new GameSnapshot(tickCounter, nowMillis, delta, gsm.getCurrentRound(), entitySnaps, pmap,
                 GameSnapshot.Phase.ACTIVE, false, Collections.emptyMap(), null);

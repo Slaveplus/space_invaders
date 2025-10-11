@@ -276,6 +276,15 @@ public class ShotEntity extends Entity {
 				if (killed) {
 					game.notifyAlienKilled(ownerId, other.getX(), other.getY());
 				}
+			} else if (other instanceof NearEntity) {
+				NearEntity near = (NearEntity) other;
+				String ownerId = getOwnerId();
+				int attackPower = game.getPlayerAttackPower(ownerId);
+				near.takeDamage(attackPower, ownerId);
+				game.removeEntity(this);
+				HeatEffectEntity heatEffect = new HeatEffectEntity(game, (int) x, (int) y);
+				game.addEntity(heatEffect);
+				used = true;
 			} else if (other instanceof BossEntity) {
 				BossEntity boss = (BossEntity) other;
 				String ownerId = getOwnerId();

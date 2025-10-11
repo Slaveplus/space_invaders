@@ -20,6 +20,15 @@
   - Handling near-monster wave completion extending into boss waves.
   - Handling round clears (rewards, background changes, game completion messaging).
 
+### Multiplayer Visual Parity
+- Added `multyplay/entity/NearEntity` plus supporting shot handling so near-wave phases mirror the single-player flow.
+- `MultiplayerGameCanvas` and `ServerMultiplayerGame` now spawn near waves/bosses using the updated sprites, advance to all 8 rounds, and update backgrounds/messages in lockstep.
+- Multiplayer HUD adopts the Kostar font styling to align with the refreshed single-player UI.
+- Introduced `SharedMultiplayerRoundCoordinator` so both the canvas and server share near/boss spawning and background updates.
+- Coordinator now handles near/boss rewards (skill points, drop checks, alien counts) to keep client and server outcomes aligned.
+- Server intermission descriptors now come from the shared coordinator so player-facing messaging is consistent across modes.
+- Multiplayer HUD mirrors single-player coin popups and snapshot payloads now include per-player coin totals for remote clients.
+
 ### What Has *Not* Been Changed Yet
 - `Game` still contains substantial gameplay logic (skill usage, coin display, entity creation). Only the entry points for rounds & kill flow were moved.
 - Multiplayer runtime (`multyplay/core/MultiplayerGameCanvas`, server implementation, etc.) still references its own state/skill management. No shared coordinator usage yet.
@@ -52,17 +61,17 @@
    - Ensure `Game` is only responsible for UI and input while the coordinator handles all entity management.
    - Update tests or add manual verification for near/boss transitions to confirm no regressions.
 
-2. **Multiplayer adapter skeleton:**
-   - Implement a `MultiplayerGameplayContext` or adaptor class around `MultiplayerGameCanvas` / `ServerMultiplayerGame` so the coordinator can be reused with minimal duplication.
-   - Identify network-facing logic that still needs to be triggered (e.g. sending snapshots when round transitions occur).
+2. **Remote reward visuals:**
+   - Relay coin popup events over the network so non-host clients see the same floating indicators.
+   - Consider snapshot metadata or lightweight events for transient visuals without bloating entity lists.
 
 3. **SkillManager refactor:**
    - Generalize `SkillManager` so it works against the context (or create a shared version). Avoid referencing `ArrayList` directly.
    - Align skill drops (types, values) so multiplayer matches the single-player behaviour.
 
-4. **Server adjustments:**
-   - Once the client canvas uses the coordinator, port the server’s round/kill logic to the same module for authoritative sync.
-   - Update snapshot protocol if necessary to include reward events or additional metadata.
+4. **Snapshot metadata:**
+   - Audit snapshot payloads (near HP, boss phases, reward timers) so clients render the same state received from the server.
+   - Extend descriptors as needed to cover new HUD cues once reward feedback is unified.
 
 5. **Testing / Validation:**
    - When both modes share the coordinator, add regression checks (manual or automated) covering all 8 rounds, near/boss transitions, and skill/coin behaviour.
@@ -94,3 +103,8 @@
 - Coordinate with any additional network or UI updates before refactoring multiplayer to ensure no conflicting assumptions.
 
 Good luck! Feel free to ping if any context is missing.
+
+## Challenges Encountered During Coordinator Integration
+- Attempting to wire multiplayer directly to the shared coordinator exposed structural gaps (no NearEntity analogue, different spawn logic tied to networking).
+- Adapting the coordinator requires either introducing multiplayer equivalents of single-player entities or generalising the coordinator interface further.
+- To avoid breaking the current build, changes were reverted; follow-up work is summarised in README above.

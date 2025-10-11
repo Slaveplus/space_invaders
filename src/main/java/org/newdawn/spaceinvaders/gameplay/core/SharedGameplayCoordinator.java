@@ -123,22 +123,23 @@ public class SharedGameplayCoordinator {
 
     public void handleRoundClear(String playerId) {
         GameStateManager gsm = getGameStateManager();
+        String targetId = playerId != null ? playerId : gsm.getLocalPlayerId();
+        int completedRound = gsm.getCurrentRound();
+
+        int bossReward = Math.max(0, completedRound * 15);
+        if (bossReward > 0) {
+            context.addEarnedCoins(targetId, bossReward);
+        }
+
         boolean advanced = gsm.advanceRound();
 
         if (advanced) {
-            int clearedRound = gsm.getCurrentRound() - 1;
-            int reward = Math.max(0, clearedRound * 10);
-            if (reward > 0) {
-                context.addEarnedCoins(playerId, reward);
-            }
-
             context.onRoundBackgroundChanged(gsm.getCurrentRound());
             resetEntities();
-            initializeRound(playerId);
+            initializeRound(targetId);
             gsm.setMessage("");
             gsm.setWaitingForKeyPress(false);
         } else {
-            context.addEarnedCoins(playerId, 100);
             notifyGameCompleted(gsm);
         }
     }

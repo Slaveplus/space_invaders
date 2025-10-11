@@ -16,7 +16,7 @@ public class MultiplayerGameStateManager {
 
     // ====== 라운드 정보 ======
     private int currentRound = 1;
-    private final int MAX_ROUND = 5;
+    private final int MAX_ROUND = 8;
     private int alienCount;
 
     // ====== 멀티플레이 지원: 플레이어 상태 집합 ======
@@ -139,6 +139,31 @@ public class MultiplayerGameStateManager {
     public PlayerState ensurePlayer(String playerId) { return players.computeIfAbsent(playerId, PlayerState::new); }
     public String getLocalPlayerId() { return localPlayerId; }
     public void setLocalPlayerId(String localPlayerId) { this.localPlayerId = localPlayerId; }
+
+    public void addCoins(String playerId, int amount) {
+        if (playerId == null) {
+            if (localPlayerId != null) {
+                ensurePlayer(localPlayerId).addCoins(amount);
+            }
+            return;
+        }
+        ensurePlayer(playerId).addCoins(amount);
+    }
+
+    public void addEarnedCoins(int amount) {
+        if (localPlayerId != null) {
+            getLocalPlayerState().addCoins(amount);
+        }
+    }
+
+    public int getEarnedCoins() {
+        return localPlayerId != null ? getLocalPlayerState().getEarnedCoins() : 0;
+    }
+
+    public int getEarnedCoins(String playerId) {
+        PlayerState ps = players.get(playerId);
+        return ps != null ? ps.getEarnedCoins() : 0;
+    }
     
     public long getLastFire() { return lastFire; }
     public void setLastFire(long lastFire) { this.lastFire = lastFire; }
