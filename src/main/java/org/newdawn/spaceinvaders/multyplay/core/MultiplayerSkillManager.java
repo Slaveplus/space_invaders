@@ -1,5 +1,10 @@
 package org.newdawn.spaceinvaders.multyplay.core;
 
+import java.util.ArrayList;
+import java.util.List;
+
+import org.newdawn.spaceinvaders.gameplay.core.SkillDropTable;
+import org.newdawn.spaceinvaders.gameplay.core.SkillDropTable.SkillDrop;
 import org.newdawn.spaceinvaders.multyplay.entity.AlienEntity;
 import org.newdawn.spaceinvaders.multyplay.entity.Entity;
 import org.newdawn.spaceinvaders.multyplay.state.MultiplayerGameStateManager;
@@ -22,14 +27,11 @@ public class MultiplayerSkillManager {
     // 스킬 효과 상태
     private boolean isInvincible = false;
     private long invincibleEndTime = 0;
-    private boolean hasPiercing = false;
-    private long piercingEndTime = 0;
     private boolean hasTripleShot = false;
     private long tripleShotEndTime = 0;
     
     // 스킬 인벤토리
     private int invincibleSkills = 0;
-    private int piercingSkills = 0;
     private int tripleShotSkills = 0;
     private int missileSkills = 0;
     
@@ -73,12 +75,10 @@ public class MultiplayerSkillManager {
         
         // Reset skill effects
         isInvincible = false;
-        hasPiercing = false;
         hasTripleShot = false;
         
         // Reset skill inventory
         invincibleSkills = 0;
-        piercingSkills = 0;
         tripleShotSkills = 0;
         missileSkills = 0;
     }
@@ -94,11 +94,6 @@ public class MultiplayerSkillManager {
             isInvincible = false;
         }
         
-        // Check piercing expiration
-        if (hasPiercing && currentTime >= piercingEndTime) {
-            hasPiercing = false;
-        }
-        
         // Check triple shot expiration
         if (hasTripleShot && currentTime >= tripleShotEndTime) {
             hasTripleShot = false;
@@ -111,8 +106,6 @@ public class MultiplayerSkillManager {
     public void addSkillToInventory(int skillType, int skillValue) {
         if (skillType == 0) { // Invincible skill
             invincibleSkills++;
-        } else if (skillType == 1) { // Piercing skill
-            piercingSkills++;
         } else if (skillType == 2) { // Triple shot skill
             tripleShotSkills++;
         } else if (skillType == 3) { // Missile skill
@@ -131,12 +124,6 @@ public class MultiplayerSkillManager {
                 invincibleSkills--;
                 isInvincible = true;
                 invincibleEndTime = currentTime + (skillValue * 1000);
-            }
-        } else if (skillType == 1) { // Piercing skill
-            if (piercingSkills > 0) {
-                piercingSkills--;
-                hasPiercing = true;
-                piercingEndTime = currentTime + (skillValue * 1000);
             }
         } else if (skillType == 2) { // Triple shot skill
             if (tripleShotSkills > 0) {
@@ -165,12 +152,6 @@ public class MultiplayerSkillManager {
                 isInvincible = true;
                 invincibleEndTime = currentTime + (skillValue * 1000); // Reset duration
             }
-        } else if (skillType == 1) { // Piercing skill
-            if (piercingSkills > 0) {
-                piercingSkills--;
-                hasPiercing = true;
-                piercingEndTime = currentTime + (skillValue * 1000); // Reset duration
-            }
         } else if (skillType == 2) { // Triple shot skill
             if (tripleShotSkills > 0) {
                 tripleShotSkills--;
@@ -196,7 +177,7 @@ public class MultiplayerSkillManager {
             dropX = (int) Math.round(killX);
             dropY = (int) Math.round(killY);
         } else {
-            java.util.List<Entity> entities = game.getEntities();
+            List<Entity> entities = game.getEntities();
             for (Entity entity : entities) {
                 if (entity instanceof AlienEntity) {
                     dropX = (int) Math.round(entity.getX());
@@ -209,25 +190,8 @@ public class MultiplayerSkillManager {
         dropX = Math.max(32, Math.min(768, dropX));
         dropY = Math.max(48, Math.min(560, dropY));
 
-        double random = Math.random();
-        int skillType;
-        int skillValue;
-
-        if (random < 0.25) {
-            skillType = 0; // Attack Power
-            skillValue = 5; // 5 seconds
-        } else if (random < 0.5) {
-            skillType = 1; // Attack Speed
-            skillValue = 10; // 10 seconds
-        } else if (random < 0.75) {
-            skillType = 2; // HP Recovery
-            skillValue = 8; // 8 seconds
-        } else {
-            skillType = 3; // Missile
-            skillValue = 1; // 1 missile
-        }
-
-        addSkillDrop(dropX, dropY, skillType, skillValue);
+        SkillDrop drop = SkillDropTable.rollDrop(currentRound);
+        addSkillDrop(dropX, dropY, drop.skillType, drop.skillValue);
     }
     
     /**
@@ -324,12 +288,6 @@ public class MultiplayerSkillManager {
     public long getInvincibleEndTime() { return invincibleEndTime; }
     public void setInvincibleEndTime(long invincibleEndTime) { this.invincibleEndTime = invincibleEndTime; }
     
-    public boolean hasPiercing() { return hasPiercing; }
-    public void setHasPiercing(boolean hasPiercing) { this.hasPiercing = hasPiercing; }
-    
-    public long getPiercingEndTime() { return piercingEndTime; }
-    public void setPiercingEndTime(long piercingEndTime) { this.piercingEndTime = piercingEndTime; }
-    
     public boolean hasTripleShot() { return hasTripleShot; }
     public void setHasTripleShot(boolean hasTripleShot) { this.hasTripleShot = hasTripleShot; }
     
@@ -338,9 +296,6 @@ public class MultiplayerSkillManager {
     
     public int getInvincibleSkills() { return invincibleSkills; }
     public void setInvincibleSkills(int invincibleSkills) { this.invincibleSkills = invincibleSkills; }
-    
-    public int getPiercingSkills() { return piercingSkills; }
-    public void setPiercingSkills(int piercingSkills) { this.piercingSkills = piercingSkills; }
     
     public int getTripleShotSkills() { return tripleShotSkills; }
     public void setTripleShotSkills(int tripleShotSkills) { this.tripleShotSkills = tripleShotSkills; }
@@ -363,8 +318,8 @@ public class MultiplayerSkillManager {
         String ownerId = resolveOwnerId();
         try {
             // Find a random enemy to target
-            java.util.List<Entity> entities = game.getEntities();
-            java.util.List<Entity> enemies = new java.util.ArrayList<>();
+            List<Entity> entities = game.getEntities();
+            List<Entity> enemies = new ArrayList<>();
             
             for (Entity entity : entities) {
                 if (entity instanceof AlienEntity) {

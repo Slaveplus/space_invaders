@@ -50,10 +50,13 @@ public class CoinDisplayEntity extends Entity {
     @Override
     public void move(long delta) {
         super.move(delta);
-        long elapsed = System.currentTimeMillis() - creationTime;
-        if (elapsed > DISPLAY_DURATION_MS) {
+        if (isExpired()) {
             game.removeEntity(this);
         }
+    }
+
+    public boolean isExpired() {
+        return System.currentTimeMillis() - creationTime > DISPLAY_DURATION_MS;
     }
 
     @Override

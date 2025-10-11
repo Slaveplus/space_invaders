@@ -1,7 +1,11 @@
 package org.newdawn.spaceinvaders.gameplay;
 
 import java.util.ArrayList;
+import java.util.List;
 
+import org.newdawn.spaceinvaders.gameplay.core.GameplayContext;
+import org.newdawn.spaceinvaders.gameplay.core.SkillDropTable;
+import org.newdawn.spaceinvaders.gameplay.core.SkillDropTable.SkillDrop;
 import org.newdawn.spaceinvaders.gameplay.entity.AlienEntity;
 import org.newdawn.spaceinvaders.gameplay.entity.Entity;
 
@@ -31,11 +35,11 @@ public class SkillManager {
     private int tripleShotSkills = 0;
     private int missileSkills = 0;
     
-    // 게임 참조
-    private Game game;
+    // 게임 컨텍스트
+    private final GameplayContext context;
     
-    public SkillManager(Game game) {
-        this.game = game;
+    public SkillManager(GameplayContext context) {
+        this.context = context;
     }
     
     /**
@@ -147,7 +151,7 @@ public class SkillManager {
         int dropY = 100; // Default top position
         
         // Try to find an alien position for more realistic dropping
-        ArrayList<Entity> entities = game.getEntities();
+        List<Entity> entities = context.getActiveEntities();
         for (Entity entity : entities) {
             if (entity instanceof org.newdawn.spaceinvaders.gameplay.entity.AlienEntity) {
                 dropX = (int) entity.getX();
@@ -156,35 +160,15 @@ public class SkillManager {
             }
         }
         
-        // Random skill type (0: Attack Power, 1: Attack Speed, 2: HP Recovery, 3: Missile)
-        double random = Math.random();
-        int skillType;
-        int skillValue;
-        
-        if (random < 0.25) {
-            skillType = 0; // Attack Power
-            skillValue = 5; // 5 seconds
-        } else if (random < 0.5) {
-            skillType = 1; // Attack Speed
-            skillValue = 10; // 10 seconds
-        } else if (random < 0.75) {
-            skillType = 2; // HP Recovery
-            skillValue = 8; // 8 seconds
-        } else {
-            skillType = 3; // Missile
-            skillValue = 1; // 1 missile
-        }
-        
-        // Create skill entity
-        addSkillDrop(dropX, dropY, skillType, skillValue);
+        SkillDrop drop = SkillDropTable.rollDrop(currentRound);
+        addSkillDrop(dropX, dropY, drop.skillType, drop.skillValue);
     }
     
     /**
      * 스킬 드롭 엔티티 추가
      */
     private void addSkillDrop(int x, int y, int skillType, int skillValue) {
-        // Game의 createSkillDrop 메서드를 사용하여 스킬 드롭 생성
-        game.createSkillDrop(x, y, skillType, skillValue);
+        context.createSkillDrop(x, y, skillType, skillValue);
     }
     
     
@@ -303,8 +287,8 @@ public class SkillManager {
     private void fireMissileAtRandomTarget() {
         try {
             // Find a random enemy to target
-            java.util.List<Entity> entities = game.getEntities();
-            java.util.List<Entity> enemies = new java.util.ArrayList<>();
+            List<Entity> entities = context.getActiveEntities();
+            List<Entity> enemies = new ArrayList<>();
             
             for (Entity entity : entities) {
                 if (entity instanceof AlienEntity) {
@@ -317,18 +301,18 @@ public class SkillManager {
                 Entity target = enemies.get((int)(Math.random() * enemies.size()));
                 
                 // Fire missile at target location
-                game.fireMissile(target.getX() + 15, target.getY() + 15);
+                context.fireMissile(null, target.getX() + 15, target.getY() + 15);
             } else {
                 // No enemies, fire missile at random screen position
                 double randomX = 100 + Math.random() * 600;
                 double randomY = 100 + Math.random() * 300;
-                game.fireMissile(randomX, randomY);
+                context.fireMissile(null, randomX, randomY);
             }
         } catch (Exception e) {
             System.err.println("Error firing missile: " + e.getMessage());
             e.printStackTrace();
             // Fallback: fire missile at center of screen
-            game.fireMissile(400, 300);
+            context.fireMissile(null, 400, 300);
         }
     }
     

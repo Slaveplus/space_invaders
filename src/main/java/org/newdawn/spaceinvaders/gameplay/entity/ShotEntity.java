@@ -25,7 +25,7 @@ public class ShotEntity extends Entity {
 	private boolean isAlienShot = false;
 	/** True if this is a skill drop */
 	private boolean isSkillDrop = false;
-	/** Skill type for skill drops (0: Invincible, 1: Piercing) */
+	/** Skill type for skill drops (0: Invincible, 2: Triple Shot, 3: Missile) */
 	private int skillType = -1;
 	/** Skill value for skill drops */
 	private int skillValue = 0;
@@ -79,7 +79,7 @@ public class ShotEntity extends Entity {
 	 * @param sprite The sprite representing this shot
 	 * @param x The initial x location of the shot
 	 * @param y The initial y location of the shot
-	 * @param skillType The type of skill (0: Invincible, 1: Piercing)
+	 * @param skillType The type of skill (0: Invincible, 2: Triple Shot, 3: Missile)
 	 * @param skillValue The value of the skill
 	 */
 	public ShotEntity(Game game,String sprite,int x,int y,int skillType,int skillValue) {

@@ -326,9 +326,10 @@ public class Game extends Canvas implements Screen, GameplayContext
 	 * 
 	 * @param x The x location where the skill drop is created
 	 * @param y The y location where the skill drop is created
-	 * @param skillType The type of skill (0: Invincible, 1: Piercing, 2: Triple Shot)
+	 * @param skillType The type of skill (0: Invincible, 2: Triple Shot, 3: Missile)
 	 * @param skillValue The value/duration of the skill
 	 */
+	@Override
 	public void createSkillDrop(int x, int y, int skillType, int skillValue) {
 		System.out.println("🎁 createSkillDrop called: type=" + skillType + ", value=" + skillValue + " at (" + x + ", " + y + ")");
 		
@@ -433,13 +434,8 @@ public class Game extends Canvas implements Screen, GameplayContext
 		skillManager.addSkillToInventory(skillType, skillValue);
 	}
 	
-	/**
-	 * Fire missile at a target location
-	 * 
-	 * @param targetX The target x location
-	 * @param targetY The target y location
-	 */
-	public void fireMissile(double targetX, double targetY) {
+	@Override
+	public void fireMissile(String playerId, double targetX, double targetY) {
 		try {
 			// Fire missile from player position
 			MissileEntity missile = new MissileEntity(this, "sprites/Skill/Missile.png", 
@@ -449,6 +445,13 @@ public class Game extends Canvas implements Screen, GameplayContext
 			System.err.println("Error firing missile: " + e.getMessage());
 			e.printStackTrace();
 		}
+	}
+
+	/**
+	 * Convenience overload used by legacy callers that do not track player ids.
+	 */
+	public void fireMissile(double targetX, double targetY) {
+		fireMissile(null, targetX, targetY);
 	}
 	
 	/**

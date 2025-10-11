@@ -143,16 +143,11 @@ public class InputManager {
             }
             
             if (e.getKeyCode() == KeyEvent.VK_2) {
-                skillManager.extendSkill(1, 10); // 10 seconds piercing
-                return;
-            }
-            
-            if (e.getKeyCode() == KeyEvent.VK_3) {
                 skillManager.extendSkill(2, 8); // 8 seconds triple shot
                 return;
             }
             
-            if (e.getKeyCode() == KeyEvent.VK_4) {
+            if (e.getKeyCode() == KeyEvent.VK_3) {
                 skillManager.activateSkill(3, 1); // Activate missile skill
                 return;
             }

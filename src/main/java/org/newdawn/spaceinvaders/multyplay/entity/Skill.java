@@ -19,7 +19,7 @@ public class Skill extends Entity {
     private MultiplayerGameContext game;
     /** True if this skill has been "used", i.e. collected by player */
     private boolean used = false;
-    /** Skill type (0: Invincible, 1: Piercing, 2: Triple Shot) */
+    /** Skill type (0: Invincible, 2: Triple Shot, 3: Missile) */
     private int skillType;
     /** Skill value/duration */
     private int skillValue;
@@ -36,7 +36,7 @@ public class Skill extends Entity {
      * @param sprite The sprite representing this skill
      * @param x The initial x location of the skill
      * @param y The initial y location of the skill
-     * @param skillType The type of skill (0: Invincible, 1: Piercing, 2: Triple Shot)
+     * @param skillType The type of skill (0: Invincible, 2: Triple Shot, 3: Missile)
      * @param skillValue The value/duration of the skill
      */
     public Skill(MultiplayerGameContext game, String sprite, int x, int y, int skillType, int skillValue) {
@@ -126,13 +126,10 @@ public class Skill extends Entity {
     private void loadSkillIcon() {
         String iconPath;
         switch (skillType) {
-            case 0: // Attack Power
+            case 0: // Invincible
                 iconPath = "sprites/Skill/Icon.1_45.png";
                 break;
-            case 1: // Attack Speed
-                iconPath = "sprites/Skill/Icon.6_26.png";
-                break;
-            case 2: // HP Recovery
+            case 2: // Triple Shot
                 iconPath = "sprites/Skill/Icon.7_11.png";
                 break;
             case 3: // Missile

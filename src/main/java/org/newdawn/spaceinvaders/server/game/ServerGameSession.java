@@ -7,6 +7,7 @@ import static org.newdawn.spaceinvaders.server.MessageType.GAME_STATE;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
@@ -298,15 +299,17 @@ public class ServerGameSession implements Runnable {
         String line = builder.toLine();
         sendToAll(line);
 
-        // Events are currently empty; placeholder for future use.
-        String eventsPayload = GameEventCodec.encode(Collections.<GameEvent>emptyList());
-        if (!eventsPayload.isEmpty()) {
-            String eventLine = TextMessage.builder(GAME_EVENT)
-                    .put(ProtocolKeys.ROOM_ID, room.getId())
-                    .put(ProtocolKeys.TICK, snapshot.tick)
-                    .put(ProtocolKeys.EVENTS, eventsPayload)
-                    .toLine();
-            sendToAll(eventLine);
+        List<GameEvent> pendingEvents = game.drainPendingEvents();
+        if (pendingEvents != null && !pendingEvents.isEmpty()) {
+            String eventsPayload = GameEventCodec.encode(pendingEvents);
+            if (!eventsPayload.isEmpty()) {
+                String eventLine = TextMessage.builder(GAME_EVENT)
+                        .put(ProtocolKeys.ROOM_ID, room.getId())
+                        .put(ProtocolKeys.TICK, snapshot.tick)
+                        .put(ProtocolKeys.EVENTS, eventsPayload)
+                        .toLine();
+                sendToAll(eventLine);
+            }
         }
     }
 

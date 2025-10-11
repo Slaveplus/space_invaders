@@ -45,6 +45,11 @@ public class MultiplayerGameStateManager {
     private final long baseAlienFiringInterval = 1500;
     private final long firingInterval = 500;
 
+    private int earnedCoins = 0;
+    private long gameStartTime = 0;
+    private long pausedTime = 0;
+    private long pauseStartTime = 0;
+
     // FPS 카운터 (필요 시 외부에서 사용 가능하도록 유지)
     private long lastFpsTime;
     private int fps;
@@ -97,6 +102,11 @@ public class MultiplayerGameStateManager {
         message = "";
         logicRequiredThisLoop = false;
         isRoundTransition = false;
+
+        earnedCoins = 0;
+        gameStartTime = System.currentTimeMillis();
+        pausedTime = 0;
+        pauseStartTime = 0;
     }
     
     // Getters and Setters for gameplay state
@@ -141,28 +151,43 @@ public class MultiplayerGameStateManager {
     public void setLocalPlayerId(String localPlayerId) { this.localPlayerId = localPlayerId; }
 
     public void addCoins(String playerId, int amount) {
+        if (amount == 0) {
+            return;
+        }
         if (playerId == null) {
             if (localPlayerId != null) {
                 ensurePlayer(localPlayerId).addCoins(amount);
+                earnedCoins += amount;
             }
             return;
         }
         ensurePlayer(playerId).addCoins(amount);
+        if (playerId.equals(localPlayerId)) {
+            earnedCoins += amount;
+        }
     }
 
     public void addEarnedCoins(int amount) {
         if (localPlayerId != null) {
             getLocalPlayerState().addCoins(amount);
         }
+        earnedCoins += amount;
     }
 
     public int getEarnedCoins() {
-        return localPlayerId != null ? getLocalPlayerState().getEarnedCoins() : 0;
+        return earnedCoins;
     }
 
     public int getEarnedCoins(String playerId) {
         PlayerState ps = players.get(playerId);
         return ps != null ? ps.getEarnedCoins() : 0;
+    }
+
+    public void setEarnedCoins(int amount) {
+        this.earnedCoins = amount;
+        if (localPlayerId != null) {
+            ensurePlayer(localPlayerId).setEarnedCoins(amount);
+        }
     }
     
     public long getLastFire() { return lastFire; }
@@ -183,6 +208,47 @@ public class MultiplayerGameStateManager {
     
     public int getFps() { return fps; }
     public void setFps(int fps) { this.fps = fps; }
+
+    public long getGameStartTime() { return gameStartTime; }
+    public void setGameStartTime(long gameStartTime) { this.gameStartTime = gameStartTime; }
+
+    public String getPlayTime() {
+        if (gameStartTime == 0) {
+            return "00:00";
+        }
+
+        long currentTime = System.currentTimeMillis();
+        long playTimeMs = currentTime - gameStartTime;
+
+        if (pauseStartTime > 0) {
+            playTimeMs -= (currentTime - pauseStartTime);
+        }
+
+        playTimeMs -= pausedTime;
+
+        long totalSeconds = playTimeMs / 1000;
+        long minutes = totalSeconds / 60;
+        long seconds = totalSeconds % 60;
+
+        return String.format("%02d:%02d", minutes, seconds);
+    }
+
+    public long getPlayTimeMs() {
+        if (gameStartTime == 0) {
+            return 0;
+        }
+
+        long currentTime = System.currentTimeMillis();
+        long playTimeMs = currentTime - gameStartTime;
+
+        if (pauseStartTime > 0) {
+            playTimeMs -= (currentTime - pauseStartTime);
+        }
+
+        playTimeMs -= pausedTime;
+
+        return playTimeMs;
+    }
     
     public ArrayList<Entity> getEntities() { return entities; }
     public ArrayList<Entity> getRemoveList() { return removeList; }

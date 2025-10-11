@@ -30,7 +30,6 @@ public interface MultiplayerGameContext {
 
     int getCurrentRound();
     int getPlayerAttackPower(String playerId);
-    boolean hasPiercingShots(String playerId);
     boolean isPlayerInvincible(String playerId);
 
     ShipEntity getShip(String playerId);

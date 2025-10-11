@@ -1,21 +1,22 @@
 package org.newdawn.spaceinvaders.server.game;
 
 import java.awt.geom.Point2D;
-import java.util.HashMap;
+import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
-import java.util.Locale;
+import java.util.Queue;
 import java.util.Random;
 
 import org.newdawn.spaceinvaders.multyplay.core.MultiplayerGameContext;
 import org.newdawn.spaceinvaders.multyplay.state.MultiplayerGameStateManager;
-import org.newdawn.spaceinvaders.multyplay.core.MultiplayerSkillManager;
-import org.newdawn.spaceinvaders.multyplay.core.SharedMultiplayerRoundCoordinator;
 import org.newdawn.spaceinvaders.multyplay.entity.AlienEntity;
 import org.newdawn.spaceinvaders.multyplay.entity.BossEntity;
 import org.newdawn.spaceinvaders.multyplay.entity.Entity;
@@ -25,8 +26,11 @@ import org.newdawn.spaceinvaders.multyplay.entity.MissileEntity;
 import org.newdawn.spaceinvaders.multyplay.entity.NearEntity;
 import org.newdawn.spaceinvaders.multyplay.entity.ShipEntity;
 import org.newdawn.spaceinvaders.multyplay.entity.ShotEntity;
+import org.newdawn.spaceinvaders.multyplay.net.GameEvent;
 import org.newdawn.spaceinvaders.multyplay.net.GameSnapshot;
 import org.newdawn.spaceinvaders.multyplay.net.PlayerInput;
+import org.newdawn.spaceinvaders.multyplay.core.MultiplayerSkillManager;
+import org.newdawn.spaceinvaders.multyplay.core.SharedMultiplayerRoundCoordinator;
 import org.newdawn.spaceinvaders.multyplay.state.PlayerState;
 
 /**
@@ -51,6 +55,7 @@ public class ServerMultiplayerGame implements MultiplayerGameContext {
     private Runnable pendingRoundInitializer;
     private boolean inIntermission;
     private boolean gameStarted;
+    private final Queue<GameEvent> pendingEvents = new ArrayDeque<>();
 
     public static class RoundTransition {
         public enum Type { WAVE_CLEARED, BOSS_DEFEATED, GAME_COMPLETED }
@@ -416,11 +421,9 @@ public class ServerMultiplayerGame implements MultiplayerGameContext {
         String playerId = ps.getPlayerId();
         MultiplayerSkillManager manager = skillManager(playerId);
         int invCount = manager != null ? manager.getInvincibleSkills() : 0;
-        int pierceCount = manager != null ? manager.getPiercingSkills() : 0;
         int tripleCount = manager != null ? manager.getTripleShotSkills() : 0;
         int missileCount = manager != null ? manager.getMissileSkills() : 0;
         long invRem = manager != null ? Math.max(0L, manager.getInvincibleEndTime() - serverTime) : 0L;
-        long pierceRem = manager != null ? Math.max(0L, manager.getPiercingEndTime() - serverTime) : 0L;
         long tripleRem = manager != null ? Math.max(0L, manager.getTripleShotEndTime() - serverTime) : 0L;
         int atkLevel = manager != null ? manager.getAttackPowerLevel() : 0;
         int aspdLevel = manager != null ? manager.getAttackSpeedLevel() : 0;
@@ -434,12 +437,12 @@ public class ServerMultiplayerGame implements MultiplayerGameContext {
                 ps.getAttackSpeed(),
                 ps.getSkillPoints(),
                 invCount,
-                pierceCount,
+                0,
                 tripleCount,
                 missileCount,
                 ps.getEarnedCoins(),
                 invRem,
-                pierceRem,
+                0L,
                 tripleRem,
                 atkLevel,
                 aspdLevel,
@@ -453,6 +456,15 @@ public class ServerMultiplayerGame implements MultiplayerGameContext {
                 waitingForPlayers,
                 readyStates,
                 message);
+    }
+
+    public List<GameEvent> drainPendingEvents() {
+        if (pendingEvents.isEmpty()) {
+            return Collections.emptyList();
+        }
+        List<GameEvent> events = new ArrayList<>(pendingEvents);
+        pendingEvents.clear();
+        return events;
     }
 
     // ===== 내부 로직 재사용 =====
@@ -604,12 +616,6 @@ public class ServerMultiplayerGame implements MultiplayerGameContext {
                 }
                 manager.extendSkill(0, 5);
                 return new SkillActionResult(true, null);
-            case 1:
-                if (manager.getPiercingSkills() <= 0) {
-                    return new SkillActionResult(false, "관통 스킬이 부족합니다.");
-                }
-                manager.extendSkill(1, 10);
-                return new SkillActionResult(true, null);
             case 2:
                 if (manager.getTripleShotSkills() <= 0) {
                     return new SkillActionResult(false, "3줄 공격 스킬이 부족합니다.");
@@ -622,6 +628,8 @@ public class ServerMultiplayerGame implements MultiplayerGameContext {
                 }
                 manager.activateSkill(3, 1);
                 return new SkillActionResult(true, null);
+            case 1:
+                return new SkillActionResult(false, "관통 스킬은 더 이상 사용할 수 없습니다.");
             default:
                 return new SkillActionResult(false, "알 수 없는 스킬입니다.");
         }
@@ -885,11 +893,6 @@ public class ServerMultiplayerGame implements MultiplayerGameContext {
     }
 
     @Override
-    public boolean hasPiercingShots(String playerId) {
-        return skillManager(playerId).hasPiercing();
-    }
-
-    @Override
     public boolean isPlayerInvincible(String playerId) {
         return skillManager(playerId).isInvincible();
     }
@@ -973,7 +976,20 @@ public class ServerMultiplayerGame implements MultiplayerGameContext {
 
     @Override
     public void showCoinEarned(String playerId, int x, int y, int coinAmount) {
-        // server side only needs to track coins; visual feedback handled client-side
+        if (coinAmount <= 0) {
+            return;
+        }
+        if (playerId == null || playerId.isEmpty()) {
+            playerId = primaryPlayerId;
+        }
+        if (playerId == null || playerId.isEmpty()) {
+            return;
+        }
+        String payload = x + "|" + y + "|" + coinAmount;
+        pendingEvents.add(new GameEvent(GameEvent.Type.COIN_POPUP,
+                playerId,
+                payload,
+                System.currentTimeMillis()));
     }
 
     @Override

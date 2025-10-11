@@ -24,3 +24,6 @@ This incremental approach keeps the first step safe: no runtime wiring has chang
 - Coordinator now owns near/boss reward bookkeeping (skill points, drops, alien count) so both multiplayer runtime paths stay in sync.
 - Server intermission messaging is now derived from the shared coordinator, keeping wave/boss transitions aligned between authoritative and client runtimes.
 - Multiplayer HUD now mirrors coin popups/total tracking from single-player, and snapshots include per-player coin totals for remote clients.
+- Reward popups are now broadcast as lightweight network events so remote clients see the same floating coin indicators as the host.
+- Shared skill drop table introduced for both runtimes; multiplayer skill set pared back to match single-player (invincible / triple shot / missile) with piercing removed.
+- Multiplayer HUD, stats, and skill hotkeys now render with the same layout and values as single-player, and near-wave enemies reuse the same sprites/physics to eliminate instant-hit and overlap issues.

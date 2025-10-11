@@ -150,15 +150,6 @@ public class MultiplayerInputManager {
             
             if (e.getKeyCode() == KeyEvent.VK_2) {
                 if (game.isRemoteSession()) {
-                    game.sendSkillActivationRequest(1);
-                } else {
-                    skillManager.extendSkill(1, 10); // 10 seconds piercing
-                }
-                return;
-            }
-            
-            if (e.getKeyCode() == KeyEvent.VK_3) {
-                if (game.isRemoteSession()) {
                     game.sendSkillActivationRequest(2);
                 } else {
                     skillManager.extendSkill(2, 8); // 8 seconds triple shot
@@ -166,7 +157,7 @@ public class MultiplayerInputManager {
                 return;
             }
             
-            if (e.getKeyCode() == KeyEvent.VK_4) {
+            if (e.getKeyCode() == KeyEvent.VK_3) {
                 if (game.isRemoteSession()) {
                     game.sendSkillActivationRequest(3);
                 } else {

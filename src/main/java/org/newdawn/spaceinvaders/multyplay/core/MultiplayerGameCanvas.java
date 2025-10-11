@@ -16,6 +16,7 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Iterator;
 
 import javax.imageio.ImageIO;
 
@@ -119,6 +120,7 @@ public class MultiplayerGameCanvas extends Canvas implements Screen, Multiplayer
 	private final Map<String, Boolean> remoteReadyStates = new LinkedHashMap<>();
 	private final Map<String, String> playerDisplayNames = new LinkedHashMap<>();
 	private final Deque<String> intermissionChatLines = new ArrayDeque<>();
+	private final List<CoinDisplayEntity> remoteCoinPopups = new ArrayList<>();
 	private String intermissionChatInput = "";
 	private boolean intermissionChatFocus = false;
 	private boolean localReady = false;
@@ -191,6 +193,7 @@ public class MultiplayerGameCanvas extends Canvas implements Screen, Multiplayer
 		this.remoteWaitingForPlayers = false;
 		gameStateManager.getEntities().clear();
 		gameStateManager.getRemoveList().clear();
+		remoteCoinPopups.clear();
 		gameStateManager.setWaitingForKeyPress(false);
 		if (initInfo != null && initInfo.players != null) {
 			for (GameInitInfo.Player p : initInfo.players) {
@@ -532,7 +535,7 @@ public class MultiplayerGameCanvas extends Canvas implements Screen, Multiplayer
 	 * 
 	 * @param x The x location where the skill drop is created
 	 * @param y The y location where the skill drop is created
-	 * @param skillType The type of skill (0: Invincible, 1: Piercing, 2: Triple Shot)
+	 * @param skillType The type of skill (0: Invincible, 2: Triple Shot, 3: Missile)
 	 * @param skillValue The value/duration of the skill
 	 */
 	@Override
@@ -558,13 +561,25 @@ public class MultiplayerGameCanvas extends Canvas implements Screen, Multiplayer
 
 	@Override
 	public void showCoinEarned(String playerId, int x, int y, int coinAmount) {
-		if (remoteMode) {
+		String localId = gameStateManager.getLocalPlayerId();
+		if (coinAmount <= 0) {
 			return;
 		}
-		String localId = gameStateManager.getLocalPlayerId();
 		if (playerId != null && localId != null && !playerId.equals(localId)) {
 			return;
 		}
+		if (remoteMode) {
+			if (localId == null) {
+				return;
+			}
+			CoinDisplayEntity display = new CoinDisplayEntity(this, x, y, coinAmount);
+			remoteCoinPopups.add(display);
+			return;
+		}
+		spawnCoinPopup(x, y, coinAmount);
+	}
+
+	private void spawnCoinPopup(int x, int y, int coinAmount) {
 		CoinDisplayEntity display = new CoinDisplayEntity(this, x, y, coinAmount);
 		addEntity(display);
 	}
@@ -630,18 +645,6 @@ public class MultiplayerGameCanvas extends Canvas implements Screen, Multiplayer
 		String targetId = playerId != null ? playerId : gameStateManager.getLocalPlayerId();
 		if (targetId != null && targetId.equals(gameStateManager.getLocalPlayerId())) {
 			return skillManager.isInvincible();
-		}
-		return false;
-	}
-	
-	/**
-	 * Check if player has piercing shots
-	 */
-	@Override
-	public boolean hasPiercingShots(String playerId) {
-		String targetId = playerId != null ? playerId : gameStateManager.getLocalPlayerId();
-		if (targetId != null && targetId.equals(gameStateManager.getLocalPlayerId())) {
-			return skillManager.hasPiercing();
 		}
 		return false;
 	}
@@ -728,6 +731,7 @@ public class MultiplayerGameCanvas extends Canvas implements Screen, Multiplayer
 					handleRemoteEvents(events);
 				}
 			}
+			updateRemoteCoinPopups(delta);
 			skillManager.updateSkillEffects();
 			return;
 		}
@@ -811,6 +815,9 @@ public class MultiplayerGameCanvas extends Canvas implements Screen, Multiplayer
 		if (snapshot == null) {
 			return;
 		}
+		if (gameStateManager.getGameStartTime() == 0) {
+			gameStateManager.setGameStartTime(System.currentTimeMillis());
+		}
 		Map<Long, Entity> next = new HashMap<>();
 		snapshotEntitiesBuffer.clear();
 		Entity localShipCandidate = null;
@@ -848,10 +855,10 @@ public class MultiplayerGameCanvas extends Canvas implements Screen, Multiplayer
 				ps.setAttackPower(state.atk);
 				ps.setAttackSpeed(state.aspd);
 				ps.setSkillPoints(state.skillPts);
-				ps.setEarnedCoins(state.coins);
-				if (entry.getKey() != null && entry.getKey().equals(localPlayerId)) {
+                ps.setEarnedCoins(state.coins);
+                if (entry.getKey() != null && entry.getKey().equals(localPlayerId)) {
+                    gameStateManager.setEarnedCoins(state.coins);
 					skillManager.setInvincibleSkills(state.invincibleCharges);
-					skillManager.setPiercingSkills(state.piercingCharges);
 					skillManager.setTripleShotSkills(state.tripleShotCharges);
 					skillManager.setMissileSkills(state.missileCharges);
 					skillManager.setAttackPowerLevel(state.attackPowerLevel);
@@ -864,13 +871,6 @@ public class MultiplayerGameCanvas extends Canvas implements Screen, Multiplayer
 					} else {
 						skillManager.setInvincible(false);
 						skillManager.setInvincibleEndTime(0);
-					}
-					if (state.piercingRemainingMs > 0) {
-						skillManager.setHasPiercing(true);
-						skillManager.setPiercingEndTime(now + state.piercingRemainingMs);
-					} else {
-						skillManager.setHasPiercing(false);
-						skillManager.setPiercingEndTime(0);
 					}
 					if (state.tripleShotRemainingMs > 0) {
 						skillManager.setHasTripleShot(true);
@@ -941,7 +941,7 @@ public class MultiplayerGameCanvas extends Canvas implements Screen, Multiplayer
 			case "AlienEntity": {
 				String spritePath = snapshot.sprite != null && !snapshot.sprite.isEmpty()
 						? snapshot.sprite
-						: "sprites/Boss/1round_small.png";
+						: "sprites/Boss/1near.png";
 				return new RemoteAlienEntity(spritePath, snapshot.x, snapshot.y);
 			}
 			default:
@@ -950,7 +950,7 @@ public class MultiplayerGameCanvas extends Canvas implements Screen, Multiplayer
 					if ("ShipEntity".equals(type)) {
 						spritePath = currentSpaceshipSkin;
 					} else if ("AlienEntity".equals(type)) {
-						spritePath = "sprites/Boss/1round_small.png";
+						spritePath = "sprites/Boss/1near.png";
 					} else {
 						spritePath = currentWeaponSkin;
 					}
@@ -1298,11 +1298,53 @@ public class MultiplayerGameCanvas extends Canvas implements Screen, Multiplayer
 					}
 					break;
 				}
+				case COIN_POPUP: {
+					if (!remoteMode) {
+						break;
+					}
+					String localId = localPlayerId != null ? localPlayerId : gameStateManager.getLocalPlayerId();
+					if (localId == null || event.fromPlayerId == null || !event.fromPlayerId.equals(localId)) {
+						break;
+					}
+					int popupX = 400;
+					int popupY = 200;
+					int reward = 0;
+					if (event.message != null && !event.message.isEmpty()) {
+						String[] parts = event.message.split("\\|", -1);
+						if (parts.length > 0) {
+							popupX = safeParseInt(parts[0], popupX);
+						}
+						if (parts.length > 1) {
+							popupY = safeParseInt(parts[1], popupY);
+						}
+						if (parts.length > 2) {
+							reward = safeParseInt(parts[2], reward);
+						}
+					}
+					if (reward > 0) {
+						showCoinEarned(localId, popupX, popupY, reward);
+					}
+					break;
+				}
 				case SKILL_UPDATE:
 					// Reserved for future skill synchronization events
 					break;
 				default:
 					break;
+			}
+		}
+	}
+
+	private void updateRemoteCoinPopups(long delta) {
+		if (!remoteMode || remoteCoinPopups.isEmpty()) {
+			return;
+		}
+		Iterator<CoinDisplayEntity> iterator = remoteCoinPopups.iterator();
+		while (iterator.hasNext()) {
+			CoinDisplayEntity popup = iterator.next();
+			popup.move(delta);
+			if (popup.isExpired()) {
+				iterator.remove();
 			}
 		}
 	}
@@ -1358,6 +1400,17 @@ public class MultiplayerGameCanvas extends Canvas implements Screen, Multiplayer
 				break;
 		}
 		return false;
+	}
+
+	private static int safeParseInt(String value, int defaultValue) {
+		if (value == null || value.isEmpty()) {
+			return defaultValue;
+		}
+		try {
+			return Integer.parseInt(value.trim());
+		} catch (NumberFormatException ignore) {
+			return defaultValue;
+		}
 	}
 
 	public boolean handleIntermissionKeyTyped(KeyEvent e) {
@@ -1622,6 +1675,7 @@ public class MultiplayerGameCanvas extends Canvas implements Screen, Multiplayer
 		// entities
 		ArrayList<Entity> entities = gameStateManager.getEntities();
 		for (Entity entity : entities) entity.draw(g);
+		drawRemoteCoinPopups(g);
 		drawLocalShipMarker(g);
 		// UI & overlays
 	uiRenderer.drawGameUI(g, gameStateManager, skillManager);
@@ -1638,6 +1692,15 @@ public class MultiplayerGameCanvas extends Canvas implements Screen, Multiplayer
 	}
 	}
 	
+	private void drawRemoteCoinPopups(Graphics2D g) {
+		if (!remoteMode || remoteCoinPopups.isEmpty()) {
+			return;
+		}
+		for (CoinDisplayEntity popup : remoteCoinPopups) {
+			popup.draw(g);
+		}
+	}
+
 	private void drawLocalShipMarker(Graphics2D g) {
 		if (localPlayerId == null || isLocalSpectatorActive()) {
 			return;

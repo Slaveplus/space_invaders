@@ -61,13 +61,13 @@
    - Ensure `Game` is only responsible for UI and input while the coordinator handles all entity management.
    - Update tests or add manual verification for near/boss transitions to confirm no regressions.
 
-2. **Remote reward visuals:**
-   - Relay coin popup events over the network so non-host clients see the same floating indicators.
-   - Consider snapshot metadata or lightweight events for transient visuals without bloating entity lists.
+2. **Remote reward visuals (completed):**
+   - Coin popup events now propagate over the network so non-host clients see the same floating indicators.
+   - Follow-up: add regression coverage (manual or automated) to confirm popups stay aligned under latency or packet loss.
 
-3. **SkillManager refactor:**
-   - Generalize `SkillManager` so it works against the context (or create a shared version). Avoid referencing `ArrayList` directly.
-   - Align skill drops (types, values) so multiplayer matches the single-player behaviour.
+3. **SkillManager refactor (in progress):**
+   - Shared drop table now feeds both single-player and multiplayer; piercing skill removed from multiplayer to mirror the single-player kit.
+   - Remaining: push `SkillManager` fully behind a shared context-aware abstraction and clean up residual single-player-only helpers.
 
 4. **Snapshot metadata:**
    - Audit snapshot payloads (near HP, boss phases, reward timers) so clients render the same state received from the server.

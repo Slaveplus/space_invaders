@@ -37,6 +37,10 @@ public interface GameplayContext {
 
     void removeEntity(Entity entity);
 
+    void createSkillDrop(int x, int y, int skillType, int skillValue);
+
+    void fireMissile(String playerId, double targetX, double targetY);
+
     void onRoundBackgroundChanged(int round);
 
     void addEarnedCoins(String playerId, int amount);

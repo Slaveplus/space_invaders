@@ -54,16 +54,18 @@ public class AlienEntity extends Entity {
 	private static String getAlienSpriteForRound(int round) {
 		switch (round) {
 			case 1:
-				return "sprites/Boss/1round_small.png";
+				return "sprites/Boss/1near.png";
 			case 2:
-				return "sprites/Boss/1round_small.png"; // alien2.gif 대신 사용
+				return "sprites/Boss/2near.png";
 			case 3:
-				return "sprites/Boss/1round_small.png"; // alien3.gif 대신 사용
+				return "sprites/Boss/3near.png";
 			case 4:
-				return "sprites/Boss/1round_small.png"; // alien.gif 대신 사용
+				return "sprites/Boss/4near.png";
+			case 5:
+				return "sprites/Boss/5near.png";
 			default:
-				// For rounds 5 and above, use 1round_small.png
-				return "sprites/Boss/1round_small.png";
+				// For rounds 6 and above, reuse the late-round near sprite
+				return "sprites/Boss/5near.png";
 		}
 	}
 	
@@ -273,21 +275,16 @@ public class AlienEntity extends Entity {
 	 * 
 	 * @return The bounds of the alien entity
 	 */
-	@Override
-	public java.awt.Rectangle getBounds() {
-		int spriteWidth = sprite.getWidth();
-		int spriteHeight = sprite.getHeight();
-		// 1라운드는 45% 축소, 나머지는 75%로 설정
-		double scale = (game.getCurrentRound() == 1) ? 0.45 : 0.75;
-		int scaledWidth = (int) Math.round(spriteWidth * scale);
-		int scaledHeight = (int) Math.round(spriteHeight * scale);
-		int centerX = (int) Math.round(x);
-		int centerY = (int) Math.round(y);
-		int topLeftX = centerX - (scaledWidth / 2);
-		int topLeftY = centerY - (scaledHeight / 2);
+    @Override
+    public java.awt.Rectangle getBounds() {
+        int scaledSize = game.getCurrentRound() == 1 ? 90 : 120;
+        int centerX = (int) Math.round(x);
+        int centerY = (int) Math.round(y);
+        int topLeftX = centerX - (scaledSize / 2);
+        int topLeftY = centerY - (scaledSize / 2);
 
-		return new java.awt.Rectangle(topLeftX, topLeftY, scaledWidth, scaledHeight);
-	}
+        return new java.awt.Rectangle(topLeftX, topLeftY, scaledSize, scaledSize);
+    }
 	
 	/**
 	 * Get the alien's maximum HP
@@ -415,20 +412,18 @@ public class AlienEntity extends Entity {
 	 */
 	@Override
 	public void draw(Graphics g) {
-		Graphics2D g2d = (Graphics2D) g;
-		if (sprite != null) {
-			// 1라운드는 30% 축소, 나머지는 75%로 설정
-			double scale = (game.getCurrentRound() == 1) ? 0.45 : 0.75; // 75% * 0.6 = 45% (30% 축소)
-			int scaledWidth = (int) Math.round(sprite.getWidth() * scale);
-			int scaledHeight = (int) Math.round(sprite.getHeight() * scale);
-			int drawX = (int) Math.round(x) - (scaledWidth / 2);
-			int drawY = (int) Math.round(y) - (scaledHeight / 2);
-			
-			g2d.drawImage(sprite.getImage(), drawX, drawY, 
-					 drawX + scaledWidth, drawY + scaledHeight,
-					 0, 0, sprite.getWidth(), sprite.getHeight(), null);
-		}
-	}
+        if (sprite == null) {
+            return;
+        }
+        Graphics2D g2d = (Graphics2D) g;
+        int scaledSize = game.getCurrentRound() == 1 ? 90 : 120;
+        int drawX = (int) Math.round(x) - (scaledSize / 2);
+        int drawY = (int) Math.round(y) - (scaledSize / 2);
+
+        g2d.drawImage(sprite.getImage(), drawX, drawY,
+                drawX + scaledSize, drawY + scaledSize,
+                0, 0, sprite.getWidth(), sprite.getHeight(), null);
+    }
 	
 	/**
 	 * Notification that this alien has collided with another entity

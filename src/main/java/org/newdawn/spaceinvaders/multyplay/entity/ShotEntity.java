@@ -29,7 +29,7 @@ public class ShotEntity extends Entity {
 	private boolean isAlienShot = false;
 	/** True if this is a skill drop */
 	private boolean isSkillDrop = false;
-	/** Skill type for skill drops (0: Invincible, 1: Piercing) */
+	/** Skill type for skill drops (0: Invincible, 2: Triple Shot, 3: Missile) */
 	private int skillType = -1;
 	/** Skill value for skill drops */
 	private int skillValue = 0;
@@ -106,7 +106,7 @@ public class ShotEntity extends Entity {
 	 * @param x The initial x location of the shot
 	 * @param y The initial y location of the shot
 	 * @param isAlienShot True if this is an alien shot
-	 * @param skillType Skill type for skill drops (0: Invincible, 1: Piercing)
+	 * @param skillType Skill type for skill drops (0: Invincible, 2: Triple Shot, 3: Missile)
 	 * @param skillValue Skill value for skill drops
 	 */
 	public ShotEntity(MultiplayerGameContext game,String sprite,int x,int y,boolean isAlienShot,int skillType,int skillValue) {
@@ -269,10 +269,10 @@ public class ShotEntity extends Entity {
 				boolean killed = alien.getCurrentHP() <= 0;
 				HeatEffectEntity heatEffect = new HeatEffectEntity(game, (int)x, (int)y);
 				game.addEntity(heatEffect);
-				if (!hasPiercing && !game.hasPiercingShots(ownerId)) {
-					game.removeEntity(this);
-					used = true;
-				}
+			if (!hasPiercing) {
+				game.removeEntity(this);
+				used = true;
+			}
 				if (killed) {
 					game.notifyAlienKilled(ownerId, other.getX(), other.getY());
 				}
@@ -342,13 +342,10 @@ public class ShotEntity extends Entity {
 	private BufferedImage loadSkillImage(int skillType) {
 		String imagePath;
 		switch (skillType) {
-			case 0: // Attack Power
+			case 0: // Invincible
 				imagePath = "sprites/Skill/1.png";
 				break;
-			case 1: // Attack Speed
-				imagePath = "sprites/Skill/2.png";
-				break;
-			case 2: // HP Recovery
+			case 2: // Triple Shot
 				imagePath = "sprites/Skill/3.png";
 				break;
 			case 3: // Missile

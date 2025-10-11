@@ -4,6 +4,7 @@ import java.awt.Color;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
 import java.awt.Image;
+import java.awt.Rectangle;
 import java.net.URL;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -91,7 +92,35 @@ public class NearEntity extends Entity {
             }
         }
 
+        preventOverlap();
         tryShoot();
+    }
+
+    private void preventOverlap() {
+        for (Entity entity : game.getEntities()) {
+            if (entity == this || !(entity instanceof NearEntity)) {
+                continue;
+            }
+            NearEntity other = (NearEntity) entity;
+            double dx = this.x - other.x;
+            double dy = this.y - other.y;
+            double distance = Math.sqrt(dx * dx + dy * dy);
+            double minDistance = 120; // approximate size
+            if (distance > 0 && distance < minDistance) {
+                double push = (minDistance - distance) / 2.0;
+                double nx = dx / distance;
+                double ny = dy / distance;
+                this.x += nx * push;
+                this.y += ny * push * 0.2; // subtle vertical adjustment
+                other.x -= nx * push;
+                other.y -= ny * push * 0.2;
+
+                this.x = Math.max(60, Math.min(740, this.x));
+                this.y = Math.max(80, Math.min(220, this.y));
+                other.x = Math.max(60, Math.min(740, other.x));
+                other.y = Math.max(80, Math.min(220, other.y));
+            }
+        }
     }
 
     private void tryShoot() {
@@ -127,11 +156,11 @@ public class NearEntity extends Entity {
 		map.put("monster", Integer.toString(monsterId));
 		map.put("hp", Integer.toString(Math.max(0, currentHP)));
 		map.put("max", Integer.toString(maxHP));
-		return MetadataCodec.encode(map);
-	}
+        return MetadataCodec.encode(map);
+    }
 
-	@Override
-	protected void applySnapshotMetadata(String metadata) {
+    @Override
+    protected void applySnapshotMetadata(String metadata) {
 		Map<String, String> map = MetadataCodec.decode(metadata);
 		if (!map.isEmpty()) {
 			try {
@@ -179,6 +208,15 @@ public class NearEntity extends Entity {
     @Override
     public void collidedWith(Entity other) {
         // 충돌 처리는 ShotEntity 쪽에서 담당한다.
+    }
+
+    @Override
+    public java.awt.Rectangle getBounds() {
+        int width = 120;
+        int height = 120;
+        int topLeftX = (int) x - width / 2;
+        int topLeftY = (int) y - height / 2;
+        return new java.awt.Rectangle(topLeftX, topLeftY, width, height);
     }
 
     public int getCurrentHP() {
