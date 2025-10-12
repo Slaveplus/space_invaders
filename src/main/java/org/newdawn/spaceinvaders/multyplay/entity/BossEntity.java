@@ -1,50 +1,506 @@
 package org.newdawn.spaceinvaders.multyplay.entity;
 
+import java.awt.Color;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
-
-import org.newdawn.spaceinvaders.multyplay.core.MultiplayerGameContext;
-import org.newdawn.spaceinvaders.multyplay.net.protocol.MetadataCodec;
-
-import java.awt.Color;
+import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
+import org.newdawn.spaceinvaders.multyplay.core.MultiplayerGameContext;
+import org.newdawn.spaceinvaders.multyplay.entity.attack.IceAttack;
+import org.newdawn.spaceinvaders.multyplay.entity.attack.IceBallAttack;
+import org.newdawn.spaceinvaders.multyplay.entity.attack.MagneticFieldEntity;
+import org.newdawn.spaceinvaders.multyplay.entity.attack.Round2LaserAttack;
+import org.newdawn.spaceinvaders.multyplay.entity.attack.Round2MachineGunAttack;
+import org.newdawn.spaceinvaders.multyplay.entity.attack.Round2Phase1Attack;
+import org.newdawn.spaceinvaders.multyplay.entity.attack.Round2QuadAttack;
+import org.newdawn.spaceinvaders.multyplay.entity.attack.Round2RandomAttack;
+import org.newdawn.spaceinvaders.multyplay.entity.attack.Round3PullAttack;
+import org.newdawn.spaceinvaders.multyplay.entity.attack.Round3RandomAttack;
+import org.newdawn.spaceinvaders.multyplay.entity.attack.Round3StraightAttack;
+import org.newdawn.spaceinvaders.multyplay.entity.attack.Round4GreenSphereAttack;
+import org.newdawn.spaceinvaders.multyplay.entity.attack.Round4HealAttack;
+import org.newdawn.spaceinvaders.multyplay.entity.attack.Round4PlayerLineAttack;
+import org.newdawn.spaceinvaders.multyplay.net.protocol.MetadataCodec;
+import org.newdawn.spaceinvaders.multyplay.state.PlayerState;
+
 /**
- * An entity representing a boss enemy
- * 
- * @author Space Invaders Team
+ * Multiplayer boss entity that mirrors the single-player encounter behaviour.
  */
 public class BossEntity extends Entity {
-    /** The game in which this entity exists */
-    private MultiplayerGameContext game;
-    /** True if this boss has been "used", i.e. its hit something */
-    private boolean used = false;
-    /** Boss HP */
+
+    private final MultiplayerGameContext game;
+    private final int round;
+
     private int currentHP;
     private int maxHP;
-    /** Boss movement speed */
-    private double moveSpeed = 50;
-    /** Time since last shot */
-    private long lastFire = 0;
-    /** Firing interval */
-    private long firingInterval = 1500;
-    /** Movement direction */
-    private boolean movingRight = true;
-    /** Boss round number */
-    private int round;
-    /** Phase of the boss (1-3 based on HP) */
     private int phase = 1;
-    /** Attack pattern counter (removed - now using random patterns) */
-    /** Counter for fan attack animation */
-    private double fanAngle = 0;
-    
-    /**
-     * Get the boss sprite path based on round number
-     * 
-     * @param round The round number
-     * @return The sprite path for the boss
-     */
+    private boolean used = false;
+
+    private double moveSpeed = 50;
+
+    /** Round 1 timers */
+    private long lastIceAttack = 0;
+    private long iceAttackInterval = 4000;
+    private long lastIceBallAttack = 0;
+    private long iceBallAttackInterval = 4000;
+    private long lastMagneticField = 0;
+    private long magneticFieldInterval = 15000;
+
+    private long lastAttackTime = 0;
+    private long attackInterval = 3000;
+    private final int[] attackPatterns = {1, 2, 3, 4, 5};
+    private final boolean[] attackUsed = new boolean[attackPatterns.length];
+
+    /** Round 2 timers */
+    private long lastRound2Attack = 0;
+    private long round2AttackInterval = 4000;
+    private int round2AttackPattern = 0;
+
+    /** Round 3 timers */
+    private long lastRound3Attack = 0;
+    private long round3AttackInterval = 4000;
+    private int round3AttackPattern = 0;
+
+    /** Round 4 timers */
+    private long lastRound4HealAttack = 0;
+    private long round4HealInterval = 60000;
+    private long lastRound4GreenSphereAttack = 0;
+    private long round4GreenSphereInterval = 2000;
+    private long lastRound4PlayerLineAttack = 0;
+    private long round4PlayerLineInterval = 5000;
+    private boolean round4TimerStarted = false;
+    private long round4StartTime = 0;
+    private long round4TimeLimit = 600000;
+
+    public BossEntity(MultiplayerGameContext game, int x, int y, int round) {
+        super(getBossSpriteForRound(round), x, y);
+        this.game = game;
+        this.round = round;
+
+        maxHP = 50 + (round * 30);
+        currentHP = maxHP;
+        moveSpeed = 50 + (round * 10);
+
+        dx = 0;
+        dy = 0;
+
+        Arrays.fill(attackUsed, false);
+    }
+
+    @Override
+    public void move(long delta) {
+        dx = 0;
+        dy = 0;
+
+        if (!game.canEnemiesAttack()) {
+            return;
+        }
+
+        switch (round) {
+            case 1:
+                tryMagneticFieldAttack();
+                trySequentialRandomAttack();
+                break;
+            case 2:
+                tryRound2Attack();
+                break;
+            case 3:
+                tryRound3Attack();
+                break;
+            case 4:
+                tryRound4Attacks();
+                break;
+            default:
+                performFallbackPattern();
+                break;
+        }
+    }
+
+    private void tryMagneticFieldAttack() {
+        long now = System.currentTimeMillis();
+        if (now - lastMagneticField < magneticFieldInterval) {
+            return;
+        }
+        lastMagneticField = now;
+        MagneticFieldEntity field = new MagneticFieldEntity(game, 400, 220, 220, 0.8, 6000);
+        game.addEntity(field);
+    }
+
+    private void trySequentialRandomAttack() {
+        long now = System.currentTimeMillis();
+        if (now - lastAttackTime < attackInterval) {
+            return;
+        }
+
+        boolean allUsed = true;
+        for (boolean used : attackUsed) {
+            if (!used) {
+                allUsed = false;
+                break;
+            }
+        }
+        if (allUsed) {
+            Arrays.fill(attackUsed, false);
+        }
+
+        int available = 0;
+        for (boolean used : attackUsed) {
+            if (!used) {
+                available++;
+            }
+        }
+        if (available == 0) {
+            return;
+        }
+
+        int pick = (int) (Math.random() * available);
+        int selectedPattern = attackPatterns[0];
+        for (int i = 0; i < attackPatterns.length; i++) {
+            if (!attackUsed[i]) {
+                if (pick == 0) {
+                    selectedPattern = attackPatterns[i];
+                    attackUsed[i] = true;
+                    break;
+                }
+                pick--;
+            }
+        }
+
+        executeAttackPattern(selectedPattern);
+        lastAttackTime = now;
+    }
+
+    private void executeAttackPattern(int pattern) {
+        switch (pattern) {
+            case 1:
+                tryIceAttackNow();
+                break;
+            case 2:
+                tryIceBallAttackNow();
+                break;
+            case 3:
+                tryFanIceBallsAttackNow();
+                break;
+            case 4:
+                tryWaveIceBallsAttackNow();
+                break;
+            case 5:
+                trySpiralIceBallsAttackNow();
+                break;
+            default:
+                break;
+        }
+    }
+
+    private void tryIceAttackNow() {
+        IceAttack attack = new IceAttack(game, (int) x, (int) y + 150);
+        game.addEntity(attack);
+        lastIceAttack = System.currentTimeMillis();
+    }
+
+    private void tryIceBallAttackNow() {
+        performTripleIceBallAttack();
+        lastIceBallAttack = System.currentTimeMillis();
+    }
+
+    private void performTripleIceBallAttack() {
+        IceBallAttack leftBall = new IceBallAttack(game, (int) x, (int) y + 150, -1.2, 1);
+        IceBallAttack centerBall = new IceBallAttack(game, (int) x, (int) y + 150, 0, 1);
+        IceBallAttack rightBall = new IceBallAttack(game, (int) x, (int) y + 150, 1.2, 1);
+        game.addEntity(leftBall);
+        game.addEntity(centerBall);
+        game.addEntity(rightBall);
+    }
+
+    private void tryFanIceBallsAttackNow() {
+        double[] angles = {-1.2, -0.6, 0.0, 0.6, 1.2};
+        double speed = 0.4;
+        for (double angle : angles) {
+            IceBallAttack ball = new IceBallAttack(game, (int) x, (int) y + 150, angle * speed, speed);
+            game.addEntity(ball);
+        }
+    }
+
+    private void tryWaveIceBallsAttackNow() {
+        double[] xOffsets = {-1.0, -0.6, -0.3, 0.0, 0.3, 0.6, 1.0};
+        double[] ySpeeds = {0.2, 0.3, 0.4, 0.5, 0.4, 0.3, 0.2};
+        double xSpeed = 0.2;
+        for (int i = 0; i < xOffsets.length; i++) {
+            IceBallAttack ball = new IceBallAttack(
+                    game,
+                    (int) (x + xOffsets[i] * 100),
+                    (int) y + 150,
+                    xOffsets[i] * xSpeed,
+                    ySpeeds[i]);
+            game.addEntity(ball);
+        }
+    }
+
+    private void trySpiralIceBallsAttackNow() {
+        int numBalls = 8;
+        double baseSpeed = 0.3;
+        double spiralSpeed = 0.1;
+        for (int i = 0; i < numBalls; i++) {
+            double angle = (2 * Math.PI * i) / numBalls;
+            double speedX = Math.cos(angle) * baseSpeed + Math.sin(angle) * spiralSpeed;
+            double speedY = Math.sin(angle) * baseSpeed + 0.3;
+            IceBallAttack ball = new IceBallAttack(game, (int) x, (int) y + 150, speedX, speedY);
+            game.addEntity(ball);
+        }
+    }
+
+    private void tryRound2Attack() {
+        long now = System.currentTimeMillis();
+        if (now - lastRound2Attack < round2AttackInterval) {
+            return;
+        }
+
+        switch (round2AttackPattern) {
+            case 0:
+                executeRound2LaserAttack();
+                break;
+            case 1:
+                executeRound2PhaseAttack();
+                break;
+            case 2:
+                executeRound2RandomAttack();
+                break;
+            case 3:
+                executeRound2QuadAttack();
+                break;
+            default:
+                executeRound2MachineGunAttack();
+                break;
+        }
+
+        round2AttackPattern = (round2AttackPattern + 1) % 5;
+        lastRound2Attack = now;
+    }
+
+    private void executeRound2LaserAttack() {
+        Round2LaserAttack laser = new Round2LaserAttack(game, 400, 100);
+        game.addEntity(laser);
+    }
+
+    private void executeRound2PhaseAttack() {
+        Round2Phase1Attack phase1 = new Round2Phase1Attack(game, 400, 150);
+        game.addEntity(phase1);
+    }
+
+    private void executeRound2RandomAttack() {
+        int randomX = 200 + (int) (Math.random() * 400);
+        Round2RandomAttack slash = new Round2RandomAttack(game, randomX, 150);
+        game.addEntity(slash);
+    }
+
+    private void executeRound2QuadAttack() {
+        int centerX = 400;
+        int centerY = 150;
+        for (int direction = 0; direction < 4; direction++) {
+            Round2QuadAttack quad = new Round2QuadAttack(game, centerX, centerY, direction);
+            game.addEntity(quad);
+        }
+    }
+
+    private void executeRound2MachineGunAttack() {
+        int randomX = 150 + (int) (Math.random() * 500);
+        int startY = 0;
+        for (int i = 0; i < 3; i++) {
+            Round2MachineGunAttack shot = new Round2MachineGunAttack(game, randomX, startY);
+            game.addEntity(shot);
+        }
+    }
+
+    private void tryRound3Attack() {
+        long now = System.currentTimeMillis();
+        if (now - lastRound3Attack < round3AttackInterval) {
+            return;
+        }
+
+        switch (round3AttackPattern) {
+            case 0:
+                executeRound3StraightAttack();
+                break;
+            case 1:
+                executeRound3RandomAttack();
+                break;
+            default:
+                executeRound3PullAttack();
+                break;
+        }
+
+        round3AttackPattern = (round3AttackPattern + 1) % 3;
+        lastRound3Attack = now;
+    }
+
+    private void executeRound3StraightAttack() {
+        Round3StraightAttack straight = new Round3StraightAttack(game, (int) x, (int) y + 120);
+        game.addEntity(straight);
+    }
+
+    private void executeRound3RandomAttack() {
+        int randomX = 150 + (int) (Math.random() * 500);
+        Round3RandomAttack random = new Round3RandomAttack(game, randomX, 250);
+        game.addEntity(random);
+    }
+
+    private void executeRound3PullAttack() {
+        int pullX = 200 + (int) (Math.random() * 400);
+        Round3PullAttack pull = new Round3PullAttack(game, pullX, 280);
+        game.addEntity(pull);
+    }
+
+    private void tryRound4Attacks() {
+        if (!round4TimerStarted) {
+            round4TimerStarted = true;
+            round4StartTime = System.currentTimeMillis();
+        }
+        long now = System.currentTimeMillis();
+
+        if (now - lastRound4HealAttack >= round4HealInterval) {
+            Round4HealAttack heal = new Round4HealAttack(game, 400, 250);
+            game.addEntity(heal);
+            lastRound4HealAttack = now;
+        }
+
+        if (now - lastRound4GreenSphereAttack >= round4GreenSphereInterval) {
+            double playerX = 400;
+            double playerY = 500;
+            Entity ship = game.getShip(null);
+            if (ship != null) {
+                playerX = ship.getX();
+                playerY = ship.getY();
+            }
+            double dx = playerX - x;
+            double dy = playerY - (y + 150);
+            double distance = Math.sqrt(dx * dx + dy * dy);
+            if (distance > 0) {
+                dx /= distance;
+                dy /= distance;
+            }
+            Round4GreenSphereAttack sphere = new Round4GreenSphereAttack(game, (int) x, (int) y + 150, dx, dy);
+            game.addEntity(sphere);
+            lastRound4GreenSphereAttack = now;
+        }
+
+        if (now - lastRound4PlayerLineAttack >= round4PlayerLineInterval) {
+            int randomX = 150 + (int) (Math.random() * 500);
+            Round4PlayerLineAttack lineAttack = new Round4PlayerLineAttack(game, randomX, 500);
+            game.addEntity(lineAttack);
+            lastRound4PlayerLineAttack = now;
+        }
+
+        if (now - round4StartTime > round4TimeLimit) {
+            // massive damage to all players if timer exceeded
+            for (PlayerState state : game.getGameStateManager().getPlayerStates()) {
+                if (!state.isDead()) {
+                    game.notifyPlayerDamaged(state.getPlayerId(), 999);
+                }
+            }
+            round4StartTime = now;
+        }
+    }
+
+    private void performFallbackPattern() {
+        long now = System.currentTimeMillis();
+        if (now - lastAttackTime < 1500) {
+            return;
+        }
+        Entity targetShip = game.getShip(null);
+        double playerX = targetShip != null ? targetShip.getX() + 15 : x;
+        double playerY = targetShip != null ? targetShip.getY() : y + 200;
+        createDirectionalShot(x, y + 75, playerX - x, playerY - (y + 75), 300, false);
+        lastAttackTime = now;
+    }
+
+    public void takeDamage(int damage, String playerId) {
+        currentHP -= damage;
+        if (currentHP < 0) {
+            currentHP = 0;
+        }
+
+        int newPhase;
+        if (currentHP > maxHP * 0.66) {
+            newPhase = 1;
+        } else if (currentHP > maxHP * 0.33) {
+            newPhase = 2;
+        } else {
+            newPhase = 3;
+        }
+        phase = newPhase;
+
+        if (currentHP <= 0) {
+            game.notifyBossDefeated(playerId);
+            game.removeEntity(this);
+            used = true;
+        }
+    }
+
+    public int getCurrentHP() {
+        return currentHP;
+    }
+
+    public int getMaxHP() {
+        return maxHP;
+    }
+
+    public int getPhase() {
+        return phase;
+    }
+
+    public void healToFull() {
+        currentHP = maxHP;
+    }
+
+    @Override
+    public void draw(Graphics g) {
+        Graphics2D g2d = (Graphics2D) g;
+        if (sprite != null) {
+            int bossWidth = 300;
+            int bossHeight = 300;
+            int drawX = (int) x - bossWidth / 2;
+            int drawY = (int) y - bossHeight / 2;
+            g2d.drawImage(sprite.getImage(), drawX, drawY, drawX + bossWidth, drawY + bossHeight, 0, 0,
+                    sprite.getWidth(), sprite.getHeight(), null);
+        }
+
+        g2d.setColor(Color.YELLOW);
+        g2d.setFont(g2d.getFont().deriveFont(16f));
+        g2d.drawString("Phase " + phase, (int) x - 25, (int) y - 170);
+
+        g2d.setColor(Color.RED);
+        g2d.fillRect((int) x - 50, (int) y + 170, 100, 8);
+        g2d.setColor(Color.GREEN);
+        int healthWidth = (int) (100 * ((double) currentHP / maxHP));
+        g2d.fillRect((int) x - 50, (int) y + 170, healthWidth, 8);
+        g2d.setColor(Color.WHITE);
+        g2d.drawRect((int) x - 50, (int) y + 170, 100, 8);
+    }
+
+    @Override
+    public void collidedWith(Entity other) {
+        // Boss does not take collision damage here.
+    }
+
+    private void createDirectionalShot(double fireX, double fireY, double dirX, double dirY, double speed,
+                                       boolean splitting) {
+        double length = Math.sqrt(dirX * dirX + dirY * dirY);
+        if (length == 0) {
+            return;
+        }
+        dirX /= length;
+        dirY /= length;
+        BossShotEntity shot;
+        if (splitting) {
+            shot = new BossShotEntity(game, (int) fireX, (int) fireY, dirX, dirY, speed, 12, true, fireY + 150, 6);
+        } else {
+            shot = new BossShotEntity(game, (int) fireX, (int) fireY, dirX, dirY, speed);
+        }
+        game.addEntity(shot);
+    }
+
     private static String getBossSpriteForRound(int round) {
         switch (round) {
             case 1:
@@ -58,368 +514,6 @@ public class BossEntity extends Entity {
             default:
                 return "sprites/Boss/5Boss.png";
         }
-    }
-    
-    /**
-     * Create a new boss entity
-     * 
-     * @param game The game in which the boss has been created
-     * @param x The initial x location of the boss
-     * @param y The initial y location of the boss
-     * @param round The round number for scaling
-     */
-    public BossEntity(MultiplayerGameContext game, int x, int y, int round) {
-        super(getBossSpriteForRound(round), x, y);
-        
-        this.game = game;
-        this.round = round;
-        
-        // Scale boss stats based on round
-        maxHP = 50 + (round * 30); // 80, 110, 140, 170, 200...
-        currentHP = maxHP;
-        
-        // Scale movement speed
-        moveSpeed = 50 + (round * 10);
-        
-        // Scale firing interval (slower for more strategic gameplay)
-        firingInterval = Math.max(2000, 3000 - (round * 200)); // 더 느린 공격속도
-        
-        // Boss stays in center back - no movement
-        dx = 0;
-        dy = 0;
-    }
-    
-    /**
-     * Request that this boss moved based on time elapsed
-     * 
-     * @param delta The time that has elapsed since last move
-     */
-    public void move(long delta) {
-        try {
-            // Boss stays stationary in center back
-            dx = 0;
-            dy = 0;
-            
-            // Try to fire
-            tryToFire();
-        } catch (Exception e) {
-            System.err.println("Error in boss move: " + e.getMessage());
-            e.printStackTrace();
-        }
-    }
-    
-    /**
-     * Attempt to fire a shot from this boss
-     */
-    public void tryToFire() {
-        try {
-            // check that we have waited long enough to fire
-            if (System.currentTimeMillis() - lastFire < firingInterval) {
-                return;
-            }
-            
-            lastFire = System.currentTimeMillis();
-            
-            // Get player position for targeted attacks
-            Entity targetShip = game.getShip(null);
-            double playerX = targetShip != null ? targetShip.getX() + 15 : x;
-            double playerY = targetShip != null ? targetShip.getY() : y + 200;
-            double bossFireX = x;
-            double bossFireY = y + 75; // Fire from bottom of boss
-            
-            // Randomly select from 5 different attack patterns
-            int randomPattern = (int)(Math.random() * 5);
-            switch (randomPattern) {
-                case 0:
-                    // Pattern 1: 일직선 4발 발사 (4 shots in a straight line)
-                    fireLinearPattern(bossFireX, bossFireY);
-                    break;
-                case 1:
-                    // Pattern 2: 플레이어 방향 발사 (Aimed shots at player)
-                    fireAimedPattern(bossFireX, bossFireY, playerX, playerY);
-                    break;
-                case 2:
-                    // Pattern 3: 부채꼴 형태로 채찍 휘두르듯 발사 (Fan/whip pattern)
-                    fireFanPattern(bossFireX, bossFireY);
-                    break;
-                case 3:
-                    // Pattern 4: 원 형태로 발사 (Circular pattern)
-                    fireCircularPattern(bossFireX, bossFireY);
-                    break;
-                case 4:
-                    // Pattern 5: 큰 구체 발사 후 분열 (Large splitting shot)
-                    fireSplittingPattern(bossFireX, bossFireY);
-                    break;
-            }
-            
-        } catch (Exception e) {
-            System.err.println("Error in boss firing: " + e.getMessage());
-            e.printStackTrace();
-        }
-    }
-    
-    /**
-     * Pattern 1: Fire 4 shots in a straight vertical line
-     */
-    private void fireLinearPattern(double fireX, double fireY) {
-        int spacing = 40;
-        for (int i = 0; i < 4; i++) {
-            int offsetX = (i - 1) * spacing - spacing / 2; // Center the pattern
-            createDirectionalShot(fireX + offsetX, fireY, 0, 1, 300);
-        }
-    }
-    
-    /**
-     * Pattern 2: Fire multiple shots aimed at player position
-     */
-    private void fireAimedPattern(double fireX, double fireY, double playerX, double playerY) {
-        // Calculate direction to player
-        double dx = playerX - fireX;
-        double dy = playerY - fireY;
-        double distance = Math.sqrt(dx * dx + dy * dy);
-        
-        if (distance > 0) {
-            // Normalize direction
-            double dirX = dx / distance;
-            double dirY = dy / distance;
-            
-            // Fire multiple shots with slight spread
-            for (int i = -1; i <= 1; i++) {
-                double spreadAngle = i * 0.2; // 약간의 각도 차이
-                double spreadDirX = dirX * Math.cos(spreadAngle) - dirY * Math.sin(spreadAngle);
-                double spreadDirY = dirX * Math.sin(spreadAngle) + dirY * Math.cos(spreadAngle);
-                
-                createDirectionalShot(fireX, fireY, spreadDirX, spreadDirY, 350);
-            }
-        }
-    }
-    
-    /**
-     * Pattern 3: Fire shots in a fan/whip pattern (sweeping from left to right)
-     */
-    private void fireFanPattern(double fireX, double fireY) {
-        // Fire 5 shots in a fan pattern
-        int numShots = 5;
-        double startAngle = Math.PI / 2 - Math.PI / 6; // Start from left (60 degrees left of down)
-        double endAngle = Math.PI / 2 + Math.PI / 6;   // End at right (60 degrees right of down)
-        
-        for (int i = 0; i < numShots; i++) {
-            double angle = startAngle + (endAngle - startAngle) * i / (numShots - 1);
-            double dirX = Math.cos(angle);
-            double dirY = Math.sin(angle);
-            
-            createDirectionalShot(fireX, fireY, dirX, dirY, 300);
-        }
-    }
-    
-    /**
-     * Pattern 4: Fire shots in a circular pattern (all directions)
-     */
-    private void fireCircularPattern(double fireX, double fireY) {
-        // Fire 8 shots in a circle
-        int numShots = 8;
-        for (int i = 0; i < numShots; i++) {
-            double angle = 2 * Math.PI * i / numShots;
-            double dirX = Math.cos(angle);
-            double dirY = Math.sin(angle);
-            
-            createDirectionalShot(fireX, fireY, dirX, dirY, 250);
-        }
-    }
-    
-    /**
-     * Pattern 5: Fire a large splitting shot that explodes in the middle of the screen
-     */
-    private void fireSplittingPattern(double fireX, double fireY) {
-        try {
-            // Create a large shot that will split at screen center (Y = 350)
-            double splitYPosition = 350; // Middle of screen
-            int largeRadius = 16; // Large size (2x normal)
-            int splitCount = 12; // Split into 12 smaller shots
-            double speed = 200; // Moderate speed
-            
-            // Fire the large splitting shot downward
-            BossShotEntity largeSplittingShot = new BossShotEntity(
-                game,
-                (int)fireX,
-                (int)fireY,
-                0, // Direction X (straight down)
-                1, // Direction Y (straight down)
-                speed,
-                largeRadius,
-                true, // Can split
-                splitYPosition,
-                splitCount
-            );
-            
-            game.addEntity(largeSplittingShot);
-            
-        } catch (Exception e) {
-            System.err.println("Error creating splitting shot: " + e.getMessage());
-            e.printStackTrace();
-        }
-    }
-    
-    /**
-     * Create a boss shot with specific direction and speed
-     */
-    private void createDirectionalShot(double startX, double startY, double dirX, double dirY, double speed) {
-        try {
-            BossShotEntity shot = new BossShotEntity(game, (int)startX, (int)startY, dirX, dirY, speed);
-            game.addEntity(shot);
-        } catch (Exception e) {
-            System.err.println("Error creating directional shot: " + e.getMessage());
-            e.printStackTrace();
-        }
-    }
-    
-    /**
-     * Take damage from a player shot
-     * 
-     * @param damage The amount of damage to take
-     */
-    public void takeDamage(int damage, String playerId) {
-        try {
-            currentHP -= damage;
-            
-            // Update phase based on HP
-            int newPhase;
-            if (currentHP > maxHP * 0.66) {
-                newPhase = 1;
-            } else if (currentHP > maxHP * 0.33) {
-                newPhase = 2;
-            } else {
-                newPhase = 3;
-            }
-            
-            if (newPhase != phase) {
-                phase = newPhase;
-                System.out.println("Boss Phase " + phase + " activated!");
-            }
-            
-            if (currentHP <= 0) {
-                // Boss defeated
-                createBossExplosion();
-                game.addScore(playerId, 1000 * round);
-                game.addSkillPoints(playerId, 5 * round);
-                game.notifyBossDefeated(playerId);
-                game.removeEntity(this);
-                used = true;
-            }
-        } catch (Exception e) {
-            System.err.println("Error in boss takeDamage: " + e.getMessage());
-            e.printStackTrace();
-        }
-    }
-    
-    /**
-     * Create explosion effect when boss is defeated
-     */
-    private void createBossExplosion() {
-        try {
-            // Create multiple explosions for dramatic effect
-            for (int i = 0; i < 5; i++) {
-                int explosionX = (int)(x + (Math.random() - 0.5) * 100);
-                int explosionY = (int)(y + (Math.random() - 0.5) * 100);
-                game.createExplosion(explosionX, explosionY, 80.0);
-            }
-        } catch (Exception e) {
-            System.err.println("Error creating boss explosion: " + e.getMessage());
-            e.printStackTrace();
-        }
-    }
-    
-    /**
-     * Draw this boss with health bar
-     * 
-     * @param g The graphics context on which to draw
-     */
-    public void draw(Graphics g) {
-        try {
-            // Draw the boss sprite with very large size (6x scale)
-            Graphics2D g2d = (Graphics2D) g;
-            if (sprite != null) {
-                // Draw boss sprite at 6x size, perfectly centered
-                int bossWidth = 300;  // 6x size (더욱 크게)
-                int bossHeight = 300; // 6x size (더욱 크게)
-                int drawX = (int)x - bossWidth/2; // Center horizontally
-                int drawY = (int)y - bossHeight/2; // Center vertically
-                
-                g2d.drawImage(sprite.getImage(), drawX, drawY, drawX + bossWidth, drawY + bossHeight, 
-                             0, 0, sprite.getWidth(), sprite.getHeight(), null);
-            }
-            
-            // Phase indicator (above boss)
-            g2d.setColor(Color.YELLOW);
-            g2d.setFont(g2d.getFont().deriveFont(16f));
-            g2d.drawString("Phase " + phase, (int)x - 25, (int)y - 170);
-            
-            // Draw health bar (much smaller, below boss)
-            g2d.setColor(Color.RED);
-            g2d.fillRect((int)x - 50, (int)y + 170, 100, 8);
-            
-            // Health bar foreground
-            g2d.setColor(Color.GREEN);
-            int healthWidth = (int)(100 * ((double)currentHP / maxHP));
-            g2d.fillRect((int)x - 50, (int)y + 170, healthWidth, 8);
-            
-            // Health bar border
-            g2d.setColor(Color.WHITE);
-            g2d.drawRect((int)x - 50, (int)y + 170, 100, 8);
-        } catch (Exception e) {
-            System.err.println("Error drawing boss: " + e.getMessage());
-            e.printStackTrace();
-        }
-    }
-    
-    /**
-     * Notification that this boss has collided with another entity
-     * 
-     * @param other The other entity with which we've collided
-     */
-    public void collidedWith(Entity other) {
-        // Boss doesn't take collision damage from shots
-        // Shot damage is handled in ShotEntity.collidedWith()
-        
-        // Alien과 충돌했을 때 Alien이 반대방향으로 이동하도록 함
-        // (AlienEntity.collidedWith에서 처리됨)
-    }
-    
-    /**
-     * Get the boss's current HP
-     * 
-     * @return The current HP
-     */
-    public int getCurrentHP() {
-        return currentHP;
-    }
-    
-    /**
-     * Get the boss's maximum HP
-     * 
-     * @return The maximum HP
-     */
-    public int getMaxHP() {
-        return maxHP;
-    }
-    
-    /**
-     * Get the boss's current phase
-     * 
-     * @return The current phase (1-3)
-     */
-    public int getPhase() {
-        return phase;
-    }
-    
-    /**
-     * Override getBounds to provide larger hitbox for the bigger boss
-     * 
-     * @return The bounds of the boss entity
-     */
-    public java.awt.Rectangle getBounds() {
-        // Return bounds matching the visual size (6x scale = 300x300)
-        return new java.awt.Rectangle((int)x - 150, (int)y - 150, 300, 300);
     }
 
     @Override
@@ -440,17 +534,14 @@ public class BossEntity extends Entity {
         try {
             currentHP = Integer.parseInt(map.getOrDefault("hp", Integer.toString(currentHP)));
         } catch (NumberFormatException ignore) {
-            // keep previous value
         }
         try {
             maxHP = Integer.parseInt(map.getOrDefault("max", Integer.toString(maxHP)));
         } catch (NumberFormatException ignore) {
-            // keep previous value
         }
         try {
             phase = Integer.parseInt(map.getOrDefault("phase", Integer.toString(phase)));
         } catch (NumberFormatException ignore) {
-            // keep previous value
         }
     }
 }

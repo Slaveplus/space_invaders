@@ -27,6 +27,8 @@ public interface MultiplayerGameContext {
     void notifyAlienKilled(String killerPlayerId, double killX, double killY);
     void notifyBossDefeated(String killerPlayerId);
     void notifyDeath(String playerId);
+    boolean canEnemiesAttack();
+    void notifyPlayerDamaged(String playerId, int damage);
 
     int getCurrentRound();
     int getPlayerAttackPower(String playerId);

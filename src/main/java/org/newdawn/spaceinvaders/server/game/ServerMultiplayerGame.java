@@ -814,6 +814,46 @@ public class ServerMultiplayerGame implements MultiplayerGameContext {
         if (!ps.isDead()) {
             return;
         }
+        handlePlayerElimination(targetId, runtime, ps);
+    }
+
+    @Override
+    public boolean canEnemiesAttack() {
+        long startTime = gameStateManager.getGameStartTime();
+        if (startTime <= 0) {
+            return false;
+        }
+        return System.currentTimeMillis() - startTime >= 3000;
+    }
+
+    @Override
+    public void notifyPlayerDamaged(String playerId, int damage) {
+        if (damage <= 0) {
+            return;
+        }
+        if (playerId != null && isPlayerInvincible(playerId)) {
+            return;
+        }
+        String targetId = playerId != null ? playerId : gameStateManager.getLocalPlayerId();
+        if (targetId == null) {
+            return;
+        }
+
+        PlayerRuntime runtime = playerRuntimes.get(targetId);
+        PlayerState ps = gameStateManager.ensurePlayer(targetId);
+        for (int i = 0; i < damage; i++) {
+            gameStateManager.takeDamage(targetId);
+            if (ps.isDead()) {
+                handlePlayerElimination(targetId, runtime, ps);
+                break;
+            }
+        }
+    }
+
+    private void handlePlayerElimination(String targetId, PlayerRuntime runtime, PlayerState ps) {
+        if (!ps.isDead()) {
+            return;
+        }
         if (runtime != null && runtime.ship != null) {
             gameStateManager.getEntities().remove(runtime.ship);
             gameStateManager.getRemoveList().remove(runtime.ship);
@@ -961,7 +1001,7 @@ public class ServerMultiplayerGame implements MultiplayerGameContext {
     @Override
     public Entity createNearEntity(int round, int index) {
         int posX = 150 + (index * 100);
-        return new NearEntity(this, posX, 140, round, index);
+        return new NearEntity(this, posX, 120, round, index);
     }
 
     @Override

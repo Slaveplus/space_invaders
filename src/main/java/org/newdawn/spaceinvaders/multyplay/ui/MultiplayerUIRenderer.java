@@ -1,12 +1,14 @@
 package org.newdawn.spaceinvaders.multyplay.ui;
 
-import java.awt.*;
-import java.awt.image.BufferedImage;
-import java.io.InputStream;
-
-import javax.imageio.ImageIO;
+import java.awt.BasicStroke;
+import java.awt.Color;
+import java.awt.Font;
+import java.awt.FontMetrics;
+import java.awt.Graphics2D;
 
 import org.newdawn.spaceinvaders.gameplay.UIRenderer;
+import org.newdawn.spaceinvaders.gameplay.ui.HudContext;
+import org.newdawn.spaceinvaders.gameplay.ui.SharedHudRenderer;
 import org.newdawn.spaceinvaders.multyplay.core.MultiplayerGameCanvas;
 import org.newdawn.spaceinvaders.multyplay.core.MultiplayerSkillManager;
 import org.newdawn.spaceinvaders.multyplay.state.MultiplayerGameStateManager;
@@ -18,7 +20,7 @@ import org.newdawn.spaceinvaders.multyplay.state.MultiplayerGameStateManager;
 public class MultiplayerUIRenderer {
     // 재사용 가능한 스트로크 (매 프레임 객체 생성 방지)
     private static final BasicStroke STROKE_2PX = new BasicStroke(2);
-    private BufferedImage coinImage;
+    private final SharedHudRenderer sharedHudRenderer = new SharedHudRenderer();
 
     public MultiplayerUIRenderer(MultiplayerGameCanvas game) {
         // MultiplayerGameCanvas reference not currently used, but kept for future extensibility
@@ -28,309 +30,7 @@ public class MultiplayerUIRenderer {
      * 게임 UI 그리기 (HP, 스킬 포인트, 스탯 등)
      */
     public void drawGameUI(Graphics2D g, MultiplayerGameStateManager gameStateManager, MultiplayerSkillManager skillManager) {
-        // Round display (top-left)
-        g.setColor(Color.CYAN);
-        g.setFont(UIRenderer.getKostarFont(Font.BOLD, 18));
-        g.drawString("라운드: " + gameStateManager.getCurrentRound() + "/" + gameStateManager.getMaxRound(), 20, 25);
-
-        // HP display
-        g.setColor(Color.WHITE);
-        g.setFont(UIRenderer.getKostarFont(Font.BOLD, 16));
-        g.drawString("HP: " + gameStateManager.getCurrentHP() + "/" + gameStateManager.getMaxHP(), 20, 50);
-
-        drawHPBar(g, gameStateManager);
-
-        // Skill points & stats (mirror single-player layout)
-        g.setColor(Color.YELLOW);
-        g.setFont(UIRenderer.getKostarFont(Font.BOLD, 16));
-        g.drawString("스킬 포인트: " + gameStateManager.getSkillPoints(), 20, 100);
-
-        g.setColor(Color.WHITE);
-        g.setFont(UIRenderer.getKostarFont(Font.PLAIN, 12));
-        g.drawString("공격력: " + gameStateManager.getAttackPower(), 20, 120);
-        g.drawString("공격속도: " + String.format("%.1f", gameStateManager.getAttackSpeed()) + "x", 20, 135);
-
-        drawSkillBar(g, skillManager);
-        drawSkillEffects(g, skillManager);
-
-        drawPlayTimeAndCoins(g, gameStateManager);
-    }
-
-    /**
-     * HP 바 그리기 (Hp.png 이미지 기반)
-     */
-    private void drawHPBar(Graphics2D g, MultiplayerGameStateManager gameStateManager) {
-        int barWidth = 200;
-        int barHeight = 20;
-        int barX = 20;
-        int barY = 60;
-        
-        // Load HP image
-        BufferedImage hpImage = loadHPImage();
-        
-        if (hpImage != null) {
-            // Calculate HP fill percentage
-            double hpPercentage = (double) gameStateManager.getCurrentHP() / gameStateManager.getMaxHP();
-            int hpWidth = (int) (hpPercentage * barWidth);
-            
-            // Draw HP bar background (empty part)
-            g.setColor(new Color(50, 50, 50));
-            g.fillRect(barX, barY, barWidth, barHeight);
-            
-            // Draw HP fill using Hp.png image
-            if (hpWidth > 0) {
-                // Scale the HP image to fit the HP bar width
-                g.drawImage(hpImage, barX, barY, hpWidth, barHeight, null);
-            }
-            
-            // Border
-            g.setColor(Color.WHITE);
-            g.setStroke(new BasicStroke(2));
-            g.drawRect(barX, barY, barWidth, barHeight);
-        } else {
-            // Fallback: Draw simple colored HP bar if image fails to load
-            g.setColor(new Color(50, 50, 50));
-            g.fillRect(barX, barY, barWidth, barHeight);
-            
-            int hpWidth = (int) ((double) gameStateManager.getCurrentHP() / gameStateManager.getMaxHP() * barWidth);
-            g.setColor(new Color(255, 0, 0));
-            g.fillRect(barX, barY, hpWidth, barHeight);
-            
-            g.setColor(Color.WHITE);
-            g.setStroke(new BasicStroke(2));
-            g.drawRect(barX, barY, barWidth, barHeight);
-        }
-    }
-    
-    /**
-     * HP 이미지 로드
-     */
-    private BufferedImage loadHPImage() {
-        try {
-            InputStream is = getClass().getClassLoader().getResourceAsStream("sprites/ships/Hp.png");
-            if (is != null) {
-                BufferedImage image = ImageIO.read(is);
-                is.close();
-                return image;
-            }
-        } catch (Exception e) {
-            System.err.println("Failed to load HP image: sprites/ships/Hp.png");
-        }
-        return null;
-    }
-
-    /**
-     * 활성화된 스킬 효과 표시
-     */
-    private void drawSkillEffects(Graphics2D g, MultiplayerSkillManager skillManager) {
-        int effectY = 160;
-
-        if (skillManager.isInvincible()) {
-            g.setColor(Color.YELLOW);
-            g.setFont(UIRenderer.getKostarFont(Font.BOLD, 14));
-            long remainingTime = skillManager.getRemainingTime(skillManager.getInvincibleEndTime());
-            if (remainingTime > 0) {
-                g.drawString("무적: " + remainingTime + "초", 20, effectY);
-                effectY += 20;
-            }
-        }
-
-        if (skillManager.hasTripleShot()) {
-            g.setColor(Color.BLUE);
-            g.setFont(UIRenderer.getKostarFont(Font.BOLD, 14));
-            long remainingTime = skillManager.getRemainingTime(skillManager.getTripleShotEndTime());
-            if (remainingTime > 0) {
-                g.drawString("3줄공격: " + remainingTime + "초", 20, effectY);
-                effectY += 20;
-            }
-        }
-    }
-
-    /**
-     * 스킬 인벤토리 표시 (이미지 기반) - 화면 우하단에 배치
-     */
-    private void drawSkillBar(Graphics2D g, MultiplayerSkillManager skillManager) {
-        int barWidth = 240;
-        int barHeight = 35;
-        int barX = 20;
-        int barY = 145;
-
-        g.setColor(new Color(0, 0, 0, 140));
-        g.fillRoundRect(barX - 6, barY - 6, barWidth + 12, barHeight + 12, 10, 10);
-        g.setColor(new Color(255, 255, 255, 90));
-        g.drawRoundRect(barX - 6, barY - 6, barWidth + 12, barHeight + 12, 10, 10);
-
-        int itemSize = 18;
-        int itemSpacing = 35;
-        int startX = barX + 10;
-        int centerY = barY + (barHeight - itemSize) / 2;
-
-        int[] skillTypes = {0, 2, 3};
-        String[] skillNames = {"무적", "3줄공격", "미사일"};
-        int[] counts = {
-                skillManager.getInvincibleSkills(),
-                skillManager.getTripleShotSkills(),
-                skillManager.getMissileSkills()
-        };
-
-        for (int i = 0; i < skillTypes.length; i++) {
-            int itemX = startX + (i * itemSpacing);
-            // shadow
-            g.setColor(new Color(0, 0, 0, 200));
-            g.fillRect(itemX + 2, centerY + 2, itemSize, itemSize);
-            g.setColor(new Color(0, 0, 0, 150));
-            g.fillRect(itemX + 1, centerY + 1, itemSize, itemSize);
-
-            drawSkillIconWithCount(g, skillTypes[i], itemX, centerY, itemSize, counts[i]);
-
-            g.setFont(new Font("Arial", Font.BOLD, 10));
-            String label = skillNames[i];
-            int labelWidth = g.getFontMetrics().stringWidth(label);
-            int labelX = itemX + (itemSize - labelWidth) / 2;
-            int labelY = centerY + itemSize + 12;
-
-            g.setColor(new Color(0, 0, 0, 220));
-            g.drawString(label, labelX + 1, labelY + 1);
-            g.setColor(Color.WHITE);
-            g.drawString(label, labelX, labelY);
-        }
-
-        g.setColor(Color.CYAN);
-        g.setFont(UIRenderer.getKostarFont(Font.PLAIN, 10));
-        g.drawString("Q: 강화창", barX + 5, barY + barHeight + 16);
-    }
-
-    private BufferedImage getCoinImage() {
-        if (coinImage != null) {
-            return coinImage;
-        }
-        try (InputStream is = getClass().getClassLoader().getResourceAsStream("sprites/star coin normal.png")) {
-            if (is != null) {
-                coinImage = ImageIO.read(is);
-            }
-        } catch (Exception ignored) {
-        }
-        return coinImage;
-    }
-
-    private void drawPlayTimeAndCoins(Graphics2D g, MultiplayerGameStateManager gameStateManager) {
-        int screenWidth = 800;
-        int panelWidth = 180;
-        int panelHeight = 70;
-        int startX = screenWidth - panelWidth - 20;
-        int startY = 20;
-
-        g.setColor(new Color(20, 20, 40, 130));
-        g.fillRoundRect(startX, startY, panelWidth, panelHeight, 15, 15);
-        g.setColor(new Color(10, 10, 25, 130));
-        g.fillRoundRect(startX + 2, startY + 2, panelWidth - 4, panelHeight - 4, 13, 13);
-
-        g.setColor(new Color(100, 150, 255, 50));
-        g.setStroke(new BasicStroke(2f));
-        g.drawRoundRect(startX, startY, panelWidth, panelHeight, 15, 15);
-        g.setColor(new Color(150, 200, 255, 100));
-        g.setStroke(new BasicStroke(1f));
-        g.drawRoundRect(startX + 1, startY + 1, panelWidth - 2, panelHeight - 2, 14, 14);
-
-        g.setColor(new Color(100, 255, 255));
-        g.setFont(new Font("Arial", Font.BOLD, 16));
-        g.drawString("TIME: " + gameStateManager.getPlayTime(), startX + 15, startY + 25);
-
-        int coins = gameStateManager.getEarnedCoins();
-        g.setColor(new Color(255, 215, 0));
-        g.setFont(new Font("Arial", Font.BOLD, 16));
-        g.drawString("COINS: " + coins, startX + 50, startY + 50);
-
-        BufferedImage image = getCoinImage();
-        int coinX = startX + 15;
-        int coinY = startY + 34;
-        if (image != null) {
-            g.drawImage(image, coinX, coinY - 16, 24, 24, null);
-        } else {
-            g.setColor(Color.YELLOW);
-            g.fillOval(coinX, coinY - 16, 24, 24);
-            g.setColor(Color.ORANGE);
-            g.setStroke(new BasicStroke(2));
-            g.drawOval(coinX, coinY - 16, 24, 24);
-        }
-    }
-    
-    /**
-     * 스킬 아이콘과 개수를 그리기
-     */
-    private void drawSkillIconWithCount(Graphics2D g, int skillType, int x, int y, int iconSize, int count) {
-        // Load and draw skill icon
-        BufferedImage skillImage = loadSkillImage(skillType);
-        if (skillImage != null) {
-            g.drawImage(skillImage, x, y, iconSize, iconSize, null);
-        } else {
-            // Fallback: draw colored rectangle
-            g.setColor(getSkillColor(skillType));
-            g.fillRect(x, y, iconSize, iconSize);
-            g.setColor(Color.BLACK);
-            g.drawRect(x, y, iconSize, iconSize);
-        }
-        
-        // Draw count
-        g.setColor(Color.WHITE);
-        g.setFont(UIRenderer.getKostarFont(Font.BOLD, 10));
-        String countText = String.valueOf(count);
-        FontMetrics fm = g.getFontMetrics();
-        int textX = x + iconSize - fm.stringWidth(countText) - 2;
-        int textY = y + iconSize - 2;
-        
-        // Draw count background
-        g.setColor(Color.BLACK);
-        g.fillRect(textX - 1, textY - fm.getHeight() + 2, fm.stringWidth(countText) + 2, fm.getHeight());
-        
-        // Draw count text
-        g.setColor(Color.YELLOW);
-        g.drawString(countText, textX, textY);
-    }
-    
-    /**
-     * 스킬 타입별 색상 반환 (fallback용)
-     */
-    private Color getSkillColor(int skillType) {
-        switch (skillType) {
-            case 0: return new Color(255, 215, 0); // Gold - Invincible
-            case 2: return new Color(0, 100, 255); // Blue - Triple Shot
-            case 3: return new Color(255, 165, 0); // Orange - Missile
-            default: return Color.GRAY;
-        }
-    }
-    
-    /**
-     * 스킬 이미지 로드
-     */
-    private BufferedImage loadSkillImage(int skillType) {
-        String imagePath;
-        switch (skillType) {
-            case 0:
-                imagePath = "sprites/Skill/1.png";
-                break;
-            case 2:
-                imagePath = "sprites/Skill/3.png";
-                break;
-            case 3:
-                imagePath = "sprites/Skill/4.png";
-                break;
-            default:
-                imagePath = "sprites/Skill/1.png";
-                break;
-        }
-        
-        try {
-            InputStream is = getClass().getClassLoader().getResourceAsStream(imagePath);
-            if (is != null) {
-                BufferedImage image = ImageIO.read(is);
-                is.close();
-                return image;
-            }
-        } catch (Exception e) {
-            System.err.println("Failed to load skill image: " + imagePath);
-        }
-        return null;
+        sharedHudRenderer.drawHud(g, new MultiplayerHudContext(gameStateManager, skillManager));
     }
 
     /**
@@ -437,5 +137,95 @@ public class MultiplayerUIRenderer {
         int sx = x + (w - g.getFontMetrics().stringWidth(sub)) / 2;
         g.setColor(Color.YELLOW);
         g.drawString(sub, sx, y + 80);
+    }
+
+    private static final class MultiplayerHudContext implements HudContext {
+        private final MultiplayerGameStateManager gameStateManager;
+        private final MultiplayerSkillManager skillManager;
+
+        private MultiplayerHudContext(MultiplayerGameStateManager gsm, MultiplayerSkillManager sm) {
+            this.gameStateManager = gsm;
+            this.skillManager = sm;
+        }
+
+        @Override
+        public int getCurrentRound() {
+            return gameStateManager.getCurrentRound();
+        }
+
+        @Override
+        public int getMaxRound() {
+            return gameStateManager.getMaxRound();
+        }
+
+        @Override
+        public int getCurrentHp() {
+            return gameStateManager.getCurrentHP();
+        }
+
+        @Override
+        public int getMaxHp() {
+            return gameStateManager.getMaxHP();
+        }
+
+        @Override
+        public int getSkillPoints() {
+            return gameStateManager.getSkillPoints();
+        }
+
+        @Override
+        public int getAttackPower() {
+            return gameStateManager.getAttackPower();
+        }
+
+        @Override
+        public double getAttackSpeed() {
+            return gameStateManager.getAttackSpeed();
+        }
+
+        @Override
+        public int getInvincibleSkillCount() {
+            return skillManager.getInvincibleSkills();
+        }
+
+        @Override
+        public int getTripleShotSkillCount() {
+            return skillManager.getTripleShotSkills();
+        }
+
+        @Override
+        public int getMissileSkillCount() {
+            return skillManager.getMissileSkills();
+        }
+
+        @Override
+        public boolean isInvincibleActive() {
+            return skillManager.isInvincible();
+        }
+
+        @Override
+        public long getInvincibleRemainingMs() {
+            return Math.max(0L, skillManager.getInvincibleEndTime() - System.currentTimeMillis());
+        }
+
+        @Override
+        public boolean isTripleShotActive() {
+            return skillManager.hasTripleShot();
+        }
+
+        @Override
+        public long getTripleShotRemainingMs() {
+            return Math.max(0L, skillManager.getTripleShotEndTime() - System.currentTimeMillis());
+        }
+
+        @Override
+        public String getFormattedPlayTime() {
+            return gameStateManager.getPlayTime();
+        }
+
+        @Override
+        public int getEarnedCoins() {
+            return gameStateManager.getEarnedCoins();
+        }
     }
 }

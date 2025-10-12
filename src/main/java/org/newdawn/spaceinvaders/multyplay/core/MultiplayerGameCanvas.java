@@ -6,7 +6,10 @@ import java.awt.Font;
 import java.awt.FontMetrics;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
+import java.awt.RenderingHints;
+import java.awt.geom.AffineTransform;
 import java.awt.image.BufferedImage;
+import java.awt.BasicStroke;
 // no direct AWT listeners here; handled via MultiplayerInputManager
 import java.util.ArrayDeque;
 import java.util.ArrayList;
@@ -66,9 +69,6 @@ import org.newdawn.spaceinvaders.multyplay.net.client.RoomGameNetworkAdapter;
  */
 public class MultiplayerGameCanvas extends Canvas implements Screen, MultiplayerGameContext
 {
-	private static final Font LOCAL_SHIP_MARKER_FONT = new Font("Arial", Font.BOLD, 14);
-	private static final Color LOCAL_SHIP_MARKER_COLOR = new Color(255, 230, 140);
-	private static final Color LOCAL_SHIP_MARKER_SHADOW = new Color(0, 0, 0, 170);
 	/** The stragey that allows us to use accelerate page flipping */
 	// BufferStrategy는 상위 App에서 관리
 	// entities and removeList are now managed by MultiplayerGameStateManager
@@ -379,6 +379,40 @@ public class MultiplayerGameCanvas extends Canvas implements Screen, Multiplayer
 		if (targetId != null && targetId.equals(gameStateManager.getLocalPlayerId()) && targetState.isDead()) {
 			gameStateManager.setMessage("Oh no! They got you, try again?");
 			gameStateManager.setWaitingForKeyPress(true);
+		}
+	}
+
+	@Override
+	public boolean canEnemiesAttack() {
+		long startTime = gameStateManager.getGameStartTime();
+		if (startTime <= 0) {
+			return false;
+		}
+		return System.currentTimeMillis() - startTime >= 3000;
+	}
+
+	@Override
+	public void notifyPlayerDamaged(String playerId, int damage) {
+		if (damage <= 0) {
+			return;
+		}
+		String targetId = playerId != null ? playerId : gameStateManager.getLocalPlayerId();
+		if (targetId == null) {
+			return;
+		}
+		if (targetId.equals(gameStateManager.getLocalPlayerId()) && skillManager.isInvincible()) {
+			return;
+		}
+		if (remoteMode) {
+			return;
+		}
+
+		PlayerState targetState = gameStateManager.ensurePlayer(targetId);
+		for (int i = 0; i < damage; i++) {
+			gameStateManager.takeDamage(targetId);
+			if (targetState.isDead()) {
+				break;
+			}
 		}
 	}
 	
@@ -923,6 +957,38 @@ public class MultiplayerGameCanvas extends Canvas implements Screen, Multiplayer
 				return new RemoteShotEntity(snapshot, meta);
 			case "ExplosionEntity":
 				return new RemoteExplosionEntity(snapshot, meta);
+			case "IceAttack":
+				return new RemoteIceAttack(snapshot);
+			case "IceBallAttack":
+				return new RemoteIceBallAttack(snapshot);
+			case "MagneticFieldEntity":
+				return new RemoteMagneticField(snapshot, meta);
+			case "Round2LaserAttack":
+				return new RemoteRound2Laser(snapshot);
+			case "Round2Phase1Attack":
+				return new RemoteRound2Phase1(snapshot);
+			case "Round2Phase2Attack":
+				return new RemoteRound2Phase2(snapshot);
+			case "Round2RandomAttack":
+				return new RemoteRound2Random(snapshot);
+		case "Round2QuadAttack":
+			return new RemoteRound2Quad(snapshot);
+			case "Round2MachineGunAttack":
+				return new RemoteRound2MachineGun(snapshot);
+			case "Round3StraightAttack":
+				return new RemoteRound3Straight(snapshot);
+			case "Round3RandomAttack":
+				return new RemoteRound3Random(snapshot);
+			case "Round3PullAttack":
+				return new RemoteRound3Pull(snapshot);
+			case "Round3BlackHoleAttack":
+				return new RemoteRound3BlackHole(snapshot);
+			case "Round4HealAttack":
+				return new RemoteRound4Heal(snapshot);
+			case "Round4GreenSphereAttack":
+				return new RemoteRound4GreenSphere(snapshot, meta);
+			case "Round4PlayerLineAttack":
+				return new RemoteRound4PlayerLine(snapshot);
 		case "BossEntity":
 			return new RemoteBossEntity(snapshot, meta);
 			case "BossShotEntity":
@@ -1599,6 +1665,576 @@ public class MultiplayerGameCanvas extends Canvas implements Screen, Multiplayer
 		}
 	}
 
+	private static class RemoteIceAttack extends Entity {
+		private static final double SCALE = 0.8;
+
+		RemoteIceAttack(EntitySnapshot snapshot) {
+			super("sprites/Boss_Attack/ice.gif", (int) Math.round(snapshot.x), (int) Math.round(snapshot.y));
+			this.x = snapshot.x;
+			this.y = snapshot.y;
+		}
+
+		@Override
+		public void move(long delta) {
+			// remote entities are snapshot-driven
+		}
+
+		@Override
+		public void collidedWith(Entity other) {
+			// visuals only
+		}
+
+		@Override
+		public java.awt.Rectangle getBounds() {
+			int width = sprite != null ? (int) Math.round(sprite.getWidth() * SCALE) : 48;
+			int height = sprite != null ? (int) Math.round(sprite.getHeight() * SCALE) : 48;
+			int drawX = (int) Math.round(x) - width / 2;
+			int drawY = (int) Math.round(y) - height / 2;
+			return new java.awt.Rectangle(drawX, drawY, width, height);
+		}
+
+		@Override
+		public void draw(Graphics g) {
+			Graphics2D g2d = (Graphics2D) g;
+			if (sprite != null) {
+				int width = (int) Math.round(sprite.getWidth() * SCALE);
+				int height = (int) Math.round(sprite.getHeight() * SCALE);
+				int drawX = (int) Math.round(x) - width / 2;
+				int drawY = (int) Math.round(y) - height / 2;
+				g2d.drawImage(sprite.getImage(), drawX, drawY, width, height, null);
+			} else {
+				g2d.setColor(new Color(0, 255, 255, 180));
+				g2d.fillOval((int) Math.round(x) - 16, (int) Math.round(y) - 16, 32, 32);
+				g2d.setColor(new Color(0, 200, 200, 120));
+				g2d.drawOval((int) Math.round(x) - 16, (int) Math.round(y) - 16, 32, 32);
+			}
+		}
+	}
+
+	private static class RemoteIceBallAttack extends Entity {
+		private static final int RADIUS = 10;
+
+		RemoteIceBallAttack(EntitySnapshot snapshot) {
+			super("sprites/shot.gif", (int) Math.round(snapshot.x), (int) Math.round(snapshot.y));
+			this.x = snapshot.x;
+			this.y = snapshot.y;
+		}
+
+		@Override
+		public void move(long delta) {
+			// snapshot-driven
+		}
+
+		@Override
+		public void collidedWith(Entity other) {
+			// visuals only
+		}
+
+		@Override
+		public java.awt.Rectangle getBounds() {
+			int drawX = (int) Math.round(x) - RADIUS;
+			int drawY = (int) Math.round(y) - RADIUS;
+			return new java.awt.Rectangle(drawX, drawY, RADIUS * 2, RADIUS * 2);
+		}
+
+		@Override
+		public void draw(Graphics g) {
+			Graphics2D g2d = (Graphics2D) g;
+			int drawX = (int) Math.round(x) - RADIUS;
+			int drawY = (int) Math.round(y) - RADIUS;
+			g2d.setColor(new Color(120, 255, 255, 180));
+			g2d.fillOval(drawX, drawY, RADIUS * 2, RADIUS * 2);
+			g2d.setColor(new Color(210, 255, 255, 220));
+			g2d.fillOval(drawX + 3, drawY + 3, (RADIUS - 3) * 2, (RADIUS - 3) * 2);
+		}
+	}
+
+	private static class RemoteMagneticField extends Entity {
+		private final double radius;
+		private final double strength;
+
+		RemoteMagneticField(EntitySnapshot snapshot, Map<String, String> meta) {
+			super("sprites/shot.gif", (int) Math.round(snapshot.x), (int) Math.round(snapshot.y));
+			this.x = snapshot.x;
+			this.y = snapshot.y;
+			this.radius = parseDouble(meta, "radius", 220.0);
+			this.strength = parseDouble(meta, "strength", 0.8);
+		}
+
+		private static double parseDouble(Map<String, String> meta, String key, double def) {
+			if (meta == null) {
+				return def;
+			}
+			try {
+				return Double.parseDouble(meta.getOrDefault(key, Double.toString(def)));
+			} catch (NumberFormatException ignore) {
+				return def;
+			}
+		}
+
+		@Override
+		public void move(long delta) {
+			// visuals only
+		}
+
+		@Override
+		public void collidedWith(Entity other) {
+			// visuals only
+		}
+
+		@Override
+		public java.awt.Rectangle getBounds() {
+			int r = (int) Math.round(radius);
+			return new java.awt.Rectangle((int) Math.round(x) - r, (int) Math.round(y) - r, r * 2, r * 2);
+		}
+
+		@Override
+		public void draw(Graphics g) {
+			Graphics2D g2d = (Graphics2D) g.create();
+			g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+			int r = (int) Math.round(radius);
+			int centerX = (int) Math.round(x);
+			int centerY = (int) Math.round(y);
+			float alpha = 0.4f;
+			g2d.setColor(strength > 0 ? new Color(1.0f, 0.3f, 0.3f, alpha)
+					: new Color(0.3f, 0.3f, 1.0f, alpha));
+			g2d.fillOval(centerX - r, centerY - r, r * 2, r * 2);
+			g2d.setStroke(new BasicStroke(2.0f));
+			g2d.setColor(new Color(1.0f, 1.0f, 1.0f, alpha * 0.8f));
+			g2d.drawOval(centerX - r, centerY - r, r * 2, r * 2);
+			g2d.setColor(Color.WHITE);
+			g2d.fillOval(centerX - 3, centerY - 3, 6, 6);
+			g2d.dispose();
+		}
+	}
+
+	private static class RemoteRound2Laser extends Entity {
+		private static final double LENGTH = 700;
+		private static final double WIDTH = 300;
+
+		RemoteRound2Laser(EntitySnapshot snapshot) {
+			super("sprites/Boss_Attack/2round.gif", (int) Math.round(snapshot.x), (int) Math.round(snapshot.y));
+			this.x = snapshot.x;
+			this.y = snapshot.y;
+		}
+
+		@Override
+		public void move(long delta) {
+			// visuals only
+		}
+
+		@Override
+		public void collidedWith(Entity other) {
+			// visuals only
+		}
+
+		@Override
+		public java.awt.Rectangle getBounds() {
+			return new java.awt.Rectangle((int) Math.round(x),
+					(int) Math.round(y), (int) LENGTH, (int) WIDTH);
+		}
+
+		@Override
+		public void draw(Graphics g) {
+			Graphics2D g2d = (Graphics2D) g;
+			AffineTransform original = g2d.getTransform();
+			g2d.translate(x + LENGTH / 2.0, y + WIDTH / 2.0);
+			g2d.rotate(Math.PI / 2);
+			if (sprite != null) {
+				g2d.drawImage(sprite.getImage(), (int) -(LENGTH / 2), (int) -(WIDTH / 2),
+						(int) LENGTH, (int) WIDTH, null);
+			} else {
+				g2d.setColor(new Color(120, 200, 255, 180));
+				g2d.fillRect((int) -(LENGTH / 2), (int) -(WIDTH / 2), (int) LENGTH, (int) WIDTH);
+			}
+			g2d.setTransform(original);
+		}
+	}
+
+	private static class RemoteRound2Phase1 extends Entity {
+		private static final int SIZE = 80;
+
+		RemoteRound2Phase1(EntitySnapshot snapshot) {
+			super("sprites/Boss_Attack/2round3.gif", (int) Math.round(snapshot.x), (int) Math.round(snapshot.y));
+			this.x = snapshot.x;
+			this.y = snapshot.y;
+		}
+
+		@Override
+		public void move(long delta) {}
+
+		@Override
+		public void collidedWith(Entity other) {}
+
+		@Override
+		public java.awt.Rectangle getBounds() {
+			return new java.awt.Rectangle((int) Math.round(x) - SIZE / 2, (int) Math.round(y) - SIZE / 2, SIZE, SIZE);
+		}
+
+		@Override
+		public void draw(Graphics g) {
+			if (sprite != null) {
+				g.drawImage(sprite.getImage(), (int) Math.round(x) - SIZE / 2, (int) Math.round(y) - SIZE / 2,
+						SIZE, SIZE, null);
+			} else {
+				g.setColor(new Color(255, 150, 150, 200));
+				g.fillOval((int) Math.round(x) - SIZE / 2, (int) Math.round(y) - SIZE / 2, SIZE, SIZE);
+			}
+		}
+	}
+
+	private static class RemoteRound2Phase2 extends Entity {
+		private static final int SIZE = 50;
+
+		RemoteRound2Phase2(EntitySnapshot snapshot) {
+			super("sprites/Boss_Attack/2round1.gif", (int) Math.round(snapshot.x), (int) Math.round(snapshot.y));
+			this.x = snapshot.x;
+			this.y = snapshot.y;
+		}
+
+		@Override
+		public void move(long delta) {}
+
+		@Override
+		public void collidedWith(Entity other) {}
+
+		@Override
+		public java.awt.Rectangle getBounds() {
+			return new java.awt.Rectangle((int) Math.round(x) - SIZE / 2, (int) Math.round(y) - SIZE / 2, SIZE, SIZE);
+		}
+
+		@Override
+		public void draw(Graphics g) {
+			if (sprite != null) {
+				g.drawImage(sprite.getImage(), (int) Math.round(x) - SIZE / 2, (int) Math.round(y) - SIZE / 2,
+						SIZE, SIZE, null);
+			} else {
+				g.setColor(new Color(255, 200, 120, 220));
+				g.fillOval((int) Math.round(x) - SIZE / 2, (int) Math.round(y) - SIZE / 2, SIZE, SIZE);
+			}
+		}
+	}
+
+	private static class RemoteRound2Random extends Entity {
+		private static final int WIDTH = 300;
+		private static final int HEIGHT = 400;
+
+		RemoteRound2Random(EntitySnapshot snapshot) {
+			super("sprites/Boss_Attack/2round2.gif", (int) Math.round(snapshot.x), 150);
+			this.x = snapshot.x;
+			this.y = 150;
+		}
+
+		@Override
+		public void move(long delta) {}
+
+		@Override
+		public void collidedWith(Entity other) {}
+
+		@Override
+		public java.awt.Rectangle getBounds() {
+			return new java.awt.Rectangle((int) Math.round(x) - WIDTH / 2, (int) Math.round(y), WIDTH, HEIGHT);
+		}
+
+		@Override
+		public void draw(Graphics g) {
+			if (sprite != null) {
+				g.drawImage(sprite.getImage(), (int) Math.round(x) - WIDTH / 2, 150, WIDTH, HEIGHT, null);
+			} else {
+				g.setColor(new Color(255, 200, 0, 128));
+				g.fillRect((int) Math.round(x) - WIDTH / 2, 150, WIDTH, HEIGHT);
+			}
+		}
+	}
+
+	private static class RemoteRound2Quad extends Entity {
+
+		RemoteRound2Quad(EntitySnapshot snapshot) {
+			super("sprites/Boss_Attack/2round1.gif", (int) Math.round(snapshot.x), (int) Math.round(snapshot.y));
+			this.x = snapshot.x;
+			this.y = snapshot.y;
+		}
+
+		@Override
+		public void move(long delta) {}
+
+		@Override
+		public void collidedWith(Entity other) {}
+
+		@Override
+		public java.awt.Rectangle getBounds() {
+			return new java.awt.Rectangle((int) Math.round(x) - 25, (int) Math.round(y) - 25, 50, 50);
+		}
+
+		@Override
+		public void draw(Graphics g) {
+			if (sprite != null) {
+				g.drawImage(sprite.getImage(), (int) Math.round(x) - 25, (int) Math.round(y) - 25, 50, 50, null);
+			} else {
+				g.setColor(new Color(255, 180, 120, 200));
+				g.fillOval((int) Math.round(x) - 25, (int) Math.round(y) - 25, 50, 50);
+			}
+		}
+	}
+
+	private static class RemoteRound2MachineGun extends Entity {
+		private static final int SIZE = 30;
+
+		RemoteRound2MachineGun(EntitySnapshot snapshot) {
+			super("sprites/Boss_Attack/2round1.gif", (int) Math.round(snapshot.x), (int) Math.round(snapshot.y));
+			this.x = snapshot.x;
+			this.y = snapshot.y;
+		}
+
+		@Override
+		public void move(long delta) {}
+
+		@Override
+		public void collidedWith(Entity other) {}
+
+		@Override
+		public java.awt.Rectangle getBounds() {
+			return new java.awt.Rectangle((int) Math.round(x) - SIZE / 2, (int) Math.round(y) - SIZE / 2, SIZE, SIZE);
+		}
+
+		@Override
+		public void draw(Graphics g) {
+			if (sprite != null) {
+				g.drawImage(sprite.getImage(), (int) Math.round(x) - SIZE / 2, (int) Math.round(y) - SIZE / 2, SIZE, SIZE, null);
+			} else {
+				g.setColor(new Color(255, 220, 120, 200));
+				g.fillOval((int) Math.round(x) - SIZE / 2, (int) Math.round(y) - SIZE / 2, SIZE, SIZE);
+			}
+		}
+	}
+
+	private static class RemoteRound3Straight extends Entity {
+		private static final int WIDTH = 600;
+		private static final int HEIGHT = 300;
+
+		RemoteRound3Straight(EntitySnapshot snapshot) {
+			super("sprites/Boss_Attack/3round4.gif", (int) Math.round(snapshot.x), (int) Math.round(snapshot.y));
+			this.x = snapshot.x;
+			this.y = snapshot.y;
+		}
+
+		@Override
+		public void move(long delta) {}
+
+		@Override
+		public void collidedWith(Entity other) {}
+
+		@Override
+		public java.awt.Rectangle getBounds() {
+			return new java.awt.Rectangle((int) Math.round(x) - WIDTH / 2, (int) Math.round(y) - HEIGHT / 2, WIDTH, HEIGHT);
+		}
+
+		@Override
+		public void draw(Graphics g) {
+			if (sprite != null) {
+				g.drawImage(sprite.getImage(), (int) Math.round(x) - WIDTH / 2, (int) Math.round(y) - HEIGHT / 2,
+						WIDTH, HEIGHT, null);
+			} else {
+				g.setColor(new Color(200, 30, 30, 140));
+				g.fillRect((int) Math.round(x) - WIDTH / 2, (int) Math.round(y) - HEIGHT / 2, WIDTH, HEIGHT);
+			}
+		}
+	}
+
+	private static class RemoteRound3Random extends Entity {
+		private static final int WIDTH = 400;
+		private static final int HEIGHT = 1400;
+
+		RemoteRound3Random(EntitySnapshot snapshot) {
+			super("sprites/Boss_Attack/3round2.gif", (int) Math.round(snapshot.x), (int) Math.round(snapshot.y));
+			this.x = snapshot.x;
+			this.y = snapshot.y;
+		}
+
+		@Override
+		public void move(long delta) {}
+
+		@Override
+		public void collidedWith(Entity other) {}
+
+		@Override
+		public java.awt.Rectangle getBounds() {
+			return new java.awt.Rectangle((int) Math.round(x) - WIDTH / 2, (int) Math.round(y) - HEIGHT / 2, WIDTH, HEIGHT);
+		}
+
+		@Override
+		public void draw(Graphics g) {
+			if (sprite != null) {
+				g.drawImage(sprite.getImage(), (int) Math.round(x) - WIDTH / 2, (int) Math.round(y) - HEIGHT / 2,
+						WIDTH, HEIGHT, null);
+			} else {
+				g.setColor(new Color(255, 80, 80, 120));
+				g.fillRect((int) Math.round(x) - WIDTH / 2, (int) Math.round(y) - HEIGHT / 2, WIDTH, HEIGHT);
+			}
+		}
+	}
+
+	private static class RemoteRound3Pull extends Entity {
+		private static final int WIDTH = 300;
+		private static final int HEIGHT = 400;
+
+		RemoteRound3Pull(EntitySnapshot snapshot) {
+			super("sprites/Boss_Attack/3round3.gif", (int) Math.round(snapshot.x), (int) Math.round(snapshot.y));
+			this.x = snapshot.x;
+			this.y = snapshot.y;
+		}
+
+		@Override
+		public void move(long delta) {}
+
+		@Override
+		public void collidedWith(Entity other) {}
+
+		@Override
+		public java.awt.Rectangle getBounds() {
+			return new java.awt.Rectangle((int) Math.round(x) - WIDTH / 2, (int) Math.round(y) - HEIGHT / 2, WIDTH, HEIGHT);
+		}
+
+		@Override
+		public void draw(Graphics g) {
+			if (sprite != null) {
+				g.drawImage(sprite.getImage(), (int) Math.round(x) - WIDTH / 2, (int) Math.round(y) - HEIGHT / 2,
+						WIDTH, HEIGHT, null);
+			} else {
+				g.setColor(new Color(80, 120, 255, 120));
+				g.fillRect((int) Math.round(x) - WIDTH / 2, (int) Math.round(y) - HEIGHT / 2, WIDTH, HEIGHT);
+			}
+		}
+	}
+
+	private static class RemoteRound3BlackHole extends Entity {
+		private static final int SIZE = 150;
+
+		RemoteRound3BlackHole(EntitySnapshot snapshot) {
+			super("sprites/Boss_Attack/3round.gif", (int) Math.round(snapshot.x), (int) Math.round(snapshot.y));
+			this.x = snapshot.x;
+			this.y = snapshot.y;
+		}
+
+		@Override
+		public void move(long delta) {}
+
+		@Override
+		public void collidedWith(Entity other) {}
+
+		@Override
+		public java.awt.Rectangle getBounds() {
+			return new java.awt.Rectangle((int) Math.round(x) - SIZE / 2, (int) Math.round(y) - SIZE / 2, SIZE, SIZE);
+		}
+
+		@Override
+		public void draw(Graphics g) {
+			if (sprite != null) {
+				g.drawImage(sprite.getImage(), (int) Math.round(x) - SIZE / 2, (int) Math.round(y) - SIZE / 2,
+						SIZE, SIZE, null);
+			} else {
+				g.setColor(new Color(40, 40, 80, 200));
+				g.fillOval((int) Math.round(x) - SIZE / 2, (int) Math.round(y) - SIZE / 2, SIZE, SIZE);
+			}
+		}
+	}
+
+	private static class RemoteRound4Heal extends Entity {
+		private static final int SIZE = 300;
+
+		RemoteRound4Heal(EntitySnapshot snapshot) {
+			super("sprites/Boss_Attack/4round.gif", (int) Math.round(snapshot.x), (int) Math.round(snapshot.y));
+			this.x = snapshot.x;
+			this.y = snapshot.y;
+		}
+
+		@Override
+		public void move(long delta) {}
+
+		@Override
+		public void collidedWith(Entity other) {}
+
+		@Override
+		public java.awt.Rectangle getBounds() {
+			return new java.awt.Rectangle((int) Math.round(x) - SIZE / 2, (int) Math.round(y) - SIZE / 2, SIZE, SIZE);
+		}
+
+		@Override
+		public void draw(Graphics g) {
+			if (sprite != null) {
+				g.drawImage(sprite.getImage(), (int) Math.round(x) - SIZE / 2, (int) Math.round(y) - SIZE / 2,
+						SIZE, SIZE, null);
+			} else {
+				g.setColor(new Color(120, 255, 120, 140));
+				g.fillOval((int) Math.round(x) - SIZE / 2, (int) Math.round(y) - SIZE / 2, SIZE, SIZE);
+			}
+		}
+	}
+
+	private static class RemoteRound4GreenSphere extends Entity {
+		private static final int SIZE = 12;
+
+		RemoteRound4GreenSphere(EntitySnapshot snapshot, Map<String, String> meta) {
+			super("sprites/Skill/Heat.gif", (int) Math.round(snapshot.x), (int) Math.round(snapshot.y));
+			this.x = snapshot.x;
+			this.y = snapshot.y;
+		}
+
+		@Override
+		public void move(long delta) {}
+
+		@Override
+		public void collidedWith(Entity other) {}
+
+		@Override
+		public java.awt.Rectangle getBounds() {
+			return new java.awt.Rectangle((int) Math.round(x) - SIZE / 2, (int) Math.round(y) - SIZE / 2, SIZE, SIZE);
+		}
+
+		@Override
+		public void draw(Graphics g) {
+			Graphics2D g2d = (Graphics2D) g;
+			int drawX = (int) Math.round(x) - SIZE / 2;
+			int drawY = (int) Math.round(y) - SIZE / 2;
+			g2d.setColor(new Color(120, 255, 120, 220));
+			g2d.fillOval(drawX, drawY, SIZE, SIZE);
+			g2d.setColor(new Color(200, 255, 200, 160));
+			g2d.fillOval(drawX + 2, drawY + 2, SIZE - 4, SIZE - 4);
+		}
+	}
+
+	private static class RemoteRound4PlayerLine extends Entity {
+		private static final int SIZE = 160;
+
+		RemoteRound4PlayerLine(EntitySnapshot snapshot) {
+			super("sprites/Boss_Attack/4round3.gif", (int) Math.round(snapshot.x), (int) Math.round(snapshot.y));
+			this.x = snapshot.x;
+			this.y = snapshot.y;
+		}
+
+		@Override
+		public void move(long delta) {}
+
+		@Override
+		public void collidedWith(Entity other) {}
+
+		@Override
+		public java.awt.Rectangle getBounds() {
+			return new java.awt.Rectangle((int) Math.round(x) - SIZE / 2, (int) Math.round(y) - SIZE / 2, SIZE, SIZE);
+		}
+
+		@Override
+		public void draw(Graphics g) {
+			if (sprite != null) {
+				g.drawImage(sprite.getImage(), (int) Math.round(x) - SIZE / 2, (int) Math.round(y) - SIZE / 2,
+						SIZE, SIZE, null);
+			} else {
+				g.setColor(new Color(255, 120, 120, 200));
+				g.fillRect((int) Math.round(x) - SIZE / 2, (int) Math.round(y) - SIZE / 2, SIZE, SIZE);
+			}
+		}
+	}
+
 	private static class RemoteExplosionEntity extends Entity {
 		private static BufferedImage cachedImage;
 		private double currentRadius;
@@ -1676,7 +2312,6 @@ public class MultiplayerGameCanvas extends Canvas implements Screen, Multiplayer
 		ArrayList<Entity> entities = gameStateManager.getEntities();
 		for (Entity entity : entities) entity.draw(g);
 		drawRemoteCoinPopups(g);
-		drawLocalShipMarker(g);
 		// UI & overlays
 	uiRenderer.drawGameUI(g, gameStateManager, skillManager);
 	if (gameStateManager.isShowingPauseMenu()) { drawPauseMenu(g); }
@@ -1699,45 +2334,6 @@ public class MultiplayerGameCanvas extends Canvas implements Screen, Multiplayer
 		for (CoinDisplayEntity popup : remoteCoinPopups) {
 			popup.draw(g);
 		}
-	}
-
-	private void drawLocalShipMarker(Graphics2D g) {
-		if (localPlayerId == null || isLocalSpectatorActive()) {
-			return;
-		}
-		Entity localShip = this.ship;
-		if (localShip == null && localPlayerId != null) {
-			localShip = getShip(localPlayerId);
-		}
-		if (localShip == null) {
-			return;
-		}
-		String ownerId = localShip.getOwnerId();
-		if (ownerId != null && !ownerId.equals(localPlayerId)) {
-			return;
-		}
-		java.awt.Rectangle bounds = localShip.getBounds();
-		int centerX = bounds.x + (bounds.width / 2);
-		String label = "(YOU)";
-		Font previousFont = g.getFont();
-		Color previousColor = g.getColor();
-		g.setFont(LOCAL_SHIP_MARKER_FONT);
-		FontMetrics metrics = g.getFontMetrics();
-		int textWidth = metrics.stringWidth(label);
-		int textBaseline = bounds.y + bounds.height + 18;
-		double scaleY = resolutionManager != null ? resolutionManager.getScaleY() : 1.0;
-		int logicalHeight = scaleY != 0 ? (int) Math.round(getHeight() / scaleY) : getHeight();
-		int maxBaseline = logicalHeight - metrics.getDescent() - 4;
-		if (textBaseline > maxBaseline) {
-			textBaseline = maxBaseline;
-		}
-		int drawX = centerX - (textWidth / 2);
-		g.setColor(LOCAL_SHIP_MARKER_SHADOW);
-		g.drawString(label, drawX + 1, textBaseline + 1);
-		g.setColor(LOCAL_SHIP_MARKER_COLOR);
-		g.drawString(label, drawX, textBaseline);
-		g.setFont(previousFont);
-		g.setColor(previousColor);
 	}
 
 	
@@ -2082,7 +2678,7 @@ public class MultiplayerGameCanvas extends Canvas implements Screen, Multiplayer
 	@Override
 	public Entity createNearEntity(int round, int index) {
 		int posX = 150 + (index * 100);
-		return new NearEntity(this, posX, 140, round, index);
+		return new NearEntity(this, posX, 120, round, index);
 	}
 
 	@Override

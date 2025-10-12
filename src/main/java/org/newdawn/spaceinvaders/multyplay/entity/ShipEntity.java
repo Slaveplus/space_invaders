@@ -73,6 +73,24 @@ public class ShipEntity extends Entity {
 			g2d.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, 1.0f));
 		}
 	}
+
+	public void pullTowards(double pullX, double pullY) {
+		this.x += pullX;
+		this.y += pullY;
+
+		if (this.x < 10) {
+			this.x = 10;
+		}
+		if (this.x > 750) {
+			this.x = 750;
+		}
+		if (this.y < 50) {
+			this.y = 50;
+		}
+		if (this.y > 500) {
+			this.y = 500;
+		}
+	}
 	
 	/**
 	 * Notification that the player's ship has collided with something

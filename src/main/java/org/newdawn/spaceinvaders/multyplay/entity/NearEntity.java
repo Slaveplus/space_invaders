@@ -29,6 +29,8 @@ public class NearEntity extends Entity {
     private boolean movingRight = true;
     private long lastShot = 0;
     private final long shotInterval;
+    private static final int NEAR_WIDTH = 120;
+    private static final int NEAR_HEIGHT = 120;
 
     private static String spriteForRound(int round) {
         switch (round) {
@@ -47,6 +49,21 @@ public class NearEntity extends Entity {
             case 5: return 3;
             case 7: return 4;
             default: return 1;
+        }
+    }
+
+    private static String shotSpriteForRound(int nearRound) {
+        switch (nearRound) {
+            case 1:
+                return "sprites/Boss_Attack/ice ball.gif";
+            case 3:
+                return "sprites/shot.gif";
+            case 5:
+                return "sprites/shot.gif";
+            case 7:
+                return "sprites/Boss_Attack/5round1.gif";
+            default:
+                return "sprites/shot.gif";
         }
     }
 
@@ -105,7 +122,7 @@ public class NearEntity extends Entity {
             double dx = this.x - other.x;
             double dy = this.y - other.y;
             double distance = Math.sqrt(dx * dx + dy * dy);
-            double minDistance = 120; // approximate size
+            double minDistance = NEAR_WIDTH;
             if (distance > 0 && distance < minDistance) {
                 double push = (minDistance - distance) / 2.0;
                 double nx = dx / distance;
@@ -116,21 +133,23 @@ public class NearEntity extends Entity {
                 other.y -= ny * push * 0.2;
 
                 this.x = Math.max(60, Math.min(740, this.x));
-                this.y = Math.max(80, Math.min(220, this.y));
+                this.y = Math.max(60, Math.min(140, this.y));
                 other.x = Math.max(60, Math.min(740, other.x));
-                other.y = Math.max(80, Math.min(220, other.y));
+                other.y = Math.max(60, Math.min(140, other.y));
             }
         }
     }
 
     private void tryShoot() {
+        if (!game.canEnemiesAttack()) {
+            return;
+        }
         long now = System.currentTimeMillis();
         if (now - lastShot < shotInterval) {
             return;
         }
 
-        // Near 몬스터는 플레이어를 향해 직선으로 에너지 구체를 쏜다.
-        ShotEntity shot = new ShotEntity(game, "sprites/shot.gif", (int) x, (int) y + 40, true);
+        ShotEntity shot = new ShotEntity(game, shotSpriteForRound(round), (int) x, (int) y + NEAR_HEIGHT / 2, true);
         shot.setVerticalMovement(300);
         game.addEntity(shot);
 
@@ -174,19 +193,17 @@ public class NearEntity extends Entity {
     @Override
     public void draw(Graphics g) {
         Graphics2D g2d = (Graphics2D) g;
-        int width = 120;
-        int height = 120;
-        int drawX = (int) x - width / 2;
-        int drawY = (int) y - height / 2;
+        int drawX = (int) x - NEAR_WIDTH / 2;
+        int drawY = (int) y - NEAR_HEIGHT / 2;
 
         if (nearImage != null) {
-            g2d.drawImage(nearImage, drawX, drawY, drawX + width, drawY + height,
+            g2d.drawImage(nearImage, drawX, drawY, drawX + NEAR_WIDTH, drawY + NEAR_HEIGHT,
                     0, 0, nearImage.getWidth(null), nearImage.getHeight(null), null);
         } else {
             g2d.setColor(Color.ORANGE);
-            g2d.fillRect(drawX, drawY, width, height);
+            g2d.fillRect(drawX, drawY, NEAR_WIDTH, NEAR_HEIGHT);
             g2d.setColor(Color.YELLOW);
-            g2d.drawRect(drawX, drawY, width, height);
+            g2d.drawRect(drawX, drawY, NEAR_WIDTH, NEAR_HEIGHT);
         }
 
         int barWidth = 60;
@@ -212,11 +229,9 @@ public class NearEntity extends Entity {
 
     @Override
     public java.awt.Rectangle getBounds() {
-        int width = 120;
-        int height = 120;
-        int topLeftX = (int) x - width / 2;
-        int topLeftY = (int) y - height / 2;
-        return new java.awt.Rectangle(topLeftX, topLeftY, width, height);
+        int topLeftX = (int) x - NEAR_WIDTH / 2;
+        int topLeftY = (int) y - NEAR_HEIGHT / 2;
+        return new java.awt.Rectangle(topLeftX, topLeftY, NEAR_WIDTH, NEAR_HEIGHT);
     }
 
     public int getCurrentHP() {
