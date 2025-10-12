@@ -108,3 +108,43 @@ Good luck! Feel free to ping if any context is missing.
 - Attempting to wire multiplayer directly to the shared coordinator exposed structural gaps (no NearEntity analogue, different spawn logic tied to networking).
 - Adapting the coordinator requires either introducing multiplayer equivalents of single-player entities or generalising the coordinator interface further.
 - To avoid breaking the current build, changes were reverted; follow-up work is summarised in README above.
+
+---
+
+## 2025-02-20 Multiplayer HUD & Boss Update
+
+### What Changed Today
+- **HUD parity** – The multiplayer canvas now calls the shared HUD renderer without the bespoke `(YOU)` label, so the overlay layout/fonts match single-player exactly. No extra overlays are drawn outside the shared renderer.
+- **Remote FX coverage** – Added snapshot-aware remote entity wrappers for every boss attack (ice, magnetic field, round2/3/4 patterns). Clients now render the same visuals/positions as the host when they receive snapshots.
+- **Boss behaviour** – Replaced the multiplayer boss implementation with the single-player round scheduler. Round-specific timers (magnetic pull, laser, heal, etc.) now run from the host/server through the new attack entities.
+- **Magnetic field metadata** – Magnetic fields now serialize radius/strength so remote clients draw the correct ring size.
+
+### Outstanding Risk / Bugs
+1. **Bullet collision regression (user report):** The user still sees hits registering early. We updated the boss shot logic to call `notifyPlayerDamaged` instead of `notifyDeath`, but we have not yet profiled alien shots or examined hitbox sizes. Expect to inspect:
+   - `multyplay/entity/ShotEntity` collisions vs single-player `ShotEntity`.
+   - Bounding boxes coming from remote snapshots (`RemoteShotEntity`, `RemoteBossShotEntity`) to ensure they match local entities.
+2. **HUD verification:** Although the HUD code paths are unified, we have not visually confirmed the absence of latitude/scale issues under different resolutions. Check both host and client.
+3. **Round parity smoke test:** The boss logic copies single-player timers, but we have not manually stepped through all eight rounds in a multiplayer session (host + remote client) to confirm pattern timing and spawn counts match. Especially validate:
+   - Round 2 phase transitions (laser → phase → random → quad → machine gun loop).
+   - Round 3 pull attack + black-hole effect (ship pull strength vs single-player).
+   - Round 4 timer fail-safe (instant-kill fallback) and heal cadence.
+4. **Snapshot payload size:** Adding the new remote entities increases snapshot payload; watch for bandwidth spikes or serialization errors under load/latency.
+
+### Suggested Next Actions
+1. **Reproduce the “ghost hit” issue** using a host/client setup. Log entity bounds and collision triggers in `ShotEntity`/`BossShotEntity` (multiplayer and single-player) to locate discrepancies. Consider aligning hitboxes with sprite dimensions stored in snapshots.
+2. **Manual multiplayer run-through** (host + remote client):
+   - Validate HUD layout, skill counts, coin/time display.
+   - Record each boss attack to ensure timing matches single-player expectations.
+   - Note any snapshot jitter with the new remote attack entities.
+3. **Remote spectator overlays:** Verify the spectator overlay still behaves correctly now that the `(YOU)` marker was removed.
+4. **Documentation update:** Once bullet collisions are resolved, update `docs/multiplayer_alignment.md` Phase 3 with the new parity status and remaining gaps.
+
+### Quick Reminders
+- Build command: `mvn -q -DskipTests compile`
+- Key files touched today:
+  - `src/main/java/org/newdawn/spaceinvaders/multyplay/core/MultiplayerGameCanvas.java`
+  - `src/main/java/org/newdawn/space_invaders/multyplay/entity/BossEntity.java`
+  - `src/main/java/org/newdawn/space_invaders/multyplay/entity/attack/` (new attack renderers)
+  - `src/main/java/org/newdawn/space_invaders/multyplay/entity/attack/MagneticFieldEntity.java` (metadata serialization)
+
+Feel free to reach out if more context is needed—good luck!

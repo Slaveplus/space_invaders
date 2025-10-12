@@ -1034,10 +1034,11 @@ public class ServerMultiplayerGame implements MultiplayerGameContext {
 
     @Override
     public void onNearMonsterDestroyed(NearEntity nearEntity, String killerPlayerId, double killX, double killY) {
-        SharedMultiplayerRoundCoordinator.handleNearMonsterDestroyed(this, nearEntity, killerPlayerId, killX, killY);
+        boolean cleared = SharedMultiplayerRoundCoordinator.handleNearMonsterDestroyed(
+                this, nearEntity, killerPlayerId, killX, killY);
         alienCount = gameStateManager.getAlienCount();
 
-        if (gameStateManager.getAlienCount() <= 0) {
+        if (cleared) {
             notifyWin();
         }
     }

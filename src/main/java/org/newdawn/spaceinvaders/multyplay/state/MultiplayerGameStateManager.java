@@ -49,6 +49,7 @@ public class MultiplayerGameStateManager {
     private long gameStartTime = 0;
     private long pausedTime = 0;
     private long pauseStartTime = 0;
+    private long intermissionStartTime = 0;
 
     // FPS 카운터 (필요 시 외부에서 사용 가능하도록 유지)
     private long lastFpsTime;
@@ -107,6 +108,7 @@ public class MultiplayerGameStateManager {
         gameStartTime = System.currentTimeMillis();
         pausedTime = 0;
         pauseStartTime = 0;
+        intermissionStartTime = 0;
     }
     
     // Getters and Setters for gameplay state
@@ -114,7 +116,13 @@ public class MultiplayerGameStateManager {
     public void setGameRunning(boolean gameRunning) { this.gameRunning = gameRunning; }
     
     public boolean isWaitingForKeyPress() { return waitingForKeyPress; }
-    public void setWaitingForKeyPress(boolean waitingForKeyPress) { this.waitingForKeyPress = waitingForKeyPress; }
+    public void setWaitingForKeyPress(boolean waitingForKeyPress) {
+        if (this.waitingForKeyPress == waitingForKeyPress) {
+            return;
+        }
+        this.waitingForKeyPress = waitingForKeyPress;
+        updateIntermissionState();
+    }
     
     public String getMessage() { return message; }
     public void setMessage(String message) { this.message = message; }
@@ -218,13 +226,7 @@ public class MultiplayerGameStateManager {
         }
 
         long currentTime = System.currentTimeMillis();
-        long playTimeMs = currentTime - gameStartTime;
-
-        if (pauseStartTime > 0) {
-            playTimeMs -= (currentTime - pauseStartTime);
-        }
-
-        playTimeMs -= pausedTime;
+        long playTimeMs = computeActivePlayTime(currentTime);
 
         long totalSeconds = playTimeMs / 1000;
         long minutes = totalSeconds / 60;
@@ -239,14 +241,25 @@ public class MultiplayerGameStateManager {
         }
 
         long currentTime = System.currentTimeMillis();
+        return computeActivePlayTime(currentTime);
+    }
+
+    private long computeActivePlayTime(long currentTime) {
         long playTimeMs = currentTime - gameStartTime;
 
         if (pauseStartTime > 0) {
             playTimeMs -= (currentTime - pauseStartTime);
         }
 
-        playTimeMs -= pausedTime;
+        long paused = pausedTime;
+        if (intermissionStartTime > 0) {
+            paused += currentTime - intermissionStartTime;
+        }
 
+        playTimeMs -= paused;
+        if (playTimeMs < 0) {
+            playTimeMs = 0;
+        }
         return playTimeMs;
     }
     
@@ -257,7 +270,13 @@ public class MultiplayerGameStateManager {
     public void setLogicRequiredThisLoop(boolean logicRequiredThisLoop) { this.logicRequiredThisLoop = logicRequiredThisLoop; }
     
     public boolean isRoundTransition() { return isRoundTransition; }
-    public void setRoundTransition(boolean roundTransition) { this.isRoundTransition = roundTransition; }
+    public void setRoundTransition(boolean roundTransition) {
+        if (this.isRoundTransition == roundTransition) {
+            return;
+        }
+        this.isRoundTransition = roundTransition;
+        updateIntermissionState();
+    }
     
     /**
      * 플레이어 데미지 처리
@@ -274,8 +293,8 @@ public class MultiplayerGameStateManager {
         ps.takeDamage(1);
         if (playerId.equals(localPlayerId) && ps.isDead()) {
             message = "Oh no! They got you, try again?";
-            waitingForKeyPress = true;
-            isRoundTransition = false;
+            setWaitingForKeyPress(true);
+            setRoundTransition(false);
         }
     }
     
@@ -286,8 +305,8 @@ public class MultiplayerGameStateManager {
         if (currentRound < MAX_ROUND) {
             currentRound++;
             message = "라운드 " + currentRound + " 시작! 준비하세요!";
-            waitingForKeyPress = true;
-            isRoundTransition = true; // 라운드 전환 플래그 설정
+            setWaitingForKeyPress(true);
+            setRoundTransition(true); // 라운드 전환 플래그 설정
             
             // Update alien firing interval for new round
             alienFiringInterval = Math.max(300, baseAlienFiringInterval - (currentRound * 300));
@@ -296,8 +315,8 @@ public class MultiplayerGameStateManager {
         } else {
             // Game completed
             message = "축하합니다! 모든 라운드를 클리어했습니다!";
-            waitingForKeyPress = true;
-            isRoundTransition = false; // 게임 완료
+            setWaitingForKeyPress(true);
+            setRoundTransition(false); // 게임 완료
             return false; // Game completed
         }
     }
@@ -324,7 +343,9 @@ public class MultiplayerGameStateManager {
     public void showSkillMenu() {
         if (!showingSkillMenu) {
             showingSkillMenu = true;
-            startPauseTimer();
+            if (!waitingForKeyPress && !isRoundTransition()) {
+                startPauseTimer();
+            }
         }
     }
     
@@ -334,7 +355,11 @@ public class MultiplayerGameStateManager {
     public void hideSkillMenu() {
         if (showingSkillMenu) {
             showingSkillMenu = false;
-            endPauseTimerIfInactive();
+            if (!waitingForKeyPress && !isRoundTransition()) {
+                endPauseTimerIfInactive();
+            } else if (!isAnyOverlayActive()) {
+                pauseStartTime = 0;
+            }
         }
     }
     
@@ -410,5 +435,17 @@ public class MultiplayerGameStateManager {
 
     private boolean isAnyOverlayActive() {
         return showingPauseMenu || showingSkillMenu;
+    }
+
+    private void updateIntermissionState() {
+        boolean intermissionActive = isRoundTransition || waitingForKeyPress;
+        if (intermissionActive) {
+            if (intermissionStartTime == 0) {
+                intermissionStartTime = System.currentTimeMillis();
+            }
+        } else if (intermissionStartTime > 0) {
+            pausedTime += System.currentTimeMillis() - intermissionStartTime;
+            intermissionStartTime = 0;
+        }
     }
 }

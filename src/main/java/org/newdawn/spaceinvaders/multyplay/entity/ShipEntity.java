@@ -3,8 +3,11 @@ package org.newdawn.spaceinvaders.multyplay.entity;
 import java.awt.AlphaComposite;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
+import java.awt.Rectangle;
+import java.util.List;
 
 import org.newdawn.spaceinvaders.multyplay.core.MultiplayerGameContext;
+import org.newdawn.spaceinvaders.multyplay.entity.attack.MagneticFieldEntity;
 
 /**
  * The entity that represents the players ship
@@ -36,6 +39,8 @@ public class ShipEntity extends Entity {
 	 * @param delta The time that has elapsed since last move (ms)
 	 */
 	public void move(long delta) {
+		applyMagneticFieldEffects();
+
 		// if we're moving left and have reached the left hand side
 		// of the screen, don't move
 		if ((dx < 0) && (x < 10)) {
@@ -49,12 +54,7 @@ public class ShipEntity extends Entity {
 		
 		super.move(delta);
 	}
-	
-	/**
-	 * Draw this entity to the graphics context provided with invincibility effect
-	 * 
-	 * @param g The graphics context on which to draw
-	 */
+
 	@Override
 	public void draw(Graphics g) {
 		Graphics2D g2d = (Graphics2D) g;
@@ -71,6 +71,40 @@ public class ShipEntity extends Entity {
 		// Reset composite if it was changed
 		if (game.isPlayerInvincible(getOwnerId())) {
 			g2d.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, 1.0f));
+		}
+	}
+
+	private void applyMagneticFieldEffects() {
+		List<Entity> entities = game.getEntities();
+		for (Entity entity : entities) {
+			if (!(entity instanceof MagneticFieldEntity)) {
+				continue;
+			}
+			MagneticFieldEntity field = (MagneticFieldEntity) entity;
+			if (!field.isActive()) {
+				continue;
+			}
+
+			double dxToField = field.getX() - this.x;
+			double dyToField = field.getY() - this.y;
+			double distance = Math.sqrt(dxToField * dxToField + dyToField * dyToField);
+			if (distance <= 0 || distance > field.getCurrentRadius()) {
+				continue;
+			}
+
+			double force = field.getFieldStrength() * (1.0 - distance / field.getCurrentRadius());
+			double normalizedX = dxToField / distance;
+			double normalizedY = dyToField / distance;
+
+			this.dx += normalizedX * force * 0.5;
+			this.dy += normalizedY * force * 0.5;
+
+			double maxVelocity = 0.8;
+			double currentSpeed = Math.sqrt(this.dx * this.dx + this.dy * this.dy);
+			if (currentSpeed > maxVelocity) {
+				this.dx = (this.dx / currentSpeed) * maxVelocity;
+				this.dy = (this.dy / currentSpeed) * maxVelocity;
+			}
 		}
 	}
 
@@ -103,5 +137,16 @@ public class ShipEntity extends Entity {
 		if (other instanceof AlienEntity) {
 			game.notifyDeath(getOwnerId());
 		}
+	}
+
+	@Override
+	public Rectangle getBounds() {
+		int width = sprite != null ? sprite.getWidth() : 33;
+		int height = sprite != null ? sprite.getHeight() : 23;
+		int hitboxWidth = (int) Math.max(10, width * 0.8);
+		int hitboxHeight = (int) Math.max(10, height * 0.8);
+		int offsetX = (width - hitboxWidth) / 2;
+		int offsetY = (height - hitboxHeight) / 2;
+		return new Rectangle((int) x + offsetX, (int) y + offsetY, hitboxWidth, hitboxHeight);
 	}
 }

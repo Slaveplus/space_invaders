@@ -2,6 +2,7 @@ package org.newdawn.spaceinvaders.multyplay.entity;
 
 import java.awt.Graphics;
 import java.awt.Graphics2D;
+import java.awt.Rectangle;
 
 import org.newdawn.spaceinvaders.multyplay.core.MultiplayerGameContext;
 import org.newdawn.spaceinvaders.multyplay.sprite.Sprite;
@@ -14,6 +15,8 @@ import org.newdawn.spaceinvaders.multyplay.sprite.Sprite;
 public class AlienEntity extends Entity {
 	/** The speed at which the alient moves horizontally */
 	private double moveSpeed = 75;
+	/** Current horizontal speed with variation */
+	private double horizontalSpeed;
 	/** The game in which the entity exists */
 	private MultiplayerGameContext game;
 	/** The animation frames */
@@ -130,11 +133,8 @@ public class AlienEntity extends Entity {
 		double actualMoveSpeed = moveSpeed * speedVariation;
 		
 		// 좌우 이동 설정
-		if (movingRight) {
-			dx = actualMoveSpeed;
-		} else {
-			dx = -actualMoveSpeed;
-		}
+		horizontalSpeed = actualMoveSpeed;
+		dx = movingRight ? horizontalSpeed : -horizontalSpeed;
 		
 		// 수직 이동도 약간 추가 (더 자연스러운 움직임을 위해)
 		// 30% 확률로 위아래로도 움직임
@@ -143,6 +143,10 @@ public class AlienEntity extends Entity {
 		} else {
 			dy = 0; // 대부분은 좌우로만 움직임
 		}
+
+		directionChangeInterval = 800 + (long) (Math.random() * 1800);
+		lastDirectionChange = System.currentTimeMillis();
+		dx = movingRight ? horizontalSpeed : -horizontalSpeed;
 	}
 
 	/**
@@ -174,37 +178,56 @@ public class AlienEntity extends Entity {
 		// 주기적으로 방향을 바꾸는 로직 추가 (더 역동적인 움직임)
 		long currentTime = System.currentTimeMillis();
 		if (currentTime - lastDirectionChange > directionChangeInterval) {
-			// 20% 확률로 방향 변경
-			if (Math.random() < 0.2) {
-				changeDirection();
-				// 10% 확률로 수직 방향도 변경
-				if (Math.random() < 0.1) {
+			shuffleHorizontalDirection(currentTime);
+		}
+		
+		double deltaSeconds = delta * 0.001;
+		if (movingRight) {
+			x += horizontalSpeed * deltaSeconds;
+			if (x >= 750) {
+				x = 745;
+				movingRight = false;
+				horizontalSpeed = moveSpeed * (0.6 + Math.random() * 0.8);
+				if (Math.random() < 0.4) {
 					changeVerticalDirection();
 				}
+				directionChangeInterval = 600 + (long) (Math.random() * 1200);
+				lastDirectionChange = currentTime;
+			}
+		} else {
+			x -= horizontalSpeed * deltaSeconds;
+			if (x <= 10) {
+				x = 15;
+				movingRight = true;
+				horizontalSpeed = moveSpeed * (0.6 + Math.random() * 0.8);
+				if (Math.random() < 0.4) {
+					changeVerticalDirection();
+				}
+				directionChangeInterval = 600 + (long) (Math.random() * 1200);
 				lastDirectionChange = currentTime;
 			}
 		}
-		
-		// Check screen boundaries and change direction (좌우로 맵 전체를 왕복)
-		if (x < 10) {
-			movingRight = true;
-			dx = Math.abs(dx); // 현재 속도 유지하되 양수로
-			x = 10; // Keep alien on screen
-		} else if (x > 750) {
-			movingRight = false;
-			dx = -Math.abs(dx); // 현재 속도 유지하되 음수로
-			x = 750;
+		dx = movingRight ? horizontalSpeed : -horizontalSpeed;
+
+		// Y축 움직임 (작은 범위 내에서만)
+		if (!movingDown) {
+			y -= moveSpeed * delta * 0.0005;
+			if (y <= 80) {
+				movingDown = true;
+			}
+		} else {
+			y += moveSpeed * delta * 0.0005;
+			if (y >= 180) {
+				movingDown = false;
+			}
 		}
-		
+
 		// Y 위치 제한 (맵 절반 이상 내려오지 못하게)
 		if (y < 50) {
 			y = 50;
-		} else if (y > 300) { // 맵 절반(300) 이상 내려오지 못하게 제한
+		} else if (y > 300) {
 			y = 300;
 		}
-		
-		// proceed with normal move
-		super.move(delta);
 	}
 	
 	/**
@@ -271,20 +294,56 @@ public class AlienEntity extends Entity {
 	}
 	
 	/**
-	 * Override getBounds to provide scaled collision bounds
-	 * 
+	 * Draw this alien with scaled size to match single-player visuals.
+	 *
+	 * @param g The graphics context on which to draw
+	 */
+	@Override
+	public void draw(Graphics g) {
+		Graphics2D g2d = (Graphics2D) g;
+		if (sprite != null) {
+			double scale = (game.getCurrentRound() == 1) ? 0.18 : 0.75;
+			int scaledWidth = (int) (sprite.getWidth() * scale);
+			int scaledHeight = (int) (sprite.getHeight() * scale);
+			int drawX = (int) Math.round(x) - scaledWidth / 2;
+			int drawY = (int) Math.round(y) - scaledHeight / 2;
+
+			g2d.drawImage(
+					sprite.getImage(),
+					drawX,
+					drawY,
+					drawX + scaledWidth,
+					drawY + scaledHeight,
+					0,
+					0,
+					sprite.getWidth(),
+					sprite.getHeight(),
+					null);
+		}
+	}
+
+	/**
+	 * Override getBounds to match the scaled visual hitbox.
+	 *
 	 * @return The bounds of the alien entity
 	 */
-    @Override
-    public java.awt.Rectangle getBounds() {
-        int scaledSize = game.getCurrentRound() == 1 ? 90 : 120;
-        int centerX = (int) Math.round(x);
-        int centerY = (int) Math.round(y);
-        int topLeftX = centerX - (scaledSize / 2);
-        int topLeftY = centerY - (scaledSize / 2);
+	@Override
+	public Rectangle getBounds() {
+		if (sprite != null) {
+			double scale = (game.getCurrentRound() == 1) ? 0.18 : 0.75;
+			int scaledWidth = (int) (sprite.getWidth() * scale);
+			int scaledHeight = (int) (sprite.getHeight() * scale);
+			int drawX = (int) Math.round(x) - scaledWidth / 2;
+			int drawY = (int) Math.round(y) - scaledHeight / 2;
 
-        return new java.awt.Rectangle(topLeftX, topLeftY, scaledSize, scaledSize);
-    }
+			int hitboxWidth = (int) Math.max(4, scaledWidth * 0.05);
+			int hitboxHeight = (int) Math.max(4, scaledHeight * 0.03);
+			int hitboxX = drawX + (scaledWidth - hitboxWidth) / 2;
+			int hitboxY = drawY + (scaledHeight - hitboxHeight) / 2;
+			return new Rectangle(hitboxX, hitboxY, hitboxWidth, hitboxHeight);
+		}
+		return super.getBounds();
+	}
 	
 	/**
 	 * Get the alien's maximum HP
@@ -300,9 +359,28 @@ public class AlienEntity extends Entity {
 	 */
 	private void changeDirection() {
 		movingRight = !movingRight;
-		// 속도 변화도 약간 추가 (90% ~ 110%)
-		double speedVariation = 0.9 + (Math.random() * 0.2);
-		dx = movingRight ? moveSpeed * speedVariation : -moveSpeed * speedVariation;
+		horizontalSpeed = moveSpeed * (0.6 + Math.random() * 0.8);
+		dx = movingRight ? horizontalSpeed : -horizontalSpeed;
+	}
+
+	private void shuffleHorizontalDirection(long currentTime) {
+		movingRight = Math.random() < 0.5;
+		horizontalSpeed = moveSpeed * (0.6 + Math.random() * 0.8);
+		if (Math.random() < 0.3) {
+			changeVerticalDirection();
+		}
+		directionChangeInterval = 800 + (long) (Math.random() * 1800);
+		lastDirectionChange = currentTime;
+		dx = movingRight ? horizontalSpeed : -horizontalSpeed;
+	}
+
+	private void syncHorizontalFromDx() {
+		double newSpeed = Math.abs(dx);
+		if (newSpeed > 0.01) {
+			horizontalSpeed = Math.max(moveSpeed * 0.5, Math.min(moveSpeed * 1.5, newSpeed));
+			movingRight = dx > 0;
+			dx = movingRight ? horizontalSpeed : -horizontalSpeed;
+		}
 	}
 	
 	/**
@@ -362,9 +440,9 @@ public class AlienEntity extends Entity {
 			// 반대방향으로 이동 (속도는 현재 속도보다 약간 빠르게)
 			this.dx = moveAwayX * moveSpeed * 1.2;
 			this.dy = moveAwayY * moveSpeed * 0.4;
+			syncHorizontalFromDx();
 			
 			// 이동 방향 플래그 업데이트
-			movingRight = (this.dx > 0);
 			movingDown = (this.dy > 0);
 		}
 	}
@@ -399,31 +477,12 @@ public class AlienEntity extends Entity {
 				// Apply movement away from player (override current movement)
 				this.dx = moveAwayX * moveSpeed * 1.5; // Move away faster
 				this.dy = moveAwayY * moveSpeed * 0.5;
+				syncHorizontalFromDx();
 			}
 		} catch (Exception e) {
 			// Ignore errors in player avoidance
 		}
 	}
-	
-	/**
-	 * Draw this alien with scaled size
-	 * 
-	 * @param g The graphics context on which to draw
-	 */
-	@Override
-	public void draw(Graphics g) {
-        if (sprite == null) {
-            return;
-        }
-        Graphics2D g2d = (Graphics2D) g;
-        int scaledSize = game.getCurrentRound() == 1 ? 90 : 120;
-        int drawX = (int) Math.round(x) - (scaledSize / 2);
-        int drawY = (int) Math.round(y) - (scaledSize / 2);
-
-        g2d.drawImage(sprite.getImage(), drawX, drawY,
-                drawX + scaledSize, drawY + scaledSize,
-                0, 0, sprite.getWidth(), sprite.getHeight(), null);
-    }
 	
 	/**
 	 * Notification that this alien has collided with another entity
@@ -446,6 +505,7 @@ public class AlienEntity extends Entity {
 				// 반대방향으로 이동 (속도 증가)
 				this.dx = moveAwayX * moveSpeed * 1.5;
 				this.dy = moveAwayY * moveSpeed * 0.3;
+				syncHorizontalFromDx();
 			}
 		}
 		// 보스가 아닌 라운드에서 다른 적들과 충돌했을 때 반대방향으로 이동

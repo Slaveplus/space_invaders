@@ -266,6 +266,15 @@ public class BossShotEntity extends Entity {
     }
 
     @Override
+    public java.awt.Rectangle getBounds() {
+        int effectiveRadius = Math.max(4, radius);
+        int centerX = (int) Math.round(x + (sprite != null ? sprite.getWidth() / 2.0 : effectiveRadius));
+        int centerY = (int) Math.round(y + (sprite != null ? sprite.getHeight() / 2.0 : effectiveRadius));
+        int diameter = effectiveRadius * 2;
+        return new java.awt.Rectangle(centerX - effectiveRadius, centerY - effectiveRadius, diameter, diameter);
+    }
+
+    @Override
     protected String snapshotMetadata() {
         Map<String, String> map = new LinkedHashMap<>();
         map.put("dirX", Double.toString(directionX));

@@ -174,15 +174,16 @@ public final class SharedHudRenderer {
 
         BufferedImage coin = getCoinImage();
         int coinX = startX + 15;
-        int coinY = startY + 34;
+        int coinTop = startY + 28;
+        int coinSize = 24;
         if (coin != null) {
-            g.drawImage(coin, coinX, coinY - 16, 24, 24, null);
+            g.drawImage(coin, coinX, coinTop, coinSize, coinSize, null);
         } else {
             g.setColor(Color.YELLOW);
-            g.fillOval(coinX, coinY - 16, 24, 24);
+            g.fillOval(coinX, coinTop, coinSize, coinSize);
             g.setColor(Color.ORANGE);
             g.setStroke(new BasicStroke(2));
-            g.drawOval(coinX, coinY - 16, 24, 24);
+            g.drawOval(coinX, coinTop, coinSize, coinSize);
         }
     }
 

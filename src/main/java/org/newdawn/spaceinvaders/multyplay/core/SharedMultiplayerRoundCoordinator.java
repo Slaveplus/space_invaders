@@ -49,6 +49,13 @@ public final class SharedMultiplayerRoundCoordinator {
 
     public static void setupRound(MultiplayerGameContext context, int round) {
         MultiplayerGameStateManager gsm = context.getGameStateManager();
+        boolean hasExistingHostiles = gsm.getEntities().stream().anyMatch(entity ->
+                (entity instanceof AlienEntity) ||
+                        (entity instanceof NearEntity) ||
+                        (entity instanceof BossEntity));
+        if (hasExistingHostiles) {
+            return;
+        }
         clearHostiles(gsm);
         context.onRoundBackgroundChanged(round);
 
@@ -92,11 +99,11 @@ public final class SharedMultiplayerRoundCoordinator {
         context.onRoundBackgroundChanged(round);
     }
 
-    public static void handleNearMonsterDestroyed(MultiplayerGameContext context,
-                                                  NearEntity nearEntity,
-                                                  String killerPlayerId,
-                                                  double killX,
-                                                  double killY) {
+    public static boolean handleNearMonsterDestroyed(MultiplayerGameContext context,
+                                                     NearEntity nearEntity,
+                                                     String killerPlayerId,
+                                                     double killX,
+                                                     double killY) {
         MultiplayerGameStateManager gsm = context.getGameStateManager();
         if (killerPlayerId == null) {
             killerPlayerId = gsm.getLocalPlayerId();
@@ -120,6 +127,17 @@ public final class SharedMultiplayerRoundCoordinator {
 
         int remaining = Math.max(0, gsm.getAlienCount() - 1);
         gsm.setAlienCount(remaining);
+        if (remaining == 0) {
+            int waveClearReward = Math.max(0, gsm.getCurrentRound() * 8);
+            if (waveClearReward > 0) {
+                context.addCoins(killerPlayerId, waveClearReward);
+                int rewardX = Double.isNaN(killX) ? 400 : (int) killX;
+                int rewardY = Double.isNaN(killY) ? 200 : (int) killY;
+                context.showCoinEarned(killerPlayerId, rewardX, rewardY, waveClearReward);
+            }
+            return true;
+        }
+        return false;
     }
 
     public static void handleBossDefeated(MultiplayerGameContext context, String killerPlayerId) {

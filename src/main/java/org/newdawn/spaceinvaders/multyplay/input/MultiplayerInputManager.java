@@ -91,20 +91,20 @@ public class MultiplayerInputManager {
         /**
          * 게임플레이 중 키 눌림 처리
          */
-        private void handleGameplayKeyPressed(KeyEvent e) {
-            if (game.handleIntermissionKeyPressed(e)) {
-                return;
-            }
-            // "any key" 대기 중이면 키 입력 무시 (스킬 메뉴에서 메시지 대기 중이 아닌 경우)
-            if (gameStateManager.isWaitingForKeyPress() && !gameStateManager.isShowingSkillMenu()) {
-                return;
-            }
-            if (game.isIntermissionOverlayVisible() || game.isSpectatorOverlayVisible()) {
-                return;
-            }
+		private void handleGameplayKeyPressed(KeyEvent e) {
+			if (game.handleIntermissionKeyPressed(e)) {
+				return;
+			}
+			int keyCode = e.getKeyCode();
+			boolean intermissionVisible = game.isIntermissionOverlayVisible() || game.isSpectatorOverlayVisible();
+			boolean allowSkillMenu = gameStateManager.isShowingSkillMenu() && intermissionVisible;
+			boolean keyOpensSkillMenu = keyCode == KeyEvent.VK_Q;
+			if ((gameStateManager.isWaitingForKeyPress() || intermissionVisible) && !allowSkillMenu && !keyOpensSkillMenu) {
+				return;
+			}
             
             // Handle ESC key for pause menu (only during gameplay)
-            if (e.getKeyCode() == KeyEvent.VK_ESCAPE) {
+			if (keyCode == KeyEvent.VK_ESCAPE) {
                 if (gameStateManager.isShowingPauseMenu()) {
                     gameStateManager.hidePauseMenu();
                 } else if (!gameStateManager.isShowingSkillMenu()) {
@@ -115,31 +115,29 @@ public class MultiplayerInputManager {
             }
             
             // Handle Q key for skill menu
-            if (e.getKeyCode() == KeyEvent.VK_Q) {
-                if (gameStateManager.isShowingSkillMenu()) {
-                    gameStateManager.hideSkillMenu();
-                    gameStateManager.setWaitingForKeyPress(false); // 메시지 대기 상태도 해제
-                } else if (!gameStateManager.isShowingPauseMenu()) {
-                    // Only open skill menu if pause menu is not open
-                    gameStateManager.showSkillMenu();
-                }
+			if (keyCode == KeyEvent.VK_Q) {
+			if (gameStateManager.isShowingSkillMenu()) {
+				gameStateManager.hideSkillMenu();
+			} else if (!gameStateManager.isShowingPauseMenu()) {
+				gameStateManager.showSkillMenu();
+			}
                 return;
             }
             
-            // Handle pause menu navigation when pause menu is open
-            if (gameStateManager.isShowingPauseMenu()) {
-                handlePauseMenuInput(e);
-                return;
-            }
-            
-            // Handle skill menu navigation when skill menu is open
-            if (gameStateManager.isShowingSkillMenu()) {
+			// Handle pause menu navigation when pause menu is open
+			if (gameStateManager.isShowingPauseMenu()) {
+				handlePauseMenuInput(e);
+				return;
+			}
+			
+			// Handle skill menu navigation when skill menu is open
+			if (gameStateManager.isShowingSkillMenu()) {
                 handleSkillMenuInput(e);
                 return;
             }
             
             // Handle skill activation keys (only when skill menu is not open)
-            if (e.getKeyCode() == KeyEvent.VK_1) {
+			if (keyCode == KeyEvent.VK_1) {
                 if (game.isRemoteSession()) {
                     game.sendSkillActivationRequest(0);
                 } else {
@@ -148,7 +146,7 @@ public class MultiplayerInputManager {
                 return;
             }
             
-            if (e.getKeyCode() == KeyEvent.VK_2) {
+			if (keyCode == KeyEvent.VK_2) {
                 if (game.isRemoteSession()) {
                     game.sendSkillActivationRequest(2);
                 } else {
@@ -157,7 +155,7 @@ public class MultiplayerInputManager {
                 return;
             }
             
-            if (e.getKeyCode() == KeyEvent.VK_3) {
+			if (keyCode == KeyEvent.VK_3) {
                 if (game.isRemoteSession()) {
                     game.sendSkillActivationRequest(3);
                 } else {
@@ -166,13 +164,13 @@ public class MultiplayerInputManager {
                 return;
             }
             
-            if (e.getKeyCode() == KeyEvent.VK_LEFT) {
+			if (keyCode == KeyEvent.VK_LEFT) {
                 leftPressed = true;
             }
-            if (e.getKeyCode() == KeyEvent.VK_RIGHT) {
+			if (keyCode == KeyEvent.VK_RIGHT) {
                 rightPressed = true;
             }
-            if (e.getKeyCode() == KeyEvent.VK_SPACE) {
+			if (keyCode == KeyEvent.VK_SPACE) {
                 firePressed = true;
             }
         }
@@ -180,22 +178,24 @@ public class MultiplayerInputManager {
         /**
          * 게임플레이 중 키 릴리즈 처리
          */
-        private void handleGameplayKeyReleased(KeyEvent e) {
-            // "any key" 대기 중이면 키 입력 무시 (스킬 메뉴에서 메시지 대기 중이 아닌 경우)
-            if (gameStateManager.isWaitingForKeyPress() && !gameStateManager.isShowingSkillMenu()) {
-                return;
-            }
-            
-            if (e.getKeyCode() == KeyEvent.VK_LEFT) {
-                leftPressed = false;
-            }
-            if (e.getKeyCode() == KeyEvent.VK_RIGHT) {
-                rightPressed = false;
-            }
-            if (e.getKeyCode() == KeyEvent.VK_SPACE) {
-                firePressed = false;
-            }
-        }
+		private void handleGameplayKeyReleased(KeyEvent e) {
+			boolean intermissionVisible = game.isIntermissionOverlayVisible() || game.isSpectatorOverlayVisible();
+			boolean allowSkillMenu = gameStateManager.isShowingSkillMenu() && intermissionVisible;
+			if ((gameStateManager.isWaitingForKeyPress() || intermissionVisible) && !allowSkillMenu) {
+				return;
+			}
+			int keyCode = e.getKeyCode();
+			
+			if (keyCode == KeyEvent.VK_LEFT) {
+				leftPressed = false;
+			}
+			if (keyCode == KeyEvent.VK_RIGHT) {
+				rightPressed = false;
+			}
+			if (keyCode == KeyEvent.VK_SPACE) {
+				firePressed = false;
+			}
+		}
     }
     
     /**

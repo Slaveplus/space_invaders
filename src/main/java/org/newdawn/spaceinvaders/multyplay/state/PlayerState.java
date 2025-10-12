@@ -7,11 +7,11 @@ package org.newdawn.spaceinvaders.multyplay.state;
 public class PlayerState {
     private final String playerId; // 네트워크 세션 또는 로컬 식별자
 
-    private int attackPower = 1;
+    private int attackPower = 10;
     private double attackSpeed = 1.0;
-    private int maxHP = 3;
-   private int currentHP = 3;
-   private int skillPoints = 0;
+    private int maxHP = 10;
+    private int currentHP = 10;
+    private int skillPoints = 0;
     private int earnedCoins = 0;
 
     public PlayerState(String playerId) {
@@ -42,10 +42,10 @@ public class PlayerState {
     public void addCoins(int delta) { this.earnedCoins += delta; }
 
     public void resetForNewGame() {
-        attackPower = 1;
+        attackPower = 10;
         attackSpeed = 1.0;
-        maxHP = 3;
-        currentHP = 3;
+        maxHP = 10;
+        currentHP = 10;
         skillPoints = 0;
         earnedCoins = 0;
     }

@@ -1,309 +1,219 @@
 package org.newdawn.spaceinvaders.multyplay.entity;
 
+import java.awt.BasicStroke;
 import java.awt.Color;
+import java.awt.Font;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
+import java.awt.Rectangle;
 import java.awt.image.BufferedImage;
+import java.io.InputStream;
+import java.util.LinkedHashMap;
+import java.util.Map;
+
 import javax.imageio.ImageIO;
 
 import org.newdawn.spaceinvaders.multyplay.core.MultiplayerGameContext;
 import org.newdawn.spaceinvaders.multyplay.net.protocol.MetadataCodec;
 
-import java.io.InputStream;
-import java.util.LinkedHashMap;
-import java.util.Map;
-
 /**
- * An entity representing a shot fired by the player's ship
- * 
- * @author Kevin Glass
+ * Multiplayer variant of the player/alien shot entity that mirrors single-player behaviour
+ * while retaining network metadata and multiplayer specific flags.
  */
 public class ShotEntity extends Entity {
-	/** The vertical speed at which the players shot moves */
-	private double moveSpeed = -300;
-	/** The game in which this entity exists */
-	private MultiplayerGameContext game;
-	/** True if this shot has been "used", i.e. its hit something */
-	private boolean used = false;
-	/** True if this is an alien shot (moves downward) */
-	private boolean isAlienShot = false;
-	/** True if this is a skill drop */
-	private boolean isSkillDrop = false;
-	/** Skill type for skill drops (0: Invincible, 2: Triple Shot, 3: Missile) */
+	private static final double PLAYER_SHOT_SPEED = -300;
+	private static final double ALIEN_SHOT_SPEED = 300;
+	private static final double SKILL_DROP_SPEED = 100;
+
+	private final MultiplayerGameContext game;
+	private boolean used;
+	private boolean isAlienShot;
+	private boolean isSkillDrop;
 	private int skillType = -1;
-	/** Skill value for skill drops */
-	private int skillValue = 0;
-	/** True if this shot has piercing ability */
-	private boolean hasPiercing = false;
-	
-	/**
-	 * Create a new shot from the player
-	 * 
-	 * @param game The game in which the shot has been created
-	 * @param sprite The sprite representing this shot
-	 * @param x The initial x location of the shot
-	 * @param y The initial y location of the shot
-	 */
-	public ShotEntity(MultiplayerGameContext game,String sprite,int x,int y) {
-		super(sprite,x,y);
-		
+	private int skillValue;
+	private boolean hasPiercing;
+	private boolean nearMonsterShot;
+
+	public ShotEntity(MultiplayerGameContext game, String sprite, int x, int y) {
+		super(sprite, x, y);
 		this.game = game;
-		
-		dy = moveSpeed;
+		this.dy = PLAYER_SHOT_SPEED;
 	}
-	
-	/**
-	 * Create a new shot (player or alien)
-	 * 
-	 * @param game The game in which the shot has been created
-	 * @param sprite The sprite representing this shot
-	 * @param x The initial x location of the shot
-	 * @param y The initial y location of the shot
-	 * @param isAlienShot True if this is an alien shot
-	 */
-	public ShotEntity(MultiplayerGameContext game,String sprite,int x,int y,boolean isAlienShot) {
-		super(sprite,x,y);
-		
+
+	public ShotEntity(MultiplayerGameContext game, String sprite, int x, int y, boolean isAlienShot) {
+		super(sprite, x, y);
 		this.game = game;
 		this.isAlienShot = isAlienShot;
-		
-		if (isAlienShot) {
-			dy = 300; // Move downward for alien shots
-		} else {
-			dy = moveSpeed; // Move upward for player shots
-		}
+		this.dy = isAlienShot ? ALIEN_SHOT_SPEED : PLAYER_SHOT_SPEED;
 	}
-	
-	/**
-	 * Create a new shot with piercing ability
-	 * 
-	 * @param game The game in which the shot has been created
-	 * @param sprite The sprite representing this shot
-	 * @param x The initial x location of the shot
-	 * @param y The initial y location of the shot
-	 * @param isAlienShot True if this is an alien shot
-	 * @param hasPiercing True if this shot has piercing ability
-	 */
-	public ShotEntity(MultiplayerGameContext game,String sprite,int x,int y,boolean isAlienShot,boolean hasPiercing) {
-		super(sprite,x,y);
-		
-		this.game = game;
-		this.isAlienShot = isAlienShot;
+
+	public ShotEntity(MultiplayerGameContext game, String sprite, int x, int y,
+					  boolean isAlienShot, boolean hasPiercing) {
+		this(game, sprite, x, y, isAlienShot);
 		this.hasPiercing = hasPiercing;
-		
-		if (isAlienShot) {
-			dy = 300; // Move downward for alien shots
-		} else {
-			dy = moveSpeed; // Move upward for player shots
-		}
 	}
-	
-	/**
-	 * Create a new shot (player, alien, or skill drop)
-	 * 
-	 * @param game The game in which the shot has been created
-	 * @param sprite The sprite representing this shot
-	 * @param x The initial x location of the shot
-	 * @param y The initial y location of the shot
-	 * @param isAlienShot True if this is an alien shot
-	 * @param skillType Skill type for skill drops (0: Invincible, 2: Triple Shot, 3: Missile)
-	 * @param skillValue Skill value for skill drops
-	 */
-	public ShotEntity(MultiplayerGameContext game,String sprite,int x,int y,boolean isAlienShot,int skillType,int skillValue) {
-		super(sprite,x,y);
-		
+
+	public ShotEntity(MultiplayerGameContext game, String sprite, int x, int y,
+					  boolean isAlienShot, int skillType, int skillValue) {
+		super(sprite, x, y);
 		this.game = game;
-		this.isAlienShot = isAlienShot;
+		this.isAlienShot = false;
+		this.isSkillDrop = true;
 		this.skillType = skillType;
 		this.skillValue = skillValue;
-		
-		if (skillType >= 0) {
-			// This is a skill drop - move straight down
-			isSkillDrop = true;
-			
-			// Move straight down at constant speed
-			dx = 0; // No horizontal movement
-			dy = 150; // Move downward at 150 pixels per second
-		} else if (isAlienShot) {
-			dy = 300; // Alien shots move downward
-		} else {
-			dy = moveSpeed; // Player shots move upward (negative speed)
+		this.dx = 0;
+		this.dy = SKILL_DROP_SPEED;
+	}
+
+	@Override
+	public void move(long delta) {
+		super.move(delta);
+
+		if (isSkillDrop) {
+			if (y > 700) {
+				game.removeEntity(this);
+			}
+			return;
+		}
+
+		if (isAlienShot) {
+			if (y > 700 || y < -100) {
+				game.removeEntity(this);
+			}
+		} else if (y < -100 || y > 700) {
+			game.removeEntity(this);
 		}
 	}
 
-	/**
-	 * Request that this shot moved based on time elapsed
-	 * 
-	 * @param delta The time that has elapsed since last move
-	 */
-	public void move(long delta) {
-		// proceed with normal move
-		super.move(delta);
-		
-		// if we shot off the screen, remove ourselfs
-		if (isSkillDrop) {
-			// Skill drops: remove when they go below screen
-			if (y > 700) {
-				game.removeEntity(this);
-			}
-		} else if (isAlienShot) {
-			// Alien shots: remove when they go below screen
-			if (y > 700) {
-				game.removeEntity(this);
-			}
-		} else {
-			// Player shots: remove when they go above screen
-			if (y < -100) {
-				game.removeEntity(this);
-			}
-		}
-	}
-	
-	/**
-	 * Draw this entity with special coloring for alien shots
-	 * 
-	 * @param g The graphics context on which to draw
-	 */
+	@Override
 	public void draw(Graphics g) {
 		if (isSkillDrop) {
-			// Draw skill drop using PNG images
-			Graphics2D g2d = (Graphics2D) g;
-			
-			// Load and draw the appropriate PNG image based on skill type
-			BufferedImage skillImage = loadSkillImage(skillType);
-			if (skillImage != null) {
-				// Draw the PNG skill image, scaled to 32x32
-				int imageSize = 32;
-				int drawX = (int)x - imageSize/2;
-				int drawY = (int)y - imageSize/2;
-				g2d.drawImage(skillImage, drawX, drawY, imageSize, imageSize, null);
-			} else {
-				// Fallback: Draw simple colored background if PNG failed to load
-				g2d.setColor(Color.BLACK);
-				g2d.fillRect((int)x - 16, (int)y - 16, 32, 32);
-				g2d.setColor(Color.GRAY);
-				g2d.drawRect((int)x - 16, (int)y - 16, 32, 32);
-				
-				// Draw skill type text as fallback
-				g2d.setColor(Color.WHITE);
-				g2d.setFont(new java.awt.Font("Arial", java.awt.Font.BOLD, 12));
-				g2d.drawString("S" + skillType, (int)x - 8, (int)y + 4);
-			}
-			
-			// Add a subtle glow effect
-			g2d.setColor(new Color(255, 255, 255, 50));
-			g2d.fillOval((int)x - 18, (int)y - 18, 36, 36);
-			
-		} else if (isAlienShot) {
-			// Draw circular alien energy projectile
-			Graphics2D g2d = (Graphics2D) g;
-			
-			// Calculate center position for perfect circle
-			int w = (sprite != null ? sprite.getWidth() : 16);
-			int h = (sprite != null ? sprite.getHeight() : 16);
-			int centerX = (int) x + w / 2;
-			int centerY = (int) y + h / 2;
-			int radius = 8; // Fixed radius for perfect circle
-			
-			// Outer glow effect (larger circle)
-			g2d.setColor(new Color(255, 100, 100, 60)); // Red glow
-			g2d.fillOval(centerX - radius - 3, centerY - radius - 3, (radius + 3) * 2, (radius + 3) * 2);
-			
-			// Main projectile body (perfect circle)
-			g2d.setColor(new Color(255, 50, 50, 220)); // Bright red core
-			g2d.fillOval(centerX - radius, centerY - radius, radius * 2, radius * 2);
-			
-			// Inner bright core (smaller circle)
-			g2d.setColor(new Color(255, 200, 200, 180)); // Light red center
-			g2d.fillOval(centerX - radius + 2, centerY - radius + 2, (radius - 2) * 2, (radius - 2) * 2);
-			
-			// Bright white center (smallest circle)
-			g2d.setColor(new Color(255, 255, 255, 200)); // White hot center
-			g2d.fillOval(centerX - radius + 4, centerY - radius + 4, (radius - 4) * 2, (radius - 4) * 2);
-			
-			// Add subtle energy trail effect (smaller circles behind)
-			g2d.setColor(new Color(255, 100, 100, 80));
-			g2d.fillOval(centerX - radius + 1, centerY - radius + 6, (radius - 1) * 2, (radius - 1) * 2);
-			g2d.setColor(new Color(255, 100, 100, 40));
-			g2d.fillOval(centerX - radius + 2, centerY - radius + 10, (radius - 2) * 2, (radius - 2) * 2);
-		} else {
-			// Draw normal player shot
-			super.draw(g);
+			drawSkillDrop(g);
+			return;
 		}
+		if (hasPiercing) {
+			g.setColor(Color.YELLOW);
+			g.fillRect((int) Math.round(x) - 2, (int) Math.round(y) - 10, 4, 20);
+			return;
+		}
+		if (nearMonsterShot) {
+			drawScaledSprite(g, 50);
+			return;
+		}
+		super.draw(g);
 	}
-	
-	/**
-	 * Notification that this shot has collided with another
-	 * entity
-	 * 
-	 * @parma other The other entity with which we've collided
-	 */
+
+	@Override
 	public void collidedWith(Entity other) {
-		// prevents double kills, if we've already hit something,
-		// don't collide
 		if (used) {
 			return;
 		}
-		
+
 		if (isSkillDrop) {
 			if (other instanceof ShipEntity) {
-				ShipEntity shipEntity = (ShipEntity) other;
+				ShipEntity ship = (ShipEntity) other;
 				game.removeEntity(this);
-				game.addSkillToInventory(shipEntity.getOwnerId(), skillType, skillValue);
+				game.addSkillToInventory(ship.getOwnerId(), skillType, skillValue);
 				used = true;
 			}
-		} else if (isAlienShot) {
+			return;
+		}
+
+		if (isAlienShot) {
 			if (other instanceof ShipEntity) {
-				ShipEntity shipEntity = (ShipEntity) other;
+				ShipEntity ship = (ShipEntity) other;
 				game.removeEntity(this);
-				game.notifyDeath(shipEntity.getOwnerId());
+				game.notifyPlayerDamaged(ship.getOwnerId(), 1);
 				used = true;
 			}
-		} else {
-			// Player shot: if we've hit an alien, damage it!
-			if (other instanceof AlienEntity) {
-				AlienEntity alien = (AlienEntity) other;
-				String ownerId = getOwnerId();
-				int attackPower = game.getPlayerAttackPower(ownerId);
-				alien.takeDamage(attackPower);
-				boolean killed = alien.getCurrentHP() <= 0;
-				HeatEffectEntity heatEffect = new HeatEffectEntity(game, (int)x, (int)y);
-				game.addEntity(heatEffect);
-			if (!hasPiercing) {
-				game.removeEntity(this);
-				used = true;
-			}
-				if (killed) {
-					game.notifyAlienKilled(ownerId, other.getX(), other.getY());
-				}
-			} else if (other instanceof NearEntity) {
-				NearEntity near = (NearEntity) other;
-				String ownerId = getOwnerId();
-				int attackPower = game.getPlayerAttackPower(ownerId);
-				near.takeDamage(attackPower, ownerId);
-				game.removeEntity(this);
-				HeatEffectEntity heatEffect = new HeatEffectEntity(game, (int) x, (int) y);
-				game.addEntity(heatEffect);
-				used = true;
-			} else if (other instanceof BossEntity) {
-				BossEntity boss = (BossEntity) other;
-				String ownerId = getOwnerId();
-				boss.takeDamage(game.getPlayerAttackPower(ownerId), ownerId);
-				HeatEffectEntity heatEffect = new HeatEffectEntity(game, (int)x, (int)y);
-				game.addEntity(heatEffect);
-				game.removeEntity(this);
-				used = true;
-			}
+			return;
+		}
+
+		if (other instanceof ShotEntity && !((ShotEntity) other).isAlienShot()) {
+			return;
+		}
+		if (other instanceof ShipEntity) {
+			return;
+		}
+
+		if (other instanceof AlienEntity) {
+			handleAlienHit((AlienEntity) other);
+			return;
+		}
+		if (other instanceof NearEntity) {
+			handleNearHit((NearEntity) other);
+			return;
+		}
+		if (other instanceof BossEntity) {
+			handleBossHit((BossEntity) other);
 		}
 	}
-	
-	/**
-	 * Check if this is an alien shot
-	 * 
-	 * @return True if this is an alien shot
-	 */
+
+	private void handleAlienHit(AlienEntity alien) {
+		String ownerId = getOwnerId();
+		int damage = game.getPlayerAttackPower(ownerId);
+		alien.takeDamage(damage);
+		if (alien.getCurrentHP() <= 0) {
+			game.notifyAlienKilled(ownerId, alien.getX(), alien.getY());
+		}
+		spawnHeatEffect(alien.getX(), alien.getY());
+		if (!hasPiercing) {
+			game.removeEntity(this);
+			used = true;
+		}
+	}
+
+	private void handleNearHit(NearEntity near) {
+		String ownerId = getOwnerId();
+		int damage = game.getPlayerAttackPower(ownerId);
+		near.takeDamage(damage, ownerId);
+		spawnHeatEffect(near.getX(), near.getY());
+		game.removeEntity(this);
+		used = true;
+	}
+
+	private void handleBossHit(BossEntity boss) {
+		String ownerId = getOwnerId();
+		int damage = game.getPlayerAttackPower(ownerId);
+		boss.takeDamage(damage, ownerId);
+		spawnHeatEffect((int) Math.round(x), (int) Math.round(y));
+		if (!hasPiercing) {
+			game.removeEntity(this);
+			used = true;
+		}
+	}
+
+	private void spawnHeatEffect(int x, int y) {
+		HeatEffectEntity effect = new HeatEffectEntity(game, x, y);
+		game.addEntity(effect);
+	}
+
+	public boolean hasPiercing() {
+		return hasPiercing;
+	}
+
+	public void setPiercing(boolean hasPiercing) {
+		this.hasPiercing = hasPiercing;
+	}
+
 	public boolean isAlienShot() {
 		return isAlienShot;
+	}
+
+	public void setNearMonsterShot(boolean nearMonsterShot) {
+		this.nearMonsterShot = nearMonsterShot;
+	}
+
+	@Override
+	public Rectangle getBounds() {
+		if (nearMonsterShot) {
+			int hitboxSize = 20;
+			return new Rectangle((int) Math.round(x) - hitboxSize / 2,
+					(int) Math.round(y) - hitboxSize / 2,
+					hitboxSize,
+					hitboxSize);
+		}
+		return super.getBounds();
 	}
 
 	@Override
@@ -314,59 +224,107 @@ public class ShotEntity extends Entity {
 		map.put("skillType", Integer.toString(skillType));
 		map.put("skillValue", Integer.toString(skillValue));
 		map.put("pierce", hasPiercing ? "1" : "0");
+		map.put("near", nearMonsterShot ? "1" : "0");
 		return MetadataCodec.encode(map);
 	}
 
 	@Override
 	protected void applySnapshotMetadata(String metadata) {
 		Map<String, String> map = MetadataCodec.decode(metadata);
-		if (!map.isEmpty()) {
-			isAlienShot = "1".equals(map.get("alien"));
-			isSkillDrop = "1".equals(map.get("skill"));
-			try {
-				skillType = Integer.parseInt(map.getOrDefault("skillType", "-1"));
-			} catch (NumberFormatException ignore) { skillType = -1; }
-			try {
-				skillValue = Integer.parseInt(map.getOrDefault("skillValue", "0"));
-			} catch (NumberFormatException ignore) { skillValue = 0; }
-			hasPiercing = "1".equals(map.get("pierce"));
+		if (map.isEmpty()) {
+			return;
 		}
+		isAlienShot = "1".equals(map.get("alien"));
+		isSkillDrop = "1".equals(map.get("skill"));
+		try {
+			skillType = Integer.parseInt(map.getOrDefault("skillType", "-1"));
+		} catch (NumberFormatException ignore) {
+			skillType = -1;
+		}
+		try {
+			skillValue = Integer.parseInt(map.getOrDefault("skillValue", "0"));
+		} catch (NumberFormatException ignore) {
+			skillValue = 0;
+		}
+		hasPiercing = "1".equals(map.get("pierce"));
+		nearMonsterShot = "1".equals(map.get("near"));
 	}
-	
-	/**
-	 * Load skill image based on skill type
-	 * 
-	 * @param skillType The skill type (0-3)
-	 * @return BufferedImage of the skill icon
-	 */
+
 	private BufferedImage loadSkillImage(int skillType) {
 		String imagePath;
 		switch (skillType) {
-			case 0: // Invincible
+			case 0:
 				imagePath = "sprites/Skill/1.png";
 				break;
-			case 2: // Triple Shot
+			case 1:
+				imagePath = "sprites/Skill/2.png";
+				break;
+			case 2:
 				imagePath = "sprites/Skill/3.png";
 				break;
-			case 3: // Missile
+			case 3:
 				imagePath = "sprites/Skill/4.png";
 				break;
 			default:
 				imagePath = "sprites/Skill/1.png";
 				break;
 		}
-		
-		try {
-			InputStream is = getClass().getClassLoader().getResourceAsStream(imagePath);
+
+		try (InputStream is = getClass().getClassLoader().getResourceAsStream(imagePath)) {
 			if (is != null) {
-				BufferedImage image = ImageIO.read(is);
-				is.close();
-				return image;
+				return ImageIO.read(is);
 			}
 		} catch (Exception e) {
-			System.err.println("Failed to load skill image: " + imagePath);
+			// ignore and fall back
 		}
 		return null;
 	}
-	
+
+	private void drawSkillDrop(Graphics g) {
+		Graphics2D g2d = (Graphics2D) g;
+		int itemSize = 24;
+		int drawX = (int) Math.round(x) - itemSize / 2;
+		int drawY = (int) Math.round(y) - itemSize / 2;
+
+		BufferedImage skillImage = loadSkillImage(skillType);
+		if (skillImage != null) {
+			g2d.setColor(new Color(0, 0, 0, 200));
+			g2d.fillRect(drawX + 2, drawY + 2, itemSize, itemSize);
+			g2d.setColor(new Color(0, 0, 0, 150));
+			g2d.fillRect(drawX + 1, drawY + 1, itemSize, itemSize);
+			g2d.drawImage(skillImage, drawX, drawY, itemSize, itemSize, null);
+			g2d.setColor(new Color(255, 255, 255, 200));
+			g2d.setStroke(new BasicStroke(2));
+			g2d.drawRect(drawX, drawY, itemSize, itemSize);
+
+			int circleX = drawX + itemSize - 4;
+			int circleY = drawY + itemSize - 4;
+			int radius = 6;
+			g2d.setColor(new Color(0, 0, 0, 180));
+			g2d.fillOval(circleX - radius, circleY - radius, radius * 2, radius * 2);
+			g2d.setColor(Color.YELLOW);
+			g2d.setFont(new Font("Arial", Font.BOLD, 8));
+			String text = "1";
+			int textWidth = g2d.getFontMetrics().stringWidth(text);
+			int textHeight = g2d.getFontMetrics().getHeight();
+			g2d.drawString(text, circleX - textWidth / 2, circleY + textHeight / 4);
+		} else {
+			g2d.setColor(Color.CYAN);
+			g2d.fillOval(drawX, drawY, itemSize, itemSize);
+			g2d.setColor(Color.WHITE);
+			g2d.drawOval(drawX, drawY, itemSize, itemSize);
+		}
+	}
+
+	private void drawScaledSprite(Graphics g, int size) {
+		if (sprite == null) {
+			super.draw(g);
+			return;
+		}
+		Graphics2D g2d = (Graphics2D) g;
+		int drawX = (int) Math.round(x) - size / 2;
+		int drawY = (int) Math.round(y) - size / 2;
+		g2d.drawImage(sprite.getImage(), drawX, drawY, drawX + size, drawY + size,
+				0, 0, sprite.getWidth(), sprite.getHeight(), null);
+	}
 }

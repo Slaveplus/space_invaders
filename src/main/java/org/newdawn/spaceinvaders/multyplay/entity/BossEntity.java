@@ -3,6 +3,7 @@ package org.newdawn.spaceinvaders.multyplay.entity;
 import java.awt.Color;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
+import java.awt.Rectangle;
 import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -23,7 +24,6 @@ import org.newdawn.spaceinvaders.multyplay.entity.attack.Round4GreenSphereAttack
 import org.newdawn.spaceinvaders.multyplay.entity.attack.Round4HealAttack;
 import org.newdawn.spaceinvaders.multyplay.entity.attack.Round4PlayerLineAttack;
 import org.newdawn.spaceinvaders.multyplay.net.protocol.MetadataCodec;
-import org.newdawn.spaceinvaders.multyplay.state.PlayerState;
 
 /**
  * Multiplayer boss entity that mirrors the single-player encounter behaviour.
@@ -119,12 +119,18 @@ public class BossEntity extends Entity {
     }
 
     private void tryMagneticFieldAttack() {
+        if (!game.canEnemiesAttack()) {
+            return;
+        }
         long now = System.currentTimeMillis();
         if (now - lastMagneticField < magneticFieldInterval) {
             return;
         }
         lastMagneticField = now;
-        MagneticFieldEntity field = new MagneticFieldEntity(game, 400, 220, 220, 0.8, 6000);
+        double fieldRadius = 190;
+        double fieldStrength = -0.5;
+        long duration = 4000;
+        MagneticFieldEntity field = new MagneticFieldEntity(game, (int) x, (int) y, fieldRadius, fieldStrength, duration);
         game.addEntity(field);
     }
 
@@ -175,34 +181,47 @@ public class BossEntity extends Entity {
     private void executeAttackPattern(int pattern) {
         switch (pattern) {
             case 1:
-                tryIceAttackNow();
+                tryIceAttack();
                 break;
             case 2:
-                tryIceBallAttackNow();
+                tryIceBallAttack();
                 break;
             case 3:
-                tryFanIceBallsAttackNow();
+                tryFanIceBallsAttack();
                 break;
             case 4:
-                tryWaveIceBallsAttackNow();
+                tryWaveIceBallsAttack();
                 break;
             case 5:
-                trySpiralIceBallsAttackNow();
+                trySpiralIceBallsAttack();
                 break;
             default:
                 break;
         }
     }
 
-    private void tryIceAttackNow() {
-        IceAttack attack = new IceAttack(game, (int) x, (int) y + 150);
-        game.addEntity(attack);
-        lastIceAttack = System.currentTimeMillis();
+    private void tryIceAttack() {
+        if (!game.canEnemiesAttack()) {
+            return;
+        }
+        long now = System.currentTimeMillis();
+        if (now - lastIceAttack < iceAttackInterval) {
+            return;
+        }
+        game.addEntity(new IceAttack(game, (int) x, (int) y + 150));
+        lastIceAttack = now;
     }
 
-    private void tryIceBallAttackNow() {
+    private void tryIceBallAttack() {
+        if (!game.canEnemiesAttack()) {
+            return;
+        }
+        long now = System.currentTimeMillis();
+        if (now - lastIceBallAttack < iceBallAttackInterval) {
+            return;
+        }
         performTripleIceBallAttack();
-        lastIceBallAttack = System.currentTimeMillis();
+        lastIceBallAttack = now;
     }
 
     private void performTripleIceBallAttack() {
@@ -214,7 +233,7 @@ public class BossEntity extends Entity {
         game.addEntity(rightBall);
     }
 
-    private void tryFanIceBallsAttackNow() {
+    private void tryFanIceBallsAttack() {
         double[] angles = {-1.2, -0.6, 0.0, 0.6, 1.2};
         double speed = 0.4;
         for (double angle : angles) {
@@ -223,7 +242,7 @@ public class BossEntity extends Entity {
         }
     }
 
-    private void tryWaveIceBallsAttackNow() {
+    private void tryWaveIceBallsAttack() {
         double[] xOffsets = {-1.0, -0.6, -0.3, 0.0, 0.3, 0.6, 1.0};
         double[] ySpeeds = {0.2, 0.3, 0.4, 0.5, 0.4, 0.3, 0.2};
         double xSpeed = 0.2;
@@ -238,7 +257,7 @@ public class BossEntity extends Entity {
         }
     }
 
-    private void trySpiralIceBallsAttackNow() {
+    private void trySpiralIceBallsAttack() {
         int numBalls = 8;
         double baseSpeed = 0.3;
         double spiralSpeed = 0.1;
@@ -348,7 +367,13 @@ public class BossEntity extends Entity {
 
     private void executeRound3PullAttack() {
         int pullX = 200 + (int) (Math.random() * 400);
-        Round3PullAttack pull = new Round3PullAttack(game, pullX, 280);
+        int pullY = 280;
+        Entity targetShip = game.getShip(null);
+        if (targetShip != null) {
+            pullY = targetShip.getY();
+        }
+        pullY = Math.max(120, Math.min(520, pullY));
+        Round3PullAttack pull = new Round3PullAttack(game, pullX, pullY);
         game.addEntity(pull);
     }
 
@@ -393,12 +418,6 @@ public class BossEntity extends Entity {
         }
 
         if (now - round4StartTime > round4TimeLimit) {
-            // massive damage to all players if timer exceeded
-            for (PlayerState state : game.getGameStateManager().getPlayerStates()) {
-                if (!state.isDead()) {
-                    game.notifyPlayerDamaged(state.getPlayerId(), 999);
-                }
-            }
             round4StartTime = now;
         }
     }
@@ -421,6 +440,18 @@ public class BossEntity extends Entity {
             currentHP = 0;
         }
 
+        updatePhase();
+
+        if (currentHP <= 0 && !used) {
+            grantBossRewards(playerId);
+            createBossExplosion();
+            game.notifyBossDefeated(playerId);
+            game.removeEntity(this);
+            used = true;
+        }
+    }
+
+    private void updatePhase() {
         int newPhase;
         if (currentHP > maxHP * 0.66) {
             newPhase = 1;
@@ -430,11 +461,23 @@ public class BossEntity extends Entity {
             newPhase = 3;
         }
         phase = newPhase;
+    }
 
-        if (currentHP <= 0) {
-            game.notifyBossDefeated(playerId);
-            game.removeEntity(this);
-            used = true;
+    private void grantBossRewards(String playerId) {
+        game.addScore(playerId, 1000 * Math.max(1, round));
+        game.addSkillPoints(playerId, 5 * Math.max(1, round));
+
+        int[] bossCoinValues = {10, 15, 20, 25, 30};
+        int coinValue = bossCoinValues[(int) (Math.random() * bossCoinValues.length)];
+        game.addCoins(playerId, coinValue);
+        game.showCoinEarned(playerId, (int) x, (int) y, coinValue);
+    }
+
+    private void createBossExplosion() {
+        for (int i = 0; i < 5; i++) {
+            int explosionX = (int) (x + (Math.random() - 0.5) * 100);
+            int explosionY = (int) (y + (Math.random() - 0.5) * 100);
+            game.createExplosion(explosionX, explosionY, 80.0);
         }
     }
 
@@ -458,25 +501,36 @@ public class BossEntity extends Entity {
     public void draw(Graphics g) {
         Graphics2D g2d = (Graphics2D) g;
         if (sprite != null) {
-            int bossWidth = 300;
-            int bossHeight = 300;
-            int drawX = (int) x - bossWidth / 2;
-            int drawY = (int) y - bossHeight / 2;
-            g2d.drawImage(sprite.getImage(), drawX, drawY, drawX + bossWidth, drawY + bossHeight, 0, 0,
+            int bossSize = round >= 5 ? 300 : 280;
+            int drawX = (int) x - bossSize / 2;
+            int drawY = (int) y - bossSize / 2;
+            g2d.drawImage(sprite.getImage(), drawX, drawY, drawX + bossSize, drawY + bossSize, 0, 0,
                     sprite.getWidth(), sprite.getHeight(), null);
         }
 
+        int bossSize = round >= 5 ? 300 : 280;
+        int halfSize = bossSize / 2;
+
         g2d.setColor(Color.YELLOW);
         g2d.setFont(g2d.getFont().deriveFont(16f));
-        g2d.drawString("Phase " + phase, (int) x - 25, (int) y - 170);
+        g2d.drawString("Phase " + phase, (int) x - 25, (int) y - halfSize - 20);
 
         g2d.setColor(Color.RED);
-        g2d.fillRect((int) x - 50, (int) y + 170, 100, 8);
+        g2d.fillRect((int) x - 50, (int) y + halfSize + 10, 100, 8);
         g2d.setColor(Color.GREEN);
         int healthWidth = (int) (100 * ((double) currentHP / maxHP));
-        g2d.fillRect((int) x - 50, (int) y + 170, healthWidth, 8);
+        g2d.fillRect((int) x - 50, (int) y + halfSize + 10, healthWidth, 8);
         g2d.setColor(Color.WHITE);
-        g2d.drawRect((int) x - 50, (int) y + 170, 100, 8);
+        g2d.drawRect((int) x - 50, (int) y + halfSize + 10, 100, 8);
+    }
+
+    @Override
+    public Rectangle getBounds() {
+        int bossSize = round >= 5 ? 300 : 280;
+        int halfSize = bossSize / 2;
+        int topLeftX = (int) Math.round(x) - halfSize;
+        int topLeftY = (int) Math.round(y) - halfSize;
+        return new Rectangle(topLeftX, topLeftY, bossSize, bossSize);
     }
 
     @Override
