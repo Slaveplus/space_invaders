@@ -232,8 +232,13 @@ public class RoomListCanvas extends Canvas implements Screen, GameClientListener
                     case KeyEvent.VK_TAB: bottomFocus = false; break;
                     case KeyEvent.VK_ESCAPE: backToMenu(); break;
                     case KeyEvent.VK_ENTER:
-                        if (bottomSelected==0) { creatingOverlay = true; createSelect=0; }
-                        else backToMenu();
+                        if (bottomSelected==0) { 
+                            // 멀티 방만 생성
+                            createRoom(false);
+                            bottomFocus = false;
+                        } else {
+                            backToMenu();
+                        }
                         break;
                 }
                 return;
@@ -243,7 +248,10 @@ public class RoomListCanvas extends Canvas implements Screen, GameClientListener
                 case KeyEvent.VK_DOWN: selectedIndex = Math.min(Math.max(0, rooms.size()-1), selectedIndex+1); break;
                 case KeyEvent.VK_ENTER: joinSelectedRoom(); break;
                 case KeyEvent.VK_R: if (client!=null) client.requestRoomList(); break;
-                case KeyEvent.VK_C: creatingOverlay = true; createSelect=0; break;
+                case KeyEvent.VK_C: 
+                    // 멀티 방만 생성
+                    createRoom(false);
+                    break;
                 case KeyEvent.VK_TAB: bottomFocus = true; bottomSelected = 0; selectedIndex = Math.max(0, Math.min(selectedIndex, rooms.size()-1)); break;
                 case KeyEvent.VK_ESCAPE: backToMenu(); break;
             }
@@ -282,7 +290,11 @@ public class RoomListCanvas extends Canvas implements Screen, GameClientListener
         int b2x = getWidth()/2 + 150 - bm.stringWidth(b2)/2;
         Rectangle r1 = new Rectangle(b1x-10, by-30, bm.stringWidth(b1)+20, 40);
         Rectangle r2 = new Rectangle(b2x-10, by-30, bm.stringWidth(b2)+20, 40);
-        if (r1.contains(x,y)) { creatingOverlay = true; createSelect=0; bottomFocus=false; }
+        if (r1.contains(x,y)) { 
+            // 멀티 방만 생성
+            createRoom(false); 
+            bottomFocus=false; 
+        }
         else if (r2.contains(x,y)) { backToMenu(); }
     }
 }

@@ -20,9 +20,11 @@ import java.util.Collections;
 import java.util.Deque;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Iterator;
+import java.util.Set;
 import java.net.URL;
 
 import javax.imageio.ImageIO;
@@ -40,6 +42,7 @@ import org.newdawn.spaceinvaders.multyplay.entity.CoinDisplayEntity;
 import org.newdawn.spaceinvaders.multyplay.entity.ShipEntity;
 import org.newdawn.spaceinvaders.multyplay.entity.ShotEntity;
 import org.newdawn.spaceinvaders.login.UserManager;
+import org.newdawn.spaceinvaders.database.GameRecord;
 import org.newdawn.spaceinvaders.shop.ShopCategory;
 import org.newdawn.spaceinvaders.shop.ShopItem;
 import org.newdawn.spaceinvaders.app.Screen;
@@ -122,6 +125,7 @@ public class MultiplayerGameCanvas extends Canvas implements Screen, Multiplayer
 	private GameSnapshot.Phase remotePhase = GameSnapshot.Phase.ACTIVE;
 	private boolean remoteWaitingForPlayers;
 	private final Map<String, Boolean> remoteReadyStates = new LinkedHashMap<>();
+	private boolean resultsPersisted = false;
 	private final Map<String, String> playerDisplayNames = new LinkedHashMap<>();
 	private final Deque<String> intermissionChatLines = new ArrayDeque<>();
 	private final List<CoinDisplayEntity> remoteCoinPopups = new ArrayList<>();
@@ -195,6 +199,7 @@ public class MultiplayerGameCanvas extends Canvas implements Screen, Multiplayer
 		this.intermissionMessage = "";
 		this.remotePhase = GameSnapshot.Phase.ACTIVE;
 		this.remoteWaitingForPlayers = false;
+		this.resultsPersisted = false;
 		gameStateManager.getEntities().clear();
 		gameStateManager.getRemoveList().clear();
 		remoteCoinPopups.clear();
@@ -435,6 +440,7 @@ public class MultiplayerGameCanvas extends Canvas implements Screen, Multiplayer
 		} else {
 			gameStateManager.setMessage("🏆 GAME COMPLETED! 🏆 Congratulations!");
 			gameStateManager.setWaitingForKeyPress(true);
+			persistMultiplayerResults(true);
 		}
 	}
 	
@@ -964,9 +970,13 @@ public class MultiplayerGameCanvas extends Canvas implements Screen, Multiplayer
 	}
 	boolean intermission = remotePhase == GameSnapshot.Phase.INTERMISSION;
 	boolean waiting = intermission || remoteWaitingForPlayers;
-	gameStateManager.setRoundTransition(intermission);
-	gameStateManager.setWaitingForKeyPress(waiting);
-}
+		gameStateManager.setRoundTransition(intermission);
+		gameStateManager.setWaitingForKeyPress(waiting);
+
+		if (!resultsPersisted && remotePhase == GameSnapshot.Phase.COMPLETED) {
+			persistMultiplayerResults(false);
+		}
+	}
 
 	private Entity createRemoteEntity(EntitySnapshot snapshot) {
 		Map<String, String> meta = MetadataCodec.decode(snapshot.metadata);
@@ -2898,6 +2908,7 @@ public class MultiplayerGameCanvas extends Canvas implements Screen, Multiplayer
 		} else {
 			gameStateManager.setMessage("🏆 GAME COMPLETED! 🏆 Congratulations!");
 			gameStateManager.setWaitingForKeyPress(true);
+			persistMultiplayerResults(true);
 		}
 	}
 	
@@ -2917,6 +2928,100 @@ public class MultiplayerGameCanvas extends Canvas implements Screen, Multiplayer
 		} else {
 			gameStateManager.setMessage("🏆 GAME COMPLETED! 🏆 Congratulations!");
 			gameStateManager.setWaitingForKeyPress(true);
+			persistMultiplayerResults(true);
+		}
+	}
+
+	private void persistMultiplayerResults(boolean forcePersist) {
+		if (resultsPersisted) {
+			return;
+		}
+		if (!forcePersist && remoteMode && remotePhase != GameSnapshot.Phase.COMPLETED) {
+			return;
+		}
+		if (userManager == null || !userManager.isLoggedIn() || userManager.getCurrentUser() == null) {
+			resultsPersisted = true;
+			return;
+		}
+
+		int earnedCoins = gameStateManager.getEarnedCoins();
+		if (earnedCoins > 0) {
+			userManager.addCoins(earnedCoins);
+		}
+
+		long playTimeMs = gameStateManager.getPlayTimeMs();
+		boolean completed = gameStateManager.getCurrentRound() >= gameStateManager.getMaxRound();
+		int finalRound = gameStateManager.getCurrentRound();
+		List<String> teammates = collectTeammateNames();
+
+		GameRecord record = new GameRecord(
+				userManager.getCurrentUser().getUid(),
+				userManager.getCurrentUser().getUsername(),
+				playTimeMs,
+				earnedCoins,
+				completed,
+				finalRound,
+				GameRecord.GameMode.MULTI,
+				teammates);
+
+		saveMultiplayerRecord(record);
+		resultsPersisted = true;
+	}
+
+	private List<String> collectTeammateNames() {
+		LinkedHashSet<String> names = new LinkedHashSet<>();
+		String localId = localPlayerId;
+
+		for (Map.Entry<String, String> entry : playerDisplayNames.entrySet()) {
+			String playerId = entry.getKey();
+			String display = entry.getValue();
+			if (playerId == null || (localId != null && localId.equals(playerId))) {
+				continue;
+			}
+			String trimmed = display != null ? display.trim() : "";
+			if (!trimmed.isEmpty()) {
+				names.add(trimmed);
+			}
+		}
+
+		if (names.isEmpty()) {
+			for (PlayerState ps : gameStateManager.getPlayerStates()) {
+				String playerId = ps.getPlayerId();
+				if (playerId == null || (localId != null && localId.equals(playerId))) {
+					continue;
+				}
+				names.add(playerId);
+			}
+		}
+
+		return new ArrayList<>(names);
+	}
+
+	private void saveMultiplayerRecord(GameRecord record) {
+		try {
+			String dbPath = "users/" + record.getUserId() + "/gameRecords/multi/" + record.getRecordId();
+			Map<String, Object> recordData = new HashMap<>();
+			recordData.put("recordId", record.getRecordId());
+			recordData.put("userId", record.getUserId());
+			recordData.put("username", record.getUsername());
+			recordData.put("playTimeMs", record.getPlayTimeMs());
+			recordData.put("playTime", record.getPlayTime());
+			recordData.put("earnedCoins", record.getEarnedCoins());
+			recordData.put("completed", record.isCompleted());
+			recordData.put("finalRound", record.getFinalRound());
+			recordData.put("playDate", record.getPlayDateString());
+			recordData.put("mode", record.getMode().name());
+			recordData.put("coPlayers", new ArrayList<>(record.getCoPlayers()));
+
+			boolean success = userManager.getFirebaseDB().putData(dbPath, recordData);
+			if (success) {
+				System.out.println("✅ Multiplayer record saved: " + dbPath);
+			} else {
+				System.err.println("❌ Failed to save multiplayer record: " + dbPath);
+			}
+		} catch (Exception ex) {
+			System.err.println("Error saving multiplayer record: " + ex.getMessage());
+			ex.printStackTrace();
 		}
 	}
 	

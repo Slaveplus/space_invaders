@@ -606,7 +606,9 @@ public class Game extends Canvas implements Screen, GameplayContext
 					playTimeMs,
 					earnedCoins,
 					completed,
-					finalRound
+					finalRound,
+					org.newdawn.spaceinvaders.database.GameRecord.GameMode.SINGLE,
+					java.util.Collections.emptyList()
 				);
 			
 			// Firebase DB에 플레이 기록 저장
@@ -640,6 +642,8 @@ public class Game extends Canvas implements Screen, GameplayContext
 			recordData.put("completed", gameRecord.isCompleted());
 			recordData.put("finalRound", gameRecord.getFinalRound());
 			recordData.put("playDate", gameRecord.getPlayDateString());
+			recordData.put("mode", gameRecord.getMode().name());
+			recordData.put("coPlayers", new java.util.ArrayList<>(gameRecord.getCoPlayers()));
 			
 			// Firebase DB에 저장
 			boolean success = userManager.getFirebaseDB().putData(dbPath, recordData);

@@ -25,50 +25,130 @@ public class PlayRecordsManager {
      * 게임 기록 로드
      */
     public void loadGameRecords() {
-        if (userManager != null && userManager.isLoggedIn()) {
-            try {
-                // Firebase DB에서 플레이 기록 로드
-                String dbPath = "users/" + userManager.getCurrentUser().getUid() + "/gameRecords/single";
-                @SuppressWarnings("unchecked")
-                java.util.Map<String, Object> recordsData = (java.util.Map<String, Object>) userManager.getFirebaseDB().getData(dbPath, java.util.Map.class);
-                
-                gameRecords = new ArrayList<>();
-                
-                if (recordsData != null) {
-                    for (Object recordObj : recordsData.values()) {
-                        if (recordObj instanceof java.util.Map) {
-                            @SuppressWarnings("unchecked")
-                            java.util.Map<String, Object> recordMap = (java.util.Map<String, Object>) recordObj;
-                            
-                            GameRecord record = new GameRecord();
-                            record.setRecordId((String) recordMap.get("recordId"));
-                            record.setUserId((String) recordMap.get("userId"));
-                            record.setUsername((String) recordMap.get("username"));
-                            record.setPlayTimeMs(((Number) recordMap.get("playTimeMs")).longValue());
-                            record.setPlayTime((String) recordMap.get("playTime"));
-                            record.setEarnedCoins(((Number) recordMap.get("earnedCoins")).intValue());
-                            record.setCompleted((Boolean) recordMap.get("completed"));
-                            record.setFinalRound(((Number) recordMap.get("finalRound")).intValue());
-                            
-                            gameRecords.add(record);
-                        }
+        gameRecords = new ArrayList<>();
+        if (userManager == null || !userManager.isLoggedIn()) {
+            return;
+        }
+
+        try {
+            loadRecordsForMode("single", GameRecord.GameMode.SINGLE);
+            loadRecordsForMode("multi", GameRecord.GameMode.MULTI);
+
+            gameRecords.sort((r1, r2) -> {
+                java.time.LocalDateTime d1 = r1.getPlayDate();
+                java.time.LocalDateTime d2 = r2.getPlayDate();
+                if (d1 != null && d2 != null) {
+                    int cmp = d2.compareTo(d1);
+                    if (cmp != 0) {
+                        return cmp;
                     }
-                    
-                    // 플레이 시간 기준으로 정렬 (오름차순)
-                    gameRecords.sort((r1, r2) -> Long.compare(r1.getPlayTimeMs(), r2.getPlayTimeMs()));
-                    
-                    System.out.println("📊 Loaded " + gameRecords.size() + " game records");
-                } else {
-                    System.out.println("📊 No game records found");
+                } else if (d1 != null) {
+                    return -1;
+                } else if (d2 != null) {
+                    return 1;
                 }
-            } catch (Exception e) {
-                System.err.println("Error loading game records: " + e.getMessage());
-                e.printStackTrace();
-                gameRecords = new ArrayList<>();
-            }
-        } else {
+                return Long.compare(r2.getPlayTimeMs(), r1.getPlayTimeMs());
+            });
+
+            System.out.println("📊 Loaded " + gameRecords.size() + " total game records (single + multi)");
+        } catch (Exception e) {
+            System.err.println("Error loading game records: " + e.getMessage());
+            e.printStackTrace();
             gameRecords = new ArrayList<>();
         }
+    }
+
+    @SuppressWarnings("unchecked")
+    private void loadRecordsForMode(String modePath, GameRecord.GameMode fallbackMode) throws Exception {
+        if (userManager == null || userManager.getCurrentUser() == null) {
+            return;
+        }
+        String basePath = "users/" + userManager.getCurrentUser().getUid() + "/gameRecords/" + modePath;
+        java.util.Map<String, Object> recordsData =
+                (java.util.Map<String, Object>) userManager.getFirebaseDB().getData(basePath, java.util.Map.class);
+        if (recordsData == null || recordsData.isEmpty()) {
+            System.out.println("📊 No " + modePath + " records found");
+            return;
+        }
+
+        for (Object recordObj : recordsData.values()) {
+            if (!(recordObj instanceof java.util.Map)) {
+                continue;
+            }
+            java.util.Map<String, Object> recordMap = (java.util.Map<String, Object>) recordObj;
+            GameRecord record = parseRecord(recordMap, fallbackMode);
+            if (record != null) {
+                gameRecords.add(record);
+            }
+        }
+    }
+
+    private GameRecord parseRecord(java.util.Map<String, Object> recordMap, GameRecord.GameMode fallbackMode) {
+        GameRecord record = new GameRecord();
+        record.setMode(fallbackMode);
+
+        Object modeObj = recordMap.get("mode");
+        if (modeObj instanceof String) {
+            record.setMode((String) modeObj);
+        }
+
+        record.setRecordId((String) recordMap.get("recordId"));
+        record.setUserId((String) recordMap.get("userId"));
+        record.setUsername((String) recordMap.get("username"));
+
+        Object playTimeMsObj = recordMap.get("playTimeMs");
+        if (playTimeMsObj instanceof Number) {
+            record.setPlayTimeMs(((Number) playTimeMsObj).longValue());
+        }
+        Object playTimeObj = recordMap.get("playTime");
+        if (playTimeObj instanceof String) {
+            record.setPlayTime((String) playTimeObj);
+        }
+        Object coinsObj = recordMap.get("earnedCoins");
+        if (coinsObj instanceof Number) {
+            record.setEarnedCoins(((Number) coinsObj).intValue());
+        }
+        Object completedObj = recordMap.get("completed");
+        if (completedObj instanceof Boolean) {
+            record.setCompleted((Boolean) completedObj);
+        }
+        Object finalRoundObj = recordMap.get("finalRound");
+        if (finalRoundObj instanceof Number) {
+            record.setFinalRound(((Number) finalRoundObj).intValue());
+        }
+        Object playDateObj = recordMap.get("playDate");
+        if (playDateObj instanceof String) {
+            record.setPlayDateString((String) playDateObj);
+        }
+
+        Object coPlayersObj = recordMap.get("coPlayers");
+        if (coPlayersObj instanceof java.util.Collection) {
+            java.util.List<String> list = new java.util.ArrayList<>();
+            for (Object item : (java.util.Collection<?>) coPlayersObj) {
+                if (item != null) {
+                    String name = item.toString().trim();
+                    if (!name.isEmpty()) {
+                        list.add(name);
+                    }
+                }
+            }
+            record.setCoPlayers(list);
+        } else if (coPlayersObj instanceof String) {
+            String value = ((String) coPlayersObj).trim();
+            if (!value.isEmpty()) {
+                String[] parts = value.split(",");
+                java.util.List<String> list = new java.util.ArrayList<>();
+                for (String part : parts) {
+                    String trimmed = part.trim();
+                    if (!trimmed.isEmpty()) {
+                        list.add(trimmed);
+                    }
+                }
+                record.setCoPlayers(list);
+            }
+        }
+
+        return record;
     }
     
     /**
@@ -102,12 +182,20 @@ public class PlayRecordsManager {
         g2d.setColor(Color.YELLOW);
         g2d.setFont(getKostarFont(Font.BOLD, 16));
         int headerY = tableY + 25;
-        g2d.drawString("순위", tableX + 20, headerY);
-        g2d.drawString("사용자명", tableX + 80, headerY);
-        g2d.drawString("시간", tableX + 200, headerY);
-        g2d.drawString("상태", tableX + 280, headerY);
-        g2d.drawString("코인", tableX + 350, headerY);
-        g2d.drawString("날짜", tableX + 420, headerY);
+        int rankCol = tableX + 20;
+        int modeCol = tableX + 70;
+        int nameCol = tableX + 120;
+        int timeCol = tableX + 260;
+        int statusCol = tableX + 330;
+        int coinCol = tableX + 380;
+        int dateCol = tableX + 450;
+        g2d.drawString("순위", rankCol, headerY);
+        g2d.drawString("모드", modeCol, headerY);
+        g2d.drawString("사용자명", nameCol, headerY);
+        g2d.drawString("시간", timeCol, headerY);
+        g2d.drawString("상태", statusCol, headerY);
+        g2d.drawString("코인", coinCol, headerY);
+        g2d.drawString("날짜", dateCol, headerY);
         
         // 구분선
         g2d.setColor(Color.CYAN);
@@ -115,42 +203,68 @@ public class PlayRecordsManager {
         
         // 기록 목록
         if (gameRecords != null && !gameRecords.isEmpty()) {
-            g2d.setColor(Color.WHITE);
-            g2d.setFont(getKostarFont(14));
-            
             int startIndex = leaderboardScrollOffset;
             int maxRecords = 10; // 화면에 표시할 최대 기록 수
             int endIndex = Math.min(startIndex + maxRecords, gameRecords.size());
+            int rowSpacing = 32;
             
             for (int i = startIndex; i < endIndex; i++) {
                 GameRecord record = gameRecords.get(i);
-                int rowY = tableY + 50 + (i - startIndex) * 25;
+                int baseRowY = tableY + 50 + (i - startIndex) * rowSpacing;
                 
                 // 순위
-                g2d.drawString(String.valueOf(i + 1), tableX + 20, rowY);
+                g2d.setColor(Color.WHITE);
+                g2d.setFont(getKostarFont(14));
+                g2d.drawString(String.valueOf(i + 1), rankCol, baseRowY);
                 
-                // 사용자명
-                String username = record.getUsername();
-                if (username.length() > 10) {
-                    username = username.substring(0, 10) + "...";
+                // 모드
+                String modeLabel = record.getMode() == GameRecord.GameMode.MULTI ? "멀티" : "싱글";
+                g2d.drawString(modeLabel, modeCol, baseRowY);
+                
+                // 사용자명 (모드 표시 포함)
+                String username = record.getUsername() != null ? record.getUsername() : "-";
+                if (username.length() > 12) {
+                    username = username.substring(0, 12) + "...";
                 }
-                g2d.drawString(username, tableX + 80, rowY);
+                g2d.drawString(username, nameCol, baseRowY);
                 
                 // 시간
-                g2d.drawString(record.getPlayTime(), tableX + 200, rowY);
+                g2d.drawString(record.getPlayTime(), timeCol, baseRowY);
                 
                 // 상태
                 String status = record.isCompleted() ? "클리어" : "실패";
                 g2d.setColor(record.isCompleted() ? Color.GREEN : Color.RED);
-                g2d.drawString(status, tableX + 280, rowY);
+                g2d.drawString(status, statusCol, baseRowY);
                 g2d.setColor(Color.WHITE);
                 
                 // 코인
-                g2d.drawString(String.valueOf(record.getEarnedCoins()), tableX + 350, rowY);
+                g2d.drawString(String.valueOf(record.getEarnedCoins()), coinCol, baseRowY);
                 
-                // 날짜 (간단한 형식)
-                String date = record.getPlayDateString().substring(5, 10); // MM-DD
-                g2d.drawString(date, tableX + 420, rowY);
+                // 날짜 (MM-DD HH:mm)
+                String date = record.getPlayDateString();
+                if (date != null && date.length() >= 16) {
+                    date = date.substring(5, 16);
+                }
+                g2d.drawString(date != null ? date : "-", dateCol, baseRowY);
+                
+                // 멀티플레이 동료 정보
+                if (record.getMode() == GameRecord.GameMode.MULTI && record.hasCoPlayers()) {
+                    g2d.setFont(getKostarFont(12));
+                    g2d.setColor(new Color(180, 220, 255));
+                    String teammates = "동료: " + record.getCoPlayersLabel();
+                    FontMetrics fm = g2d.getFontMetrics();
+                    int maxWidth = tableX + tableWidth - nameCol - 20;
+                    if (fm.stringWidth(teammates) > maxWidth) {
+                        while (teammates.length() > 3 && fm.stringWidth(teammates + "...") > maxWidth) {
+                            teammates = teammates.substring(0, teammates.length() - 1);
+                            fm = g2d.getFontMetrics();
+                        }
+                        teammates += "...";
+                    }
+                    g2d.drawString(teammates, nameCol, baseRowY + 14);
+                    g2d.setFont(getKostarFont(14));
+                    g2d.setColor(Color.WHITE);
+                }
             }
             
             // 스크롤 안내
