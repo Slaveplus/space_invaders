@@ -86,7 +86,8 @@ public class MainMenu {
         SETTINGS,        // 설정 메뉴
         RESOLUTION,      // 해상도 변경 메뉴
         ACCOUNT,         // 계정 메뉴
-        LEADERBOARD,     // 플레이기록 메뉴
+        PLAY_RECORDS,    // 플레이 기록 화면
+        GLOBAL_LEADERBOARD, // 글로벌 리더보드
         SERVER_CONNECT   // 서버 접속 정보 입력
     }
     
@@ -105,6 +106,7 @@ public class MainMenu {
     
     // 플레이기록 관련
     private PlayRecordsManager playRecordsManager;
+    private GlobalLeaderboardManager leaderboardManager;
     
     // 통합 게임플레이 서브메뉴 옵션
     private String[] gameplayOptions = {
@@ -158,6 +160,7 @@ public class MainMenu {
         this.navigator = navigator;
         // 플레이기록 관리자 초기화
         this.playRecordsManager = new PlayRecordsManager(userManager);
+        this.leaderboardManager = new GlobalLeaderboardManager(userManager);
         // 애니메이션 초기화
         this.settingsAnimation = new ShopAnimation();
         this.accountAnimation = new ShopAnimation();
@@ -330,12 +333,17 @@ public class MainMenu {
             }
         }
         
-        // 리더보드 키 입력 처리
-        if (currentState == MenuState.LEADERBOARD) {
-            handleLeaderboardInput(keyCode);
+        // 플레이 기록 & 리더보드 입력 처리
+        if (currentState == MenuState.PLAY_RECORDS) {
+            handlePlayRecordsInput(keyCode);
             return;
         }
-        
+
+        if (currentState == MenuState.GLOBAL_LEADERBOARD) {
+            handleGlobalLeaderboardInput(keyCode);
+            return;
+        }
+
         // 서버 연결 입력 모드일 경우 별도 처리 (방향키 중 일부는 옵션 이동 대신 입력 전용)
         if (currentState == MenuState.SERVER_CONNECT) {
             if (keyCode == KeyEvent.VK_ESCAPE) {
@@ -412,7 +420,8 @@ public class MainMenu {
                 // 별도 Shop 화면을 갖고 있으므로 여기서는 기본 옵션 반환
                 return new String[]{"뒤로가기"};
             case SERVER_CONNECT:
-            case LEADERBOARD:
+            case PLAY_RECORDS:
+            case GLOBAL_LEADERBOARD:
                 return new String[]{};
             default:
                 return getMainMenuOptions(); // 동적으로 생성된 메인 메뉴 옵션
@@ -455,7 +464,8 @@ public class MainMenu {
                 shop.startEntryAnimation();
                 break;
             case SERVER_CONNECT:
-            case LEADERBOARD:
+            case PLAY_RECORDS:
+            case GLOBAL_LEADERBOARD:
                 // 별도 입력 핸들러에서 처리
                 break;
         }
@@ -523,11 +533,13 @@ public class MainMenu {
                 resetServerConnectInputs();
                 break;
             case 2: // 리더보드
-                // TODO: 멀티 리더보드 구현
+                leaderboardManager.loadLeaderboards();
+                currentState = MenuState.GLOBAL_LEADERBOARD;
+                selectedOption = 0;
                 break;
             case 3: // 플레이기록
                 playRecordsManager.loadGameRecords();
-                currentState = MenuState.LEADERBOARD;
+                currentState = MenuState.PLAY_RECORDS;
                 selectedOption = 0;
                 playRecordsManager.resetScrollOffset();
                 break;
@@ -687,7 +699,7 @@ public class MainMenu {
         g2d.fillRect(0, 0, 800, 600);
         
         // 제목 그리기 (LEADERBOARD 상태가 아닐 때만)
-        if (currentState != MenuState.LEADERBOARD) {
+        if (currentState != MenuState.PLAY_RECORDS && currentState != MenuState.GLOBAL_LEADERBOARD) {
             g2d.setColor(Color.WHITE);
             g2d.setFont(titleFont);
             FontMetrics titleMetrics = g2d.getFontMetrics();
@@ -704,8 +716,10 @@ public class MainMenu {
             drawSettingsMenu(g2d);
         } else if (currentState == MenuState.RESOLUTION) {
             drawResolutionMenu(g2d);
-        } else if (currentState == MenuState.LEADERBOARD) {
+        } else if (currentState == MenuState.PLAY_RECORDS) {
             playRecordsManager.drawLeaderboard(g2d);
+        } else if (currentState == MenuState.GLOBAL_LEADERBOARD) {
+            leaderboardManager.draw(g2d);
         } else if (currentState == MenuState.SERVER_CONNECT) {
             drawServerConnectScreen(g2d);
         } else {
@@ -1337,11 +1351,18 @@ public class MainMenu {
     /**
      * 리더보드 키 입력 처리
      */
-    private void handleLeaderboardInput(int keyCode) {
+    private void handlePlayRecordsInput(int keyCode) {
         if (playRecordsManager.handleLeaderboardInput(keyCode)) {
             // 뒤로가기 요청
             currentState = MenuState.GAMEPLAY;
             selectedOption = 1; // 플레이기록 옵션으로 돌아가기
+        }
+    }
+
+    private void handleGlobalLeaderboardInput(int keyCode) {
+        if (keyCode == KeyEvent.VK_ESCAPE || keyCode == KeyEvent.VK_BACK_SPACE) {
+            currentState = MenuState.GAMEPLAY;
+            selectedOption = 2; // 리더보드 옵션으로 돌아가기
         }
     }
         

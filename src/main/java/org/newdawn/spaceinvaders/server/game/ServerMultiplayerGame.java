@@ -923,6 +923,10 @@ public class ServerMultiplayerGame implements MultiplayerGameContext {
         return gameStateManager.getCurrentRound();
     }
 
+    public long getPlayTimeMs() {
+        return gameStateManager.getPlayTimeMs();
+    }
+
     @Override
     public int getPlayerAttackPower(String playerId) {
         if (playerId == null) {

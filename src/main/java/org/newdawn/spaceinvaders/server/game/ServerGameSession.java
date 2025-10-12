@@ -15,6 +15,10 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
+import org.newdawn.spaceinvaders.database.FirebaseConfig;
+import org.newdawn.spaceinvaders.database.FirebaseDatabaseClient;
+import org.newdawn.spaceinvaders.database.LeaderboardRecord;
+import org.newdawn.spaceinvaders.database.LeaderboardRepository;
 import org.newdawn.spaceinvaders.multyplay.net.GameEvent;
 import org.newdawn.spaceinvaders.multyplay.net.GameSnapshot;
 import org.newdawn.spaceinvaders.multyplay.net.PlayerInput;
@@ -52,6 +56,9 @@ public class ServerGameSession implements Runnable {
     private volatile boolean running;
     private long tickCounter;
     private long lastTickTimestamp;
+    private boolean leaderboardSaved = false;
+    private final FirebaseDatabaseClient leaderboardDb =
+            new FirebaseDatabaseClient(FirebaseConfig.DATABASE_URL);
     
 
     public ServerGameSession(GameServer server, Room room) {
@@ -260,6 +267,7 @@ public class ServerGameSession implements Runnable {
             roundReady.clear();
             if (transition.type == ServerMultiplayerGame.RoundTransition.Type.GAME_COMPLETED) {
                 phase = Phase.COMPLETED;
+                persistLeaderboardIfNeeded();
             } else {
                 phase = Phase.INTERMISSION;
             }
@@ -316,6 +324,50 @@ public class ServerGameSession implements Runnable {
     private void sendToAll(String line) {
         for (PlayerSession ps : players.values()) {
             ps.getOut().println(line);
+        }
+    }
+
+    private void persistLeaderboardIfNeeded() {
+        if (leaderboardSaved) {
+            return;
+        }
+        try {
+            long playTimeMs = game.getPlayTimeMs();
+            List<String> names = new java.util.ArrayList<>();
+            for (PlayerSession ps : players.values()) {
+                if (ps == null) {
+                    continue;
+                }
+                String name = ps.getUsername();
+                if (name == null || name.trim().isEmpty()) {
+                    name = ps.getId();
+                }
+                String trimmed = name != null ? name.trim() : "";
+                if (!trimmed.isEmpty() && !names.contains(trimmed)) {
+                    names.add(trimmed);
+                }
+            }
+            if (names.isEmpty()) {
+                names.add("UNKNOWN");
+            }
+            LeaderboardRecord record = new LeaderboardRecord(
+                    LeaderboardRecord.Mode.MULTI,
+                    names,
+                    playTimeMs);
+            boolean success = LeaderboardRepository.saveRecord(
+                    leaderboardDb,
+                    LeaderboardRecord.Mode.MULTI,
+                    record);
+            if (success) {
+                System.out.println("[Server] Saved multiplayer leaderboard entry: " + record);
+            } else {
+                System.err.println("[Server] Failed to save multiplayer leaderboard entry");
+            }
+        } catch (Exception ex) {
+            System.err.println("[Server] Error saving multiplayer leaderboard entry: " + ex.getMessage());
+            ex.printStackTrace();
+        } finally {
+            leaderboardSaved = true;
         }
     }
 

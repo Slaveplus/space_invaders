@@ -18,6 +18,8 @@ import org.newdawn.spaceinvaders.gameplay.entity.ShipEntity;
 import org.newdawn.spaceinvaders.gameplay.entity.ShotEntity;
 import org.newdawn.spaceinvaders.gameplay.core.GameplayContext;
 import org.newdawn.spaceinvaders.gameplay.core.SharedGameplayCoordinator;
+import org.newdawn.spaceinvaders.database.LeaderboardRecord;
+import org.newdawn.spaceinvaders.database.LeaderboardRepository;
 import org.newdawn.spaceinvaders.login.UserManager;
 import org.newdawn.spaceinvaders.shop.ShopCategory;
 import org.newdawn.spaceinvaders.shop.ShopItem;
@@ -613,7 +615,12 @@ public class Game extends Canvas implements Screen, GameplayContext
 			
 			// Firebase DB에 플레이 기록 저장
 			saveGameRecordToDB(gameRecord);
-			
+
+			if (completed) {
+				saveSingleLeaderboardEntry(playTimeMs,
+						userManager.getCurrentUser().getUsername());
+			}
+
 			System.out.println("⏱️ Play time: " + gameStateManager.getPlayTime() + " (" + playTimeMs + "ms)");
 			System.out.println("📊 Game record saved: " + gameRecord.toString());
 		} else {
@@ -656,6 +663,36 @@ public class Game extends Canvas implements Screen, GameplayContext
 		} catch (Exception e) {
 			System.err.println("Error saving game record to DB: " + e.getMessage());
 			e.printStackTrace();
+		}
+	}
+
+	private void saveSingleLeaderboardEntry(long playTimeMs, String username) {
+		try {
+			if (userManager == null || userManager.getFirebaseDB() == null) {
+				return;
+			}
+			List<String> names = new ArrayList<>();
+			if (username != null && !username.trim().isEmpty()) {
+				names.add(username.trim());
+			} else if (userManager.getCurrentUser() != null) {
+				names.add(userManager.getCurrentUser().getUid());
+			}
+			LeaderboardRecord record = new LeaderboardRecord(
+					LeaderboardRecord.Mode.SINGLE,
+					names,
+					playTimeMs);
+			boolean success = LeaderboardRepository.saveRecord(
+					userManager.getFirebaseDB(),
+					LeaderboardRecord.Mode.SINGLE,
+					record);
+			if (success) {
+				System.out.println("🏅 Saved single-player leaderboard entry: " + record);
+			} else {
+				System.err.println("❌ Failed to save single-player leaderboard entry");
+			}
+		} catch (Exception ex) {
+			System.err.println("Error saving single-player leaderboard entry: " + ex.getMessage());
+			ex.printStackTrace();
 		}
 	}
 	
