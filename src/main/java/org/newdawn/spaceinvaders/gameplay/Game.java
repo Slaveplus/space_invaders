@@ -157,14 +157,19 @@ public class Game extends Canvas implements Screen, GameplayContext
 			userManager.getShopManager().loadEquipmentFromDB();
 		}
 		
-		// 장착된 아이템 적용 (ShopManager 초기화 후)
+		// 장착된 아이템 적용 (ShopManager 초기화 후, ship 생성 전)
 		applyEquippedItems();
 		
 		// 게임플레이 상태 초기화 및 라운드 준비
 		String playerId = gameStateManager.getLocalPlayerId();
 		gameplayCoordinator.startNewGame(playerId);
 		ship = getShip(playerId);
-		applyEquippedItems();
+		
+		// ship 생성 후 다시 한번 스킨 적용 (확실하게 하기 위해)
+		if (ship != null && currentSpaceshipSkin != null && !currentSpaceshipSkin.equals("sprites/ship.gif")) {
+			ship.changeSkin(currentSpaceshipSkin);
+			System.out.println("startGame에서 최종 스킨 적용: " + currentSpaceshipSkin);
+		}
 		
 		// 입력 상태 초기화
 		inputManager.reset();
@@ -183,6 +188,12 @@ public class Game extends Canvas implements Screen, GameplayContext
 		String playerId = gameStateManager.getLocalPlayerId();
 		gameplayCoordinator.initializeRound(playerId);
 		ship = getShip(playerId);
+		
+		// ship 생성 후 스킨 적용
+		if (ship != null && currentSpaceshipSkin != null && !currentSpaceshipSkin.equals("sprites/ship.gif")) {
+			ship.changeSkin(currentSpaceshipSkin);
+			System.out.println("initEntities에서 스킨 적용: " + currentSpaceshipSkin);
+		}
 	}
 	
 	/**
@@ -1161,11 +1172,40 @@ public class Game extends Canvas implements Screen, GameplayContext
 		
 		ShopItem equippedSpaceship = userManager.getShopManager().getEquippedItem(ShopCategory.SPACESHIPS);
 		if (equippedSpaceship != null) {
-			currentSpaceshipSkin = "sprites/ships/" + equippedSpaceship.getId() + ".png";
+			// 아이템 ID를 실제 파일명으로 매핑
+			String skinFileName = mapItemIdToSkinFile(equippedSpaceship.getId());
+			currentSpaceshipSkin = "sprites/ships/" + skinFileName;
+			System.out.println("스킨 적용: " + equippedSpaceship.getName() + " -> " + currentSpaceshipSkin);
+			
 			// 기존 ShipEntity가 있으면 스킨 변경
 			if (ship != null) {
 				ship.changeSkin(currentSpaceshipSkin);
 			}
+		} else {
+			// 장착된 스킨이 없으면 기본 스킨 사용
+			currentSpaceshipSkin = "sprites/ship.gif";
+			System.out.println("기본 스킨 사용: " + currentSpaceshipSkin);
+		}
+	}
+	
+	/**
+	 * 아이템 ID를 실제 스킨 파일명으로 매핑
+	 */
+	private String mapItemIdToSkinFile(String itemId) {
+		switch (itemId) {
+			case "fighter_ship":
+				return "spaceship_green.png";
+			case "battleship":
+				return "spaceship_blue.png";
+			case "professor":
+				return "professor.png";
+			case "king":
+				return "king.png";
+			case "software_king":
+				return "software_king.png";
+			default:
+				// 기본값으로 아이템 ID + .png 사용
+				return itemId + ".png";
 		}
 	}
 	

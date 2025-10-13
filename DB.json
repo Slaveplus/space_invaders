@@ -226,7 +226,7 @@
           "description": "강력한 화력을 가진 전함",
           "basePrice": 800,
           "rarity": "rare",
-          "iconPath": "sprites/ships/battleship.png",
+          "iconPath": "sprites/ships/spaceship_blue.png",
           "isAvailable": true,
           "maxLevel": 3,
           "effects": {

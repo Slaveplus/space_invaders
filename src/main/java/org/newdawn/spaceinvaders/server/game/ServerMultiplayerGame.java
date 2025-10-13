@@ -49,6 +49,9 @@ public class ServerMultiplayerGame implements MultiplayerGameContext {
 
     private String currentSpaceshipSkin = "sprites/ship.gif";
     private String currentWeaponSkin = "sprites/shot.gif";
+    
+    // 플레이어별 스킨 정보 저장
+    private final Map<String, String> playerSkins = new HashMap<>();
 
     private String primaryPlayerId;
     private RoundTransition pendingTransition;
@@ -281,7 +284,9 @@ public class ServerMultiplayerGame implements MultiplayerGameContext {
             }
             int spawnX = (playerCount == 1) ? 370 : minX + (index * spacing);
 
-            ShipEntity newShip = new ShipEntity(this, currentSpaceshipSkin, spawnX, spawnY);
+            // 플레이어별 스킨 적용
+            String playerSkin = getPlayerSkin(playerId);
+            ShipEntity newShip = new ShipEntity(this, playerSkin, spawnX, spawnY);
             newShip.setOwnerId(playerId);
             runtime.ship = newShip;
             runtime.spectating = false;
@@ -997,9 +1002,46 @@ public class ServerMultiplayerGame implements MultiplayerGameContext {
         gameStateManager.addCoins(playerId, amount);
     }
 
+    /**
+     * 플레이어 스킨 설정
+     */
+    public void setPlayerSkin(String playerId, String skinPath) {
+        if (playerId != null && skinPath != null) {
+            playerSkins.put(playerId, skinPath);
+            System.out.println("서버: 플레이어 " + playerId + " 스킨 설정: " + skinPath);
+            
+            // 기존 플레이어의 스킨을 즉시 업데이트
+            updatePlayerSkin(playerId, skinPath);
+        }
+    }
+    
+    /**
+     * 기존 플레이어의 스킨을 업데이트
+     */
+    private void updatePlayerSkin(String playerId, String skinPath) {
+        System.out.println("서버 updatePlayerSkin 호출: playerId=" + playerId + ", skinPath=" + skinPath);
+        PlayerRuntime runtime = playerRuntimes.get(playerId);
+        if (runtime != null && runtime.ship != null) {
+            System.out.println("  - PlayerRuntime 발견, 스킨 변경 시도...");
+            runtime.ship.changeSkin(skinPath);
+            System.out.println("서버: 플레이어 " + playerId + " 스킨 즉시 업데이트: " + skinPath);
+        } else {
+            System.out.println("  - PlayerRuntime 또는 ship이 null: runtime=" + (runtime != null ? "존재" : "null") + 
+                             ", ship=" + (runtime != null && runtime.ship != null ? "존재" : "null"));
+        }
+    }
+    
+    /**
+     * 플레이어 스킨 가져오기
+     */
+    public String getPlayerSkin(String playerId) {
+        return playerSkins.getOrDefault(playerId, "sprites/ship.gif");
+    }
+    
     @Override
     public ShipEntity createPlayerShip(String playerId) {
-        return new ShipEntity(this, currentSpaceshipSkin, 370, 550);
+        String skinPath = getPlayerSkin(playerId);
+        return new ShipEntity(this, skinPath, 370, 550);
     }
 
     @Override

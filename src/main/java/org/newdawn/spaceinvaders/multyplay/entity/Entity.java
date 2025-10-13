@@ -217,8 +217,12 @@ public abstract class Entity {
 	 * @param newSkinPath 새로운 스킨 파일 경로
 	 */
 	public void changeSkin(String newSkinPath) {
+		System.out.println("Entity.changeSkin 호출: " + newSkinPath);
+		System.out.println("  - 이전 스킨: " + this.spritePath);
 		this.spritePath = newSkinPath;
 		this.sprite = SpriteStore.get().getSprite(newSkinPath);
+		System.out.println("  - 새 스킨 적용됨: " + this.spritePath);
+		System.out.println("  - 스프라이트 로드됨: " + (this.sprite != null ? "성공" : "실패"));
 	}
 	
 	/**

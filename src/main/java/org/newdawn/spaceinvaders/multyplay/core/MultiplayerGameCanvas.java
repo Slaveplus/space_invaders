@@ -92,6 +92,9 @@ public class MultiplayerGameCanvas extends Canvas implements Screen, Multiplayer
 	private String currentSpaceshipSkin = "sprites/ship.gif";
 	/** 현재 장착된 무기 스킨 경로 */
 	private String currentWeaponSkin = "sprites/shot.gif";
+	
+	// 플레이어별 스킨 정보 저장 (클라이언트)
+	private final Map<String, String> remotePlayerSkins = new HashMap<>();
 
 	/** The current number of frames recorded */
 	// FPS 표시 기능은 상위에서 처리 가능, 내부적으로는 카운트만 유지하지 않음
@@ -316,11 +319,20 @@ public class MultiplayerGameCanvas extends Canvas implements Screen, Multiplayer
 			userManager.getShopManager().loadEquipmentFromDB();
 		}
 		
-		// 장착된 아이템 적용 (ShopManager 초기화 후)
+		// 장착된 아이템 적용 (ShopManager 초기화 후, ship 생성 전)
 		applyEquippedItems();
 		
 		// 엔티티 초기화 (스킨 적용 후)
 		initEntities();
+		
+		// ship 생성 후 다시 한번 스킨 적용 (확실하게 하기 위해)
+		if (ship != null && currentSpaceshipSkin != null && !currentSpaceshipSkin.equals("sprites/ship.gif")) {
+			ship.changeSkin(currentSpaceshipSkin);
+			System.out.println("멀티플레이어 startGame에서 최종 스킨 적용: " + currentSpaceshipSkin);
+		}
+		
+		// 서버에 스킨 정보 전송 (지연 후 전송)
+		sendSkinToServerDelayed();
 		
 		// 입력 상태 초기화
 		inputManager.reset();
@@ -347,6 +359,12 @@ public class MultiplayerGameCanvas extends Canvas implements Screen, Multiplayer
 		if (ship != null) {
 			ship.setOwnerId(localPlayerId);
 			entities.add(ship);
+			
+			// ship 생성 후 스킨 적용
+			if (currentSpaceshipSkin != null && !currentSpaceshipSkin.equals("sprites/ship.gif")) {
+				ship.changeSkin(currentSpaceshipSkin);
+				System.out.println("멀티플레이어 initEntities에서 스킨 적용: " + currentSpaceshipSkin);
+			}
 		}
 
 		SharedMultiplayerRoundCoordinator.setupRound(this, gameStateManager.getCurrentRound());
@@ -884,6 +902,19 @@ public class MultiplayerGameCanvas extends Canvas implements Screen, Multiplayer
 				entity = createRemoteEntity(snap);
 			}
 			entity.applySnapshot(snap);
+			
+			// 원격 플레이어의 스킨 적용
+			if (entity instanceof ShipEntity && snap.ownerId != null && !snap.ownerId.equals(localPlayerId)) {
+				// 저장된 스킨 정보가 있으면 사용, 없으면 추정
+				String savedSkin = remotePlayerSkins.get(snap.ownerId);
+				if (savedSkin != null) {
+					System.out.println("저장된 스킨 사용: " + snap.ownerId + " -> " + savedSkin);
+					((ShipEntity) entity).changeSkin(savedSkin);
+				} else {
+					applyRemotePlayerSkin((ShipEntity) entity, snap.ownerId);
+				}
+			}
+			
 			next.put(snap.id, entity);
 			snapshotEntitiesBuffer.add(entity);
 			if (localPlayerId != null && localPlayerId.equals(snap.ownerId) && "ShipEntity".equals(snap.type)) {
@@ -1412,7 +1443,18 @@ public class MultiplayerGameCanvas extends Canvas implements Screen, Multiplayer
 				case SYSTEM: {
 					String message = event.message != null ? event.message : "";
 					if (!message.isEmpty()) {
-						if (event.fromPlayerId != null && event.fromPlayerId.equals(localPlayerId)) {
+						// 스킨 변경 이벤트 처리
+						if (message.startsWith("SKIN_CHANGED:")) {
+							String[] parts = message.split(":", 3);
+							if (parts.length == 3) {
+								String playerId = parts[1];
+								String skinPath = parts[2];
+								// 스킨 정보 저장
+								remotePlayerSkins.put(playerId, skinPath);
+								updateRemotePlayerSkin(playerId, skinPath);
+								System.out.println("클라이언트: 원격 플레이어 " + playerId + " 스킨 변경됨: " + skinPath);
+							}
+						} else if (event.fromPlayerId != null && event.fromPlayerId.equals(localPlayerId)) {
 							gameStateManager.setMessage(message);
 							gameStateManager.setWaitingForKeyPress(true);
 							gameStateManager.setRoundTransition(false);
@@ -3095,11 +3137,126 @@ public class MultiplayerGameCanvas extends Canvas implements Screen, Multiplayer
 		
 		ShopItem equippedSpaceship = userManager.getShopManager().getEquippedItem(ShopCategory.SPACESHIPS);
 		if (equippedSpaceship != null) {
-			currentSpaceshipSkin = "sprites/ships/" + equippedSpaceship.getId() + ".png";
+			// 아이템 ID를 실제 파일명으로 매핑
+			String skinFileName = mapItemIdToSkinFile(equippedSpaceship.getId());
+			currentSpaceshipSkin = "sprites/ships/" + skinFileName;
+			System.out.println("멀티플레이어 스킨 적용: " + equippedSpaceship.getName() + " -> " + currentSpaceshipSkin);
+			
 			// 기존 ShipEntity가 있으면 스킨 변경
 			if (ship != null) {
 				ship.changeSkin(currentSpaceshipSkin);
 			}
+		} else {
+			// 장착된 스킨이 없으면 기본 스킨 사용
+			currentSpaceshipSkin = "sprites/ship.gif";
+			System.out.println("멀티플레이어 기본 스킨 사용: " + currentSpaceshipSkin);
+		}
+	}
+	
+	/**
+	 * 아이템 ID를 실제 스킨 파일명으로 매핑
+	 */
+	private String mapItemIdToSkinFile(String itemId) {
+		switch (itemId) {
+			case "fighter_ship":
+				return "spaceship_green.png";
+			case "battleship":
+				return "spaceship_blue.png";
+			case "professor":
+				return "professor.png";
+			case "king":
+				return "king.png";
+			case "software_king":
+				return "software_king.png";
+			default:
+				// 기본값으로 아이템 ID + .png 사용
+				return itemId + ".png";
+		}
+	}
+	
+	/**
+	 * 서버에 스킨 정보 전송
+	 */
+	private void sendSkinToServer() {
+		if (networkAdapter != null && localPlayerId != null && currentSpaceshipSkin != null) {
+			try {
+				// 스킨 정보를 서버로 전송하는 이벤트 생성
+				GameEvent skinEvent = new GameEvent(GameEvent.Type.SYSTEM, 
+					localPlayerId, "SKIN:" + localPlayerId + ":" + currentSpaceshipSkin, System.currentTimeMillis());
+				networkAdapter.sendEvent(skinEvent);
+				System.out.println("클라이언트: 서버에 스킨 정보 전송: " + currentSpaceshipSkin);
+			} catch (Exception e) {
+				System.err.println("스킨 정보 전송 실패: " + e.getMessage());
+			}
+		}
+	}
+	
+	/**
+	 * 지연된 스킨 정보 전송 (게임 시작 후 네트워크가 안정화된 후 전송)
+	 */
+	private void sendSkinToServerDelayed() {
+		// 1초 후에 스킨 정보 전송
+		new Thread(() -> {
+			try {
+				Thread.sleep(1000);
+				sendSkinToServer();
+				// 추가로 2초 후에도 한 번 더 전송 (확실하게 하기 위해)
+				Thread.sleep(2000);
+				sendSkinToServer();
+			} catch (InterruptedException e) {
+				Thread.currentThread().interrupt();
+			}
+		}, "SkinSender").start();
+	}
+	
+	/**
+	 * 원격 플레이어의 스킨 적용
+	 */
+	private void applyRemotePlayerSkin(ShipEntity shipEntity, String playerId) {
+		System.out.println("applyRemotePlayerSkin 호출: playerId=" + playerId + ", shipEntity=" + (shipEntity != null ? "존재" : "null"));
+		if (shipEntity != null && playerId != null) {
+			// 원격 플레이어의 스킨을 추정하여 적용
+			// 실제로는 서버에서 스킨 정보를 받아야 하지만, 
+			// 현재는 기본 스킨을 사용하거나 플레이어 ID 기반으로 추정
+			String remoteSkin = "sprites/ship.gif"; // 기본값
+			
+			// 플레이어 ID 기반으로 스킨 추정 (임시 로직)
+			if (playerId.contains("player1") || playerId.contains("1")) {
+				remoteSkin = "sprites/ships/spaceship_green.png";
+			} else if (playerId.contains("player2") || playerId.contains("2")) {
+				remoteSkin = "sprites/ships/spaceship_blue.png";
+			} else if (playerId.contains("player3") || playerId.contains("3")) {
+				remoteSkin = "sprites/ships/professor.png";
+			}
+			
+			System.out.println("  - 추정된 스킨: " + remoteSkin);
+			shipEntity.changeSkin(remoteSkin);
+			System.out.println("클라이언트: 원격 플레이어 " + playerId + " 스킨 적용: " + remoteSkin);
+		}
+	}
+	
+	/**
+	 * 원격 플레이어의 스킨 업데이트 (서버에서 받은 스킨 정보로)
+	 */
+	private void updateRemotePlayerSkin(String playerId, String skinPath) {
+		System.out.println("updateRemotePlayerSkin 호출: playerId=" + playerId + ", skinPath=" + skinPath);
+		if (playerId != null && skinPath != null) {
+			// 해당 플레이어의 모든 엔티티를 찾아서 스킨 업데이트
+			int foundEntities = 0;
+			for (Entity entity : gameStateManager.getEntities()) {
+				if (entity instanceof ShipEntity) {
+					ShipEntity shipEntity = (ShipEntity) entity;
+					System.out.println("  - ShipEntity 발견: ownerId=" + shipEntity.getOwnerId() + ", 찾는 playerId=" + playerId);
+					// ownerId를 확인하여 해당 플레이어의 배인지 확인
+					if (playerId.equals(shipEntity.getOwnerId())) {
+						foundEntities++;
+						System.out.println("  - 매칭되는 플레이어 배 발견! 스킨 변경 시도...");
+						shipEntity.changeSkin(skinPath);
+						System.out.println("클라이언트: 원격 플레이어 " + playerId + " 스킨 업데이트: " + skinPath);
+					}
+				}
+			}
+			System.out.println("  - 총 " + foundEntities + "개의 매칭되는 엔티티에 스킨 적용");
 		}
 	}
 	

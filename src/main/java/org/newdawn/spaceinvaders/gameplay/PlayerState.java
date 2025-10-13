@@ -37,7 +37,7 @@ public class PlayerState {
     public void addSkillPoints(int delta) { this.skillPoints += delta; }
 
     public void resetForNewGame() {
-        attackPower = 10;
+        attackPower = 2;
         attackSpeed = 1.0;
         maxHP = 10;
         currentHP = 10;

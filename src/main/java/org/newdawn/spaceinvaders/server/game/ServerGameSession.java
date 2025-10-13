@@ -169,6 +169,24 @@ public class ServerGameSession implements Runnable {
                     }
                     break;
                 }
+                case "SKIN": {
+                    // 스킨 정보 처리: "SKIN:playerId:skinPath" 형식
+                    if (data != null && data.startsWith("SKIN:")) {
+                        String[] parts = data.split(":", 3);
+                        if (parts.length == 3) {
+                            String playerId = parts[1];
+                            String skinPath = parts[2];
+                            game.setPlayerSkin(playerId, skinPath);
+                            System.out.println("서버: 플레이어 " + playerId + " 스킨 설정됨: " + skinPath);
+                            
+                            // 스킨 변경을 다른 플레이어들에게 알림
+                            GameEvent skinChangeEvent = new GameEvent(GameEvent.Type.SYSTEM, 
+                                playerId, "SKIN_CHANGED:" + playerId + ":" + skinPath, System.currentTimeMillis());
+                            broadcastGameEvent(skinChangeEvent);
+                        }
+                    }
+                    break;
+                }
 				default:
 					// other actions can be handled here later
 					break;
