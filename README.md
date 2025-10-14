@@ -32,6 +32,16 @@ mvn clean package
 java -jar target/space_invaders-1.0-SNAPSHOT.jar
 ```
 
+### 서버 실행
+멀티플레이를 플레이 하기 전에 **꼭 서버를 실행해야합니다.**
+```bash
+# 먼저 빌드
+mvn clean package -DskipTests
+
+# 서버 실행
+java -cp target/space_invaders-1.0-SNAPSHOT.jar org.newdawn.spaceinvaders.server.GameServer $PORT
+```
+
 ## 시스템 요구사항
 - Java 8 이상
 - Maven 3.6 이상 (빌드 시)
