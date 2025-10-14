@@ -12,7 +12,7 @@ import javax.imageio.ImageIO;
 import org.newdawn.spaceinvaders.gameplay.UIRenderer;
 
 /**
- * Renders the common gameplay HUD shared by both single-player and multiplayer modes.
+ * 싱글플레이어와 멀티플레이어 모드 모두에서 공유되는 공통 게임플레이 HUD를 렌더링합니다.
  */
 public final class SharedHudRenderer {
 

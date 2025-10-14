@@ -15,37 +15,37 @@ import java.net.URL;
  * 폭발 효과를 나타내는 엔티티
  */
 public class ExplosionEntity extends Entity {
-    /** The game in which this explosion exists */
+    /** 이 폭발이 존재하는 게임 */
     private Game game;
-    /** Explosion duration in milliseconds */
-    private long explosionDuration = 1000; // 1 second
-    /** Time when explosion started */
+    /** 폭발 지속 시간 (밀리초) */
+    private long explosionDuration = 1000; // 1초
+    /** 폭발이 시작된 시간 */
     private long startTime;
-    /** Maximum explosion radius */
+    /** 최대 폭발 반경 */
     private double maxRadius;
-    /** Current explosion radius */
+    /** 현재 폭발 반경 */
     private double currentRadius;
-    /** Damage dealt flag to prevent multiple damage */
+    /** 데미지가 적용되었는지 여부 (중복 데미지 방지) */
     private boolean damageDealt = false;
-    /** Last damage time */
+    /** 마지막 데미지 시간 */
     private long lastDamageTime = 0;
-    /** Damage interval (ms) */
+    /** 데미지 간격 (ms) */
     private long damageInterval = 100; // 100ms마다 데미지
-    /** Set of aliens that have been damaged */
+    /** 데미지를 받은 외계인들의 집합 */
     private java.util.Set<Entity> damagedEntities = new java.util.HashSet<>();
-    /** Explosion image */
+    /** 폭발 이미지 */
     private BufferedImage explosionImage;
-    /** Explosion growth speed */
+    /** 폭발 성장 속도 */
     // private double growthSpeed = 200; // pixels per second
     
     /**
-     * Create a new explosion
+     * 새로운 폭발을 생성합니다
      * 
-     * @param game The game in which the explosion has been created
-     * @param sprite The sprite representing this explosion
-     * @param x The x location of the explosion
-     * @param y The y location of the explosion
-     * @param maxRadius The maximum radius of the explosion
+     * @param game 폭발이 생성된 게임
+     * @param sprite 이 폭발을 나타내는 스프라이트
+     * @param x 폭발의 x 위치
+     * @param y 폭발의 y 위치
+     * @param maxRadius 폭발의 최대 반경
      */
     public ExplosionEntity(Game game, String sprite, int x, int y, double maxRadius) {
         super(sprite, x, y);

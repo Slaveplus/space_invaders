@@ -10,21 +10,21 @@ import org.newdawn.spaceinvaders.multyplay.core.MultiplayerGameContext;
 import org.newdawn.spaceinvaders.multyplay.entity.attack.MagneticFieldEntity;
 
 /**
- * The entity that represents the players ship
+ * 플레이어의 우주선을 나타내는 엔티티입니다
  * 
  * @author Kevin Glass
  */
 public class ShipEntity extends Entity {
-	/** The game in which the ship exists */
+	/** 우주선이 존재하는 게임 */
 	private MultiplayerGameContext game;
 	
 	/**
-	 * Create a new entity to represent the players ship
+	 * 플레이어의 우주선을 나타내는 새로운 엔티티를 생성합니다
 	 *  
-	 * @param game The game in which the ship is being created
-	 * @param ref The reference to the sprite to show for the ship
-	 * @param x The initial x location of the player's ship
-	 * @param y The initial y location of the player's ship
+	 * @param game 우주선이 생성되는 게임
+	 * @param ref 우주선에 표시할 스프라이트에 대한 참조
+	 * @param x 플레이어 우주선의 초기 x 위치
+	 * @param y 플레이어 우주선의 초기 y 위치
 	 */
 	public ShipEntity(MultiplayerGameContext game,String ref,int x,int y) {
 		super(ref,x,y);
@@ -33,10 +33,9 @@ public class ShipEntity extends Entity {
 	}
 	
 	/**
-	 * Request that the ship move itself based on an elapsed ammount of
-	 * time
+	 * 경과된 시간을 기반으로 우주선이 스스로 이동하도록 요청합니다
 	 * 
-	 * @param delta The time that has elapsed since last move (ms)
+	 * @param delta 마지막 이동 이후 경과된 시간 (ms)
 	 */
 	public void move(long delta) {
 		applyMagneticFieldEffects();

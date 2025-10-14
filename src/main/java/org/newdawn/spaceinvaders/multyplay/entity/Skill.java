@@ -15,29 +15,29 @@ import java.io.InputStream;
  * 스킬 드랍 아이템을 관리하는 클래스
  */
 public class Skill extends Entity {
-    /** The game in which this skill exists */
+    /** 이 스킬이 존재하는 게임 */
     private MultiplayerGameContext game;
-    /** True if this skill has been "used", i.e. collected by player */
+    /** 이 스킬이 "사용됨"인지 여부, 즉 플레이어가 수집했는지 */
     private boolean used = false;
-    /** Skill type (0: Invincible, 2: Triple Shot, 3: Missile) */
+    /** 스킬 타입 (0: 무적, 2: 3연발, 3: 미사일) */
     private int skillType;
-    /** Skill value/duration */
+    /** 스킬 값/지속시간 */
     private int skillValue;
-    /** Movement speed */
+    /** 이동 속도 */
     private double moveSpeed = 140;
     
-    /** PNG skill icon */
+    /** PNG 스킬 아이콘 */
     private BufferedImage skillIcon;
     
     /**
-     * Create a new skill drop
+     * 새로운 스킬 드롭을 생성합니다
      * 
-     * @param game The game in which the skill has been created
-     * @param sprite The sprite representing this skill
-     * @param x The initial x location of the skill
-     * @param y The initial y location of the skill
-     * @param skillType The type of skill (0: Invincible, 2: Triple Shot, 3: Missile)
-     * @param skillValue The value/duration of the skill
+     * @param game 스킬이 생성된 게임
+     * @param sprite 이 스킬을 나타내는 스프라이트
+     * @param x 스킬의 초기 x 위치
+     * @param y 스킬의 초기 y 위치
+     * @param skillType 스킬 타입 (0: 무적, 2: 3연발, 3: 미사일)
+     * @param skillValue 스킬 값/지속시간
      */
     public Skill(MultiplayerGameContext game, String sprite, int x, int y, int skillType, int skillValue) {
         super(sprite, x, y);
@@ -55,9 +55,9 @@ public class Skill extends Entity {
     }
     
     /**
-     * Request that this skill moved based on time elapsed
+     * 경과된 시간을 기반으로 이 스킬이 이동하도록 요청합니다
      * 
-     * @param delta The time that has elapsed since last move
+     * @param delta 마지막 이동 이후 경과된 시간
      */
     public void move(long delta) {
         // proceed with normal move
@@ -70,9 +70,9 @@ public class Skill extends Entity {
     }
     
     /**
-     * Notification that this skill has collided with another entity
+     * 이 스킬이 다른 엔티티와 충돌했음을 알림니다
      * 
-     * @param other The other entity with which we've collided
+     * @param other 충돌한 다른 엔티티
      */
     public void collidedWith(Entity other) {
         // prevents double collection, if we've already been collected,

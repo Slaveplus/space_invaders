@@ -1,0 +1,1626 @@
+@startuml
+
+
+
+
+
+
+
+
+
+class org.newdawn.spaceinvaders.multyplay.entity.BossShotEntity {
+- MultiplayerGameContext game
+- boolean used
+- double directionX
+- double directionY
+- double speed
+- int radius
+- boolean canSplit
+- double splitY
+- int splitCount
+- boolean hasSplit
++ void move(long)
+- void split()
++ void draw(Graphics)
++ void collidedWith(Entity)
++ double getDirectionX()
++ double getDirectionY()
++ double getSpeed()
++ boolean isUsed()
++ java.awt.Rectangle getBounds()
+# String snapshotMetadata()
+# void applySnapshotMetadata(String)
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+class org.newdawn.spaceinvaders.gameplay.entity.entity_attack.MagneticFieldEntity {
+- Game game
+- double fieldRadius
+- double fieldStrength
+- long duration
+- long startTime
+- boolean isActive
+- int pulsePhase
+- double currentRadius
++ void move(long)
+- void applyMagneticEffects()
+- void applyForceToShip(Entity,double,double)
+- void applyForceToShot(Entity,double,double)
+- double getDistanceTo(Entity)
++ void draw(Graphics)
++ void collidedWith(Entity)
++ boolean isActive()
++ double getFieldRadius()
++ double getFieldStrength()
++ double getCurrentRadius()
+}
+
+
+
+
+
+
+
+class org.newdawn.spaceinvaders.gameplay.entity.HeatEffectEntity {
+- Game game
+- long heatDuration
+- long startTime
+- BufferedImage heatImage
+- float alpha
+- float scale
++ void move(long)
++ void draw(Graphics)
++ boolean isFinished()
+- void loadHeatImage()
++ void collidedWith(Entity)
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+interface org.newdawn.spaceinvaders.multyplay.core.MultiplayerGameContext {
+~ MultiplayerGameStateManager getGameStateManager()
+~ MultiplayerSkillManager getSkillManager(String)
+~ void addEntity(Entity)
+~ void removeEntity(Entity)
+~ void addAimedAlienShot(int,int,int)
+~ void addSkillToInventory(String,int,int)
+~ void createSkillDrop(int,int,int,int)
+~ void createExplosion(int,int,double)
+~ void fireMissile(String,double,double)
+~ void notifyAlienKilled(String,double,double)
+~ void notifyBossDefeated(String)
+~ void notifyDeath(String)
+~ boolean canEnemiesAttack()
+~ void notifyPlayerDamaged(String,int)
+~ int getCurrentRound()
+~ int getPlayerAttackPower(String)
+~ boolean isPlayerInvincible(String)
+~ ShipEntity getShip(String)
+~ int getShipX(String)
+~ int getShipY(String)
+~ List<Entity> getEntities()
+~ void addScore(String,int)
+~ void addSkillPoints(String,int)
+~ void onNearMonsterDestroyed(NearEntity,String,double,double)
+~ ShipEntity createPlayerShip(String)
+~ Entity createNearEntity(int,int)
+~ Entity createBossEntity(int)
+~ void onRoundBackgroundChanged(int)
+~ void addCoins(String,int)
+~ void showCoinEarned(String,int,int,int)
+}
+
+
+
+
+
+
+
+abstract class org.newdawn.spaceinvaders.multyplay.entity.Entity {
+- {static} java.util.concurrent.atomic.AtomicLong ID_GENERATOR
+- long entityId
+- String ownerId
+# double x
+# double y
+# Sprite sprite
+# String spritePath
+# double dx
+# double dy
+- Rectangle me
+- Rectangle him
++ long getEntityId()
++ String getOwnerId()
++ void setOwnerId(String)
++ EntitySnapshot toSnapshot()
+# String spriteRef()
+# String typeId()
+# String snapshotMetadata()
+# void applySnapshotMetadata(String)
++ void applySnapshot(EntitySnapshot)
++ void move(long)
++ void setHorizontalMovement(double)
++ void setVerticalMovement(double)
++ double getHorizontalMovement()
++ double getVerticalMovement()
++ void draw(Graphics)
++ void doLogic()
++ int getX()
++ int getY()
++ boolean collidesWith(Entity)
++ Rectangle getBounds()
++ void changeSkin(String)
++ {abstract}void collidedWith(Entity)
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+class org.newdawn.spaceinvaders.server.game.ServerMultiplayerGame {
+- MultiplayerGameStateManager gameStateManager
+- Map<String,MultiplayerSkillManager> skillManagers
+- Random rng
+- ShipEntity ship
+- double moveSpeed
+- int alienCount
+- String currentSpaceshipSkin
+- String currentWeaponSkin
+- Map<String,String> playerSkins
+- String primaryPlayerId
+- RoundTransition pendingTransition
+- Runnable pendingRoundInitializer
+- boolean inIntermission
+- boolean gameStarted
+- Queue<GameEvent> pendingEvents
+- Map<String,PlayerRuntime> playerRuntimes
++ void registerPlayers(Collection<String>)
++ void setPrimaryPlayerId(String)
++ RoundTransition pollRoundTransition()
++ boolean isInIntermission()
++ void startPendingRound()
++ boolean hasPendingRoundStart()
+- void scheduleIntermission(RoundTransition,Runnable)
+- MultiplayerSkillManager skillManager(String)
+- PlayerRuntime runtime(String)
++ void startGame()
+- void setupPlayerShips()
+- void pruneDuplicateShips(ArrayList<Entity>)
++ void applyInputs(Map<String,PlayerInput>)
++ void update(long)
++ GameSnapshot createSnapshot(long,long,long,GameSnapshot.Phase,boolean,Map<String,Boolean>,String)
++ List<GameEvent> drainPendingEvents()
+- void initEntities()
+- void tryToFire(String,PlayerRuntime)
+- void tryAlienFire()
+- ShipEntity findClosestShip(double,double)
++ MultiplayerGameStateManager getGameStateManager()
++ MultiplayerSkillManager getSkillManager(String)
++ void addEntity(Entity)
++ void removeEntity(Entity)
++ void addAimedAlienShot(int,int,int)
++ void addSkillToInventory(String,int,int)
++ SkillActionResult handleSkillActivation(String,int)
++ SkillActionResult handleSkillUpgrade(String,int)
++ void createSkillDrop(int,int,int,int)
++ void createExplosion(int,int,double)
+- boolean isBossAlive()
++ void fireMissile(String,double,double)
++ void notifyAlienKilled(String,double,double)
++ void notifyBossDefeated(String)
++ void notifyDeath(String)
++ boolean canEnemiesAttack()
++ void notifyPlayerDamaged(String,int)
+- void handlePlayerElimination(String,PlayerRuntime,PlayerState)
+- void notifyWin()
++ int getCurrentRound()
++ long getPlayTimeMs()
++ int getPlayerAttackPower(String)
++ boolean isPlayerInvincible(String)
++ ShipEntity getShip(String)
++ int getShipX(String)
++ int getShipY(String)
++ java.util.List<Entity> getEntities()
++ void addScore(String,int)
++ void addSkillPoints(String,int)
++ void addCoins(String,int)
++ void setPlayerSkin(String,String)
+- void updatePlayerSkin(String,String)
++ String getPlayerSkin(String)
++ ShipEntity createPlayerShip(String)
++ Entity createNearEntity(int,int)
++ Entity createBossEntity(int)
++ void onRoundBackgroundChanged(int)
++ void showCoinEarned(String,int,int,int)
++ void onNearMonsterDestroyed(NearEntity,String,double,double)
++ void removePlayer(String)
+- RoundTransition.Type mapTransitionKind(SharedMultiplayerRoundCoordinator.TransitionKind)
+- void spawnBoss(boolean)
+- void revivePlayersForNextRound()
+- boolean isEveryoneEliminated()
+}
+
+
+
+
+
+
+
+
+
+class org.newdawn.spaceinvaders.gameplay.entity.CoinDisplayEntity {
+- Game game
+- BufferedImage coinImage
+- int coinAmount
+- long displayDuration
+- long creationTime
+- {static} double RISE_SPEED
+- {static} long FADE_START
+- void loadCoinImage()
++ void move(long)
++ void draw(Graphics)
++ void collidedWith(Entity)
++ int getCoinAmount()
++ void doLogic()
+}
+
+
+class org.newdawn.spaceinvaders.multyplay.entity.ShotEntity {
+- {static} double PLAYER_SHOT_SPEED
+- {static} double ALIEN_SHOT_SPEED
+- {static} double SKILL_DROP_SPEED
+- MultiplayerGameContext game
+- boolean used
+- boolean isAlienShot
+- boolean isSkillDrop
+- int skillType
+- int skillValue
+- boolean hasPiercing
+- boolean nearMonsterShot
++ void move(long)
++ void draw(Graphics)
++ void collidedWith(Entity)
+- void handleAlienHit(AlienEntity)
+- void handleNearHit(NearEntity)
+- void handleBossHit(BossEntity)
+- void spawnHeatEffect(int,int)
++ boolean hasPiercing()
++ void setPiercing(boolean)
++ boolean isAlienShot()
++ void setNearMonsterShot(boolean)
++ Rectangle getBounds()
+# String snapshotMetadata()
+# void applySnapshotMetadata(String)
+- BufferedImage loadSkillImage(int)
+- void drawSkillDrop(Graphics)
+- void drawScaledSprite(Graphics,int)
+}
+
+
+
+
+
+
+
+class org.newdawn.spaceinvaders.multyplay.core.MultiplayerGameCanvas {
+- ShipEntity ship
+- double moveSpeed
+- UserManager userManager
+- ResolutionManager resolutionManager
+- String currentSpaceshipSkin
+- String currentWeaponSkin
+- Map<String,String> remotePlayerSkins
+- MultiplayerGameStateManager gameStateManager
+- MultiplayerInputManager inputManager
+- MultiplayerSkillManager skillManager
+- MultiplayerUIRenderer uiRenderer
+- BackgroundRenderer backgroundRenderer
+- boolean requestMainMenu
+- GameNetworkAdapter networkAdapter
+- boolean remoteMode
+- String localPlayerId
+- long inputSequence
+- long lastInputSendTime
+- boolean lastSentLeft
+- boolean lastSentRight
+- boolean lastSentFire
+- Map<Long,Entity> remoteEntities
+- ArrayList<Entity> snapshotEntitiesBuffer
+- GameSnapshot.Phase remotePhase
+- boolean remoteWaitingForPlayers
+- Map<String,Boolean> remoteReadyStates
+- boolean resultsPersisted
+- Map<String,String> playerDisplayNames
+- Deque<String> intermissionChatLines
+- List<CoinDisplayEntity> remoteCoinPopups
+- String intermissionChatInput
+- boolean intermissionChatFocus
+- boolean localReady
+- String intermissionMessage
+- boolean localSpectating
+- boolean requestLobbyReturn
++ void setNetworkAdapter(GameNetworkAdapter)
++ void configureForRemote(GameNetworkAdapter,String,GameInitInfo)
++ void shutdownNetwork()
++ boolean isRemoteSession()
++ void sendSkillActivationRequest(int)
++ void sendSkillUpgradeRequest(int)
++ void requestReturnToLobby()
++ boolean isRequestingLobbyReturn()
++ void resetLobbyReturnRequest()
++ MultiplayerGameStateManager getGameStateManager()
++ MultiplayerSkillManager getSkillManager(String)
++ void setResolutionManager(ResolutionManager)
++ void setResolutionManager(org.newdawn.spaceinvaders.gameplay.ResolutionManager)
++ void startGame()
+- void initEntities()
++ void updateLogic()
++ void removeEntity(Entity)
++ void notifyDeath(String)
++ boolean canEnemiesAttack()
++ void notifyPlayerDamaged(String,int)
++ void notifyWin()
++ void notifyAlienKilled(String,double,double)
++ void tryToFire()
++ void addAlienShot(int,int)
++ void onNearMonsterDestroyed(NearEntity,String,double,double)
++ void addAimedAlienShot(int,int,int)
++ void createSkillDrop(int,int,int,int)
++ void addCoins(String,int)
++ void showCoinEarned(String,int,int,int)
+- void spawnCoinPopup(int,int,int)
+- void tryAlienFire()
++ int getPlayerAttackPower(String)
++ int getCurrentRound()
++ boolean isPlayerInvincible(String)
++ boolean hasTripleShot()
++ void addSkillToInventory(String,int,int)
++ void fireMissile(String,double,double)
++ void addEntity(Entity)
++ void update(long)
+- void handleRemoteInput(long)
+- void applyRemoteSnapshot(GameSnapshot)
+- Entity createRemoteEntity(EntitySnapshot)
+- {static} Image loadAnimatedImage(String)
+- void handleRemoteEvents(List<GameEvent>)
+- void updateRemoteCoinPopups(long)
+- void appendIntermissionChat(String)
++ boolean handleIntermissionKeyPressed(KeyEvent)
+- {static} int safeParseInt(String,int)
++ boolean handleIntermissionKeyTyped(KeyEvent)
++ boolean isIntermissionOverlayVisible()
++ boolean isSpectatorOverlayVisible()
+- boolean isLocalSpectatorActive()
++ boolean isIntermissionChatFocused()
++ void toggleReadyStatus()
+- void sendIntermissionChatMessage()
++ void render(Graphics2D)
+- void drawRemoteCoinPopups(Graphics2D)
++ ShipEntity getShip(String)
++ int getShipX(String)
++ int getShipY(String)
++ double getMoveSpeed()
++ boolean isWaitingForKeyPress()
++ void setWaitingForKeyPress(boolean)
+- void drawSpectatorOverlay(Graphics2D)
+- boolean shouldDisplayInSpectatorList(String)
+- void drawIntermissionOverlay(Graphics2D)
++ void startNewGame()
++ ArrayList<Entity> getEntities()
++ MultiplayerGameStateManager getGameplayState()
++ MultiplayerSkillManager getMultiplayerSkillManager()
++ MultiplayerUIRenderer getMultiplayerUIRenderer()
++ void drawSkillMenu(java.awt.Graphics2D)
++ void drawPauseMenu(java.awt.Graphics2D)
++ void createExplosion(int,int,double)
++ void addScore(String,int)
++ void addSkillPoints(String,int)
++ ShipEntity createPlayerShip(String)
++ Entity createNearEntity(int,int)
++ Entity createBossEntity(int)
++ boolean hasBoss()
++ BossEntity getBoss()
++ void onRoundBackgroundChanged(int)
++ void checkAllNearMonstersDefeated()
++ void notifyBossDefeated(String)
+- void persistMultiplayerResults(boolean)
+- List<String> collectTeammateNames()
+- void saveMultiplayerRecord(GameRecord)
++ void addBossShot(int,int)
++ void setUserManager(UserManager)
++ UserManager getUserManager()
++ MultiplayerGameStateManager getMultiplayerGameStateManager()
+- void applyEquippedItems()
+- void applySpaceshipSkin()
+- String mapItemIdToSkinFile(String)
+- void sendSkinToServer()
+- void sendSkinToServerDelayed()
+- void applyRemotePlayerSkin(ShipEntity,String)
+- void updateRemotePlayerSkin(String,String)
+- void applyWeaponSkin()
+- void applyPowerupEffects()
++ String getCurrentSpaceshipSkin()
++ String getCurrentWeaponSkin()
++ void goToMainMenu()
++ boolean isRequestingMainMenu()
++ void resetMainMenuRequest()
++ {static} void main(String[])
+}
+
+
+class org.newdawn.spaceinvaders.multyplay.core.MultiplayerGameCanvas$RemoteAlienEntity {
+- double currentScale()
++ java.awt.Rectangle getBounds()
++ void draw(Graphics)
++ void move(long)
++ void collidedWith(Entity)
+}
+
+class org.newdawn.spaceinvaders.multyplay.core.MultiplayerGameCanvas$RemoteBossEntity {
+- int currentHP
+- int maxHP
+- int phase
+- void apply(Map<String,String>)
+# void applySnapshotMetadata(String)
++ java.awt.Rectangle getBounds()
++ void draw(Graphics)
++ void move(long)
++ void collidedWith(Entity)
+}
+
+
+class org.newdawn.spaceinvaders.multyplay.core.MultiplayerGameCanvas$RemoteBossShotEntity {
+- double directionX
+- double directionY
+- double speed
+- int radius
+- boolean canSplit
+- double splitY
+- int splitCount
+- void apply(Map<String,String>)
+# void applySnapshotMetadata(String)
++ void draw(Graphics)
++ void move(long)
++ void collidedWith(Entity)
+}
+
+
+class org.newdawn.spaceinvaders.multyplay.core.MultiplayerGameCanvas$RemoteHeatEffectEntity {
+- {static} BufferedImage cachedHeat
+- long startTime
+- long duration
+- {static} void ensureHeatImage()
++ void move(long)
++ void collidedWith(Entity)
++ void draw(Graphics)
+}
+
+
+class org.newdawn.spaceinvaders.multyplay.core.MultiplayerGameCanvas$RemoteSpriteEntity {
++ void move(long)
++ void collidedWith(Entity)
+}
+
+class org.newdawn.spaceinvaders.multyplay.core.MultiplayerGameCanvas$RemoteShotEntity {
+- {static} Map<Integer,BufferedImage> SKILL_ICON_CACHE
+- boolean isAlienShot
+- boolean isSkillDrop
+- int skillType
+- boolean hasPiercing
+- boolean nearMonsterShot
+- {static} String resolveShotSprite(EntitySnapshot)
+- void apply(Map<String,String>)
+# void applySnapshotMetadata(String)
++ void move(long)
++ void collidedWith(Entity)
++ void draw(Graphics)
+- BufferedImage loadSkillImage(int)
+- void drawSkillDrop(Graphics)
+- void drawScaledSprite(Graphics,int)
++ java.awt.Rectangle getBounds()
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+class org.newdawn.spaceinvaders.multyplay.core.MultiplayerGameCanvas$RemoteExplosionEntity {
+- {static} BufferedImage cachedImage
+- double currentRadius
+- void apply(Map<String,String>)
+# void applySnapshotMetadata(String)
++ void move(long)
++ void collidedWith(Entity)
++ void draw(Graphics)
+- void loadImage()
+}
+
+
+
+
+
+
+
+
+class org.newdawn.spaceinvaders.gameplay.entity.AlienEntity {
+- double moveSpeed
+- Game game
+- Sprite[] frames
+- long lastFrameChange
+- long frameDuration
+- int frameNumber
++ long lastFire
++ long firingInterval
+- int currentHP
+- int maxHP
+- boolean movingRight
+- boolean movingDown
+- long lastDirectionChange
+- long directionChangeInterval
+- long lastCollisionTime
+- {static} long COLLISION_COOLDOWN
+- {static} String getAlienSpriteForRound(int)
++ void move(long)
++ void doLogic()
++ void tryToFire()
++ void takeDamage(int)
++ int getCurrentHP()
++ int getMaxHP()
+- void changeDirection()
+- void changeVerticalDirection()
++ void collideWithAlien()
+- boolean isBossRound()
+- void handleAlienCollision(Entity)
+- void avoidPlayer()
++ void draw(Graphics)
++ Rectangle getBounds()
++ void collidedWith(Entity)
+}
+
+
+class org.newdawn.spaceinvaders.gameplay.entity.ShotEntity {
+- double moveSpeed
+- Game game
+- boolean used
+- boolean isAlienShot
+- boolean isSkillDrop
+- int skillType
+- int skillValue
+- boolean hasPiercing
+- boolean isNearMonsterShot
++ void move(long)
+- BufferedImage loadSkillImageForDrop(int)
++ void collidedWith(Entity)
++ void draw(Graphics)
++ boolean hasPiercing()
++ void setPiercing(boolean)
++ boolean isAlienShot()
++ boolean isSkillDrop()
++ int getSkillType()
++ int getSkillValue()
++ void setNearMonsterShot(boolean)
++ java.awt.Rectangle getBounds()
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+class org.newdawn.spaceinvaders.multyplay.entity.AlienEntity {
+- double moveSpeed
+- double horizontalSpeed
+- MultiplayerGameContext game
+- Sprite[] frames
+- long lastFrameChange
+- long frameDuration
+- int frameNumber
++ long lastFire
++ long firingInterval
+- int currentHP
+- int maxHP
+- boolean movingRight
+- boolean movingDown
+- long lastDirectionChange
+- long directionChangeInterval
+- long lastCollisionTime
+- {static} long COLLISION_COOLDOWN
+- {static} String getAlienSpriteForRound(int)
++ void move(long)
++ void doLogic()
++ void tryToFire()
++ void takeDamage(int)
++ int getCurrentHP()
++ void draw(Graphics)
++ Rectangle getBounds()
++ int getMaxHP()
+- void changeDirection()
+- void shuffleHorizontalDirection(long)
+- void syncHorizontalFromDx()
+- void changeVerticalDirection()
++ void collideWithAlien()
+- boolean isBossRound()
+- void handleAlienCollision(Entity)
+- void avoidPlayer()
++ void collidedWith(Entity)
+}
+
+
+class org.newdawn.spaceinvaders.multyplay.entity.attack.MagneticFieldEntity {
+- MultiplayerGameContext game
+- double fieldRadius
+- double fieldStrength
+- long duration
+- long startTime
+- boolean active
+- double currentRadius
++ void move(long)
+- void applyMagneticEffects()
+- void applyForceToShip(Entity,double,double)
+- void applyForceToShot(Entity,double,double)
+- double distanceTo(Entity)
++ void draw(Graphics)
++ void collidedWith(Entity)
++ boolean isActive()
++ double getFieldRadius()
++ double getFieldStrength()
++ double getCurrentRadius()
+# String snapshotMetadata()
+# void applySnapshotMetadata(String)
+}
+
+
+
+
+
+
+class org.newdawn.spaceinvaders.multyplay.entity.NearEntity {
+- MultiplayerGameContext game
+- int round
+- int monsterId
+- Image nearImage
+- int currentHP
+- int maxHP
+- double moveSpeed
+- boolean movingRight
+- long lastShot
+- long shotInterval
+- {static} int NEAR_WIDTH
+- {static} int NEAR_HEIGHT
+- {static} String spriteForRound(int)
+- {static} int bossIndexFromNear(int)
+- {static} String shotSpriteForRound(int)
+- void loadSprite()
++ void move(long)
+- void preventOverlap()
+- void tryShoot()
++ void takeDamage(int,String)
+- void die(String)
+# String snapshotMetadata()
+# void applySnapshotMetadata(String)
++ void draw(Graphics)
++ void collidedWith(Entity)
++ java.awt.Rectangle getBounds()
++ int getCurrentHP()
++ int getRound()
++ int getMonsterId()
+}
+
+
+
+
+
+
+interface org.newdawn.spaceinvaders.app.Screen {
+~ void onShow()
+~ void onHide()
+~ void init()
+~ void update(long)
+~ void render(Graphics2D)
+}
+
+class org.newdawn.spaceinvaders.multyplay.entity.HeatEffectEntity {
+- MultiplayerGameContext game
+- long heatDuration
+- long startTime
+- BufferedImage heatImage
+- float alpha
+- float scale
++ void move(long)
++ void draw(Graphics)
++ boolean isFinished()
+- void loadHeatImage()
++ void collidedWith(Entity)
+}
+
+
+class org.newdawn.spaceinvaders.multyplay.entity.ShipEntity {
+- MultiplayerGameContext game
++ void move(long)
++ void draw(Graphics)
+- void applyMagneticFieldEffects()
++ void pullTowards(double,double)
++ void collidedWith(Entity)
++ Rectangle getBounds()
+}
+
+
+
+
+class org.newdawn.spaceinvaders.gameplay.entity.MissileEntity {
+- Game game
+- double targetX
+- double targetY
+- double speed
+- boolean used
++ void move(long)
++ void draw(Graphics)
++ void collidedWith(Entity)
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+class org.newdawn.spaceinvaders.gameplay.Game {
+- ShipEntity ship
+- double moveSpeed
+- UserManager userManager
+- ResolutionManager resolutionManager
+- String currentSpaceshipSkin
+- String currentWeaponSkin
+- boolean wasPaused
+- GameStateManager gameStateManager
+- InputManager inputManager
+- SkillManager skillManager
+- UIRenderer uiRenderer
+- BackgroundRenderer backgroundRenderer
+- SharedGameplayCoordinator gameplayCoordinator
+- boolean requestMainMenu
+- ScreenNavigator navigator
+- long gameStartTime
+- GameNetworkAdapter networkAdapter
++ void setResolutionManager(ResolutionManager)
++ void startGame()
+- void initEntities()
++ void updateLogic()
++ void removeEntity(Entity)
++ void notifyDeath()
++ void notifyPlayerDamaged(int)
++ void notifyWin()
++ void notifyAlienKilled()
++ void tryToFire()
++ void addAlienShot(int,int)
++ void addAimedAlienShot(int,int,int)
++ void createSkillDrop(int,int,int,int)
+- void tryAlienFire()
++ int getPlayerAttackPower()
++ int getCurrentRound()
++ boolean isPlayerInvincible()
++ boolean hasPiercingShots()
++ boolean hasTripleShot()
++ void addSkillToInventory(int,int)
++ void fireMissile(String,double,double)
++ void fireMissile(double,double)
++ void addEntity(Entity)
++ void createCoinDrop(int,int,int)
++ void addEarnedCoins(int)
++ void showCoinEarned(int,int,int)
++ SkillManager getSkillManager(String)
++ ShipEntity getShip(String)
++ ShipEntity createPlayerShip(String)
++ Entity createAlienEntity(int,int)
++ Entity createNearEntity(int,int)
++ Entity createBossEntity(int)
++ List<Entity> getActiveEntities()
++ List<Entity> getPendingRemovals()
++ void onRoundBackgroundChanged(int)
++ void addEarnedCoins(String,int)
++ void showCoinEarned(String,int,int,int)
++ void onGameCompleted(String)
++ void saveCoinsAndPlayTime()
+- void saveGameRecordToDB(org.newdawn.spaceinvaders.database.GameRecord)
+- void saveSingleLeaderboardEntry(long,String)
++ void update(long)
++ void render(Graphics2D)
++ Entity getShip()
++ int getShipX()
++ int getShipY()
++ double getMoveSpeed()
++ boolean isWaitingForKeyPress()
++ void returnToMainMenu()
++ void setWaitingForKeyPress(boolean)
++ void startNewGame()
++ ArrayList<Entity> getEntities()
++ GameStateManager getGameplayState()
++ SkillManager getSkillManager()
++ UIRenderer getUIRenderer()
++ void drawSkillMenu(java.awt.Graphics2D)
++ void drawPauseMenu(java.awt.Graphics2D)
++ void drawRoundInfoOverlay(java.awt.Graphics2D,GameStateManager)
++ void drawQuitConfirmOverlay(java.awt.Graphics2D,GameStateManager)
++ void createExplosion(int,int,double)
++ void createHeatEffect(int,int,double)
++ void addScore(int)
++ void addSkillPoints(int)
++ void dropRandomSkill(int,int)
++ void dropRandomSkillPoints(int,int)
++ boolean hasBoss()
++ BossEntity getBoss()
++ void notifyBossDefeated()
++ void checkAllNearMonstersDefeated()
++ void addBossShot(int,int)
++ void setUserManager(UserManager)
++ UserManager getUserManager()
++ GameStateManager getGameStateManager()
+- void applyEquippedItems()
+- void applySpaceshipSkin()
+- String mapItemIdToSkinFile(String)
+- void applyWeaponSkin()
+- void applyPowerupEffects()
++ String getCurrentSpaceshipSkin()
++ String getCurrentWeaponSkin()
++ void goToMainMenu()
++ boolean isRequestingMainMenu()
++ void resetMainMenuRequest()
++ void updateBackgroundForRound(int)
++ boolean canEnemiesAttack()
++ ShipEntity getPlayerShip()
++ {static} void main(String[])
+}
+
+
+
+
+class org.newdawn.spaceinvaders.gameplay.entity.BossShotEntity {
+- Game game
+- boolean used
+- double directionX
+- double directionY
+- double speed
+- int radius
+- boolean canSplit
+- double splitY
+- int splitCount
+- boolean hasSplit
++ void move(long)
+- void split()
++ void draw(Graphics)
++ void collidedWith(Entity)
++ double getDirectionX()
++ double getDirectionY()
++ double getSpeed()
++ boolean isUsed()
+}
+
+
+
+
+
+
+
+
+
+class org.newdawn.spaceinvaders.gameplay.entity.CoinEntity {
+- Game game
+- BufferedImage coinImage
+- int coinValue
+- {static} int COIN_SIZE
+- {static} double FALL_SPEED
+- void loadCoinImage()
++ void move(long)
++ void draw(Graphics2D)
++ void collidedWith(Entity)
++ int getCoinValue()
++ void doLogic()
+}
+
+
+
+
+
+
+
+
+class org.newdawn.spaceinvaders.gameplay.InputManager {
+- GameStateManager gameStateManager
+- Game game
+- SkillManager skillManager
+- boolean leftPressed
+- boolean rightPressed
+- boolean firePressed
++ void updateGameplayInput()
++ void reset()
+- void handlePauseMenuInput(KeyEvent)
+- void handlePauseMenuSelection()
+- void handleSkillMenuInput(KeyEvent)
+- void handleSkillSelection()
+- void handleQuitConfirmInput(KeyEvent)
+- void handleQuitConfirmSelection()
++ boolean isLeftPressed()
++ boolean isRightPressed()
++ boolean isFirePressed()
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+interface org.newdawn.spaceinvaders.room.GameClientListener {
+~ void onConnected()
+~ void onRoomsUpdated(List<RoomInfo>)
+~ void onJoinedRoom(String,String)
+~ void onRoomState(String,String,java.util.List<PlayerInfo>)
+~ void onChatMessage(String,String)
+~ void onHostLeft(String)
+~ void onGameStart(String)
+~ void onGameInit(GameInitInfo)
+~ void onGameState(GameStatePayload)
+~ void onGameEvent(GameEventPayload)
+~ void onInfo(String)
+~ void onError(String)
+}
+
+
+
+
+
+class org.newdawn.spaceinvaders.multyplay.entity.CoinDisplayEntity {
+- {static} double RISE_SPEED
+- {static} long DISPLAY_DURATION_MS
+- {static} long FADE_START_MS
+- MultiplayerGameCanvas game
+- int coinAmount
+- long creationTime
+- BufferedImage coinImage
+- void loadCoinImage()
++ void move(long)
++ boolean isExpired()
++ void draw(Graphics)
++ void collidedWith(Entity)
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+class org.newdawn.spaceinvaders.gameplay.entity.BossEntity {
+- Game game
+- boolean used
+- int currentHP
+- int maxHP
+- double moveSpeed
+- boolean movingRight
+- long lastIceAttack
+- long iceAttackInterval
+- long lastIceBallAttack
+- long iceBallAttackInterval
+- long lastMagneticField
+- long magneticFieldInterval
+- long lastAttackTime
+- long attackInterval
+- int currentAttackPattern
+- int[] attackPatterns
+- boolean[] attackUsed
+- long lastRound2Attack
+- long round2AttackInterval
+- int round2AttackPattern
+- long lastRound3Attack
+- long round3AttackInterval
+- int round3AttackPattern
+- long lastRound4HealAttack
+- long round4HealInterval
+- long lastRound4GreenSphereAttack
+- long round4GreenSphereInterval
+- long lastRound4PlayerLineAttack
+- long round4PlayerLineInterval
+- long round4StartTime
+- long round4TimeLimit
+- boolean round4TimerStarted
+- int round
+- int phase
+- double fanAngle
+- {static} String getBossSpriteForRound(int)
++ void move(long)
++ void takeDamage(int)
+- void createBossExplosion()
++ void draw(Graphics)
++ void collidedWith(Entity)
++ int getCurrentHP()
++ int getMaxHP()
++ int getPhase()
++ java.awt.Rectangle getBounds()
++ void tryIceAttack()
++ void setIceAttackInterval(long)
++ void tryIceBallAttack()
+- void performTripleIceBallAttack()
++ void setIceBallAttackInterval(long)
++ void tryMagneticFieldAttack()
++ void trySequentialRandomAttack()
+- void executeAttackPattern(int)
++ void tryIceAttackNow()
++ void tryIceBallAttackNow()
++ void tryFanIceBallsAttackNow()
++ void tryWaveIceBallsAttackNow()
++ void trySpiralIceBallsAttackNow()
+- void tryRound2LaserAttack()
+- void executeRound2LaserAttack()
+- void executeRound2PhaseAttack()
+- void executeRound2RandomAttack()
+- void executeRound2QuadAttack()
+- void executeRound2MachineGunAttack()
+- void tryRound3StraightAttack()
+- void executeRound3StraightAttack()
+- void executeRound3RandomAttack()
+- void executeRound3PullAttack()
+- void tryRound4HealAttack()
+- void executeRound4HealAttack()
+- void checkRound4Timer()
+- void killPlayer()
+- void tryRound4GreenSphereAttack()
+- void executeRound4GreenSphereAttack()
+- void tryRound4PlayerLineAttack()
+- void executeRound4PlayerLineAttack()
++ void healToFull()
+}
+
+
+
+
+class org.newdawn.spaceinvaders.multyplay.entity.BossEntity {
+- MultiplayerGameContext game
+- int round
+- int currentHP
+- int maxHP
+- int phase
+- boolean used
+- double moveSpeed
+- long lastIceAttack
+- long iceAttackInterval
+- long lastIceBallAttack
+- long iceBallAttackInterval
+- long lastMagneticField
+- long magneticFieldInterval
+- long lastAttackTime
+- long attackInterval
+- int[] attackPatterns
+- boolean[] attackUsed
+- long lastRound2Attack
+- long round2AttackInterval
+- int round2AttackPattern
+- long lastRound3Attack
+- long round3AttackInterval
+- int round3AttackPattern
+- long lastRound4HealAttack
+- long round4HealInterval
+- long lastRound4GreenSphereAttack
+- long round4GreenSphereInterval
+- long lastRound4PlayerLineAttack
+- long round4PlayerLineInterval
+- boolean round4TimerStarted
+- long round4StartTime
+- long round4TimeLimit
++ void move(long)
+- void tryMagneticFieldAttack()
+- void trySequentialRandomAttack()
+- void executeAttackPattern(int)
+- void tryIceAttack()
+- void tryIceBallAttack()
+- void performTripleIceBallAttack()
+- void tryFanIceBallsAttack()
+- void tryWaveIceBallsAttack()
+- void trySpiralIceBallsAttack()
+- void tryRound2Attack()
+- void executeRound2LaserAttack()
+- void executeRound2PhaseAttack()
+- void executeRound2RandomAttack()
+- void executeRound2QuadAttack()
+- void executeRound2MachineGunAttack()
+- void tryRound3Attack()
+- void executeRound3StraightAttack()
+- void executeRound3RandomAttack()
+- void executeRound3PullAttack()
+- void tryRound4Attacks()
+- void performFallbackPattern()
++ void takeDamage(int,String)
+- void updatePhase()
+- void grantBossRewards(String)
+- void createBossExplosion()
++ int getCurrentHP()
++ int getMaxHP()
++ int getPhase()
++ void healToFull()
++ void draw(Graphics)
++ Rectangle getBounds()
++ void collidedWith(Entity)
+- void createDirectionalShot(double,double,double,double,double,boolean)
+- {static} String getBossSpriteForRound(int)
+# String snapshotMetadata()
+# void applySnapshotMetadata(String)
+}
+
+
+
+
+
+
+
+
+
+class org.newdawn.spaceinvaders.room.RoomListCanvas {
+- ScreenNavigator navigator
+- GameClient client
+- List<RoomInfo> rooms
+- int selectedIndex
+- boolean creatingOverlay
+- int createSelect
+- Font titleFont
+- Font listFont
+- String infoMessage
+- int infoTimer
+- BufferedImage backgroundImage
+- boolean bottomFocus
+- int bottomSelected
+- long refreshAccumulator
+- KeyAdapter keyAdapter
+- MouseAdapter mouseAdapter
++ void init()
++ void onShow()
++ void onHide()
++ void update(long)
++ void render(Graphics2D)
+- void drawCreateOverlay(Graphics2D)
+- void joinSelectedRoom()
+- void createRoom(boolean)
+- void backToMenu()
++ void onRoomsUpdated(List<RoomInfo>)
++ void onJoinedRoom(String,String)
++ void onInfo(String)
++ void onError(String)
+- void loadBackground()
+- void handleButtonClick(int,int)
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+abstract class org.newdawn.spaceinvaders.gameplay.entity.Entity {
+- {static} java.util.concurrent.atomic.AtomicLong ID_GENERATOR
+- long entityId
+- String ownerId
+# double x
+# double y
+# Sprite sprite
+# double dx
+# double dy
+- Rectangle me
+- Rectangle him
++ long getEntityId()
++ String getOwnerId()
++ void setOwnerId(String)
++ EntitySnapshot toSnapshot()
+# String spriteRef()
++ void applySnapshot(EntitySnapshot)
++ void move(long)
++ void setHorizontalMovement(double)
++ void setVerticalMovement(double)
++ double getHorizontalMovement()
++ double getVerticalMovement()
++ void draw(Graphics)
++ void doLogic()
++ int getX()
++ int getY()
++ boolean collidesWith(Entity)
++ Rectangle getBounds()
++ void changeSkin(String)
++ {abstract}void collidedWith(Entity)
++ double getDX()
++ double getDY()
++ void setDX(double)
++ void setDY(double)
+}
+
+
+
+
+class org.newdawn.spaceinvaders.gameplay.entity.ExplosionEntity {
+- Game game
+- long explosionDuration
+- long startTime
+- double maxRadius
+- double currentRadius
+- boolean damageDealt
+- long lastDamageTime
+- long damageInterval
+- java.util.Set<Entity> damagedEntities
+- BufferedImage explosionImage
++ void move(long)
++ void draw(Graphics)
++ double getCurrentRadius()
++ double getMaxRadius()
++ boolean isFinished()
+- void loadExplosionImage()
+- void dealDamageToEnemies()
++ void collidedWith(Entity)
+}
+
+
+
+
+
+
+class org.newdawn.spaceinvaders.room.RoomLobbyCanvas {
+- ScreenNavigator navigator
+- GameClient client
+- String roomId
+- Font titleFont
+- Font listFont
+- Font chatFont
+- List<PlayerInfo> players
+- boolean isHost
+- Deque<String> chatLines
+- String chatInput
+- boolean chatFocus
+- int infoTimer
+- String infoMessage
+- long statePollAccumulator
+- boolean launchedMultiplayerGame
+- BufferedImage backgroundImage
+- String lastChatComposite
+- KeyAdapter keyAdapter
+- void loadBackground()
++ void init()
++ void onShow()
++ void onHide()
++ void update(long)
++ void render(Graphics2D)
+- String getSelfName()
+- void appendChatLine(String)
+- void appendChatInfo(String)
+- void sendChat()
+- void leaveRoom()
+- void toggleReady()
+- void startGame()
++ void onRoomState(String,String,List<PlayerInfo>)
++ void onChatMessage(String,String)
++ void onHostLeft(String)
++ void onGameInit(GameInitInfo)
++ void onGameStart(String)
++ void onInfo(String)
++ void onError(String)
+}
+
+
+
+
+class org.newdawn.spaceinvaders.multyplay.input.MultiplayerInputManager {
+- MultiplayerGameStateManager gameStateManager
+- MultiplayerGameCanvas game
+- MultiplayerSkillManager skillManager
+- boolean leftPressed
+- boolean rightPressed
+- boolean firePressed
++ void updateGameplayInput()
++ void reset()
+- void handlePauseMenuInput(KeyEvent)
+- void handlePauseMenuSelection()
+- void handleSkillMenuInput(KeyEvent)
+- void handleSkillSelection()
++ boolean isLeftPressed()
++ boolean isRightPressed()
++ boolean isFirePressed()
+}
+
+
+
+
+
+
+
+class org.newdawn.spaceinvaders.multyplay.entity.ExplosionEntity {
+- MultiplayerGameContext game
+- long explosionDuration
+- long startTime
+- double maxRadius
+- double currentRadius
+- boolean damageDealt
+- long lastDamageTime
+- long damageInterval
+- java.util.Set<Entity> damagedEntities
+- BufferedImage explosionImage
++ void move(long)
++ void draw(Graphics)
++ double getCurrentRadius()
++ double getMaxRadius()
++ boolean isFinished()
+# String snapshotMetadata()
+# void applySnapshotMetadata(String)
+- void loadExplosionImage()
+- void dealDamageToEnemies()
++ void collidedWith(Entity)
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+class org.newdawn.spaceinvaders.gameplay.entity.NearEntity {
+- Game game
+- java.awt.Image nearImage
+- int currentHP
+- int maxHP
+- double moveSpeed
+- boolean movingRight
+- int round
+- int nearWidth
+- int nearHeight
+- long lastShot
+- long shotInterval
+- int monsterId
+- {static} String getNearSpriteForRound(int)
+- {static} int getBossRoundFromNearRound(int)
+- void loadNearImage()
++ void move(long)
+- void checkNearMonsterCollision()
+- void tryShoot()
++ void takeDamage(int)
++ void draw(Graphics)
++ void collidedWith(Entity)
++ int getCurrentHP()
++ int getMaxHP()
++ int getRound()
++ java.awt.Rectangle getBounds()
+- String getShotSpriteForRound(int)
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+class org.newdawn.spaceinvaders.multyplay.entity.MissileEntity {
+- MultiplayerGameContext game
+- double targetX
+- double targetY
+- double speed
+- boolean used
++ void move(long)
++ void draw(Graphics)
++ void collidedWith(Entity)
+}
+
+
+
+
+
+class org.newdawn.spaceinvaders.gameplay.entity.ShipEntity {
+- Game game
++ void move(long)
+- void applyMagneticFieldEffects()
++ void draw(Graphics)
++ void pullTowards(double,double)
++ void collidedWith(Entity)
+}
+
+
+
+
+org.newdawn.spaceinvaders.multyplay.entity.Entity <|-- org.newdawn.spaceinvaders.multyplay.entity.BossShotEntity
+org.newdawn.spaceinvaders.gameplay.entity.Entity <|-- org.newdawn.spaceinvaders.gameplay.entity.entity_attack.MagneticFieldEntity
+org.newdawn.spaceinvaders.gameplay.entity.Entity <|-- org.newdawn.spaceinvaders.gameplay.entity.HeatEffectEntity
+org.newdawn.spaceinvaders.multyplay.core.MultiplayerGameContext <|.. org.newdawn.spaceinvaders.server.game.ServerMultiplayerGame
+org.newdawn.spaceinvaders.gameplay.entity.Entity <|-- org.newdawn.spaceinvaders.gameplay.entity.CoinDisplayEntity
+org.newdawn.spaceinvaders.multyplay.entity.Entity <|-- org.newdawn.spaceinvaders.multyplay.entity.ShotEntity
+org.newdawn.spaceinvaders.app.Screen <|.. org.newdawn.spaceinvaders.multyplay.core.MultiplayerGameCanvas
+org.newdawn.spaceinvaders.multyplay.core.MultiplayerGameContext <|.. org.newdawn.spaceinvaders.multyplay.core.MultiplayerGameCanvas
+java.awt.Canvas <|-- org.newdawn.spaceinvaders.multyplay.core.MultiplayerGameCanvas
+org.newdawn.spaceinvaders.multyplay.core.MultiplayerGameCanvas +.. org.newdawn.spaceinvaders.multyplay.core.MultiplayerGameCanvas$RemoteAlienEntity
+org.newdawn.spaceinvaders.multyplay.core.Entity <|-- org.newdawn.spaceinvaders.multyplay.core.MultiplayerGameCanvas$RemoteAlienEntity
+org.newdawn.spaceinvaders.multyplay.core.MultiplayerGameCanvas +.. org.newdawn.spaceinvaders.multyplay.core.MultiplayerGameCanvas$RemoteBossEntity
+org.newdawn.spaceinvaders.multyplay.core.Entity <|-- org.newdawn.spaceinvaders.multyplay.core.MultiplayerGameCanvas$RemoteBossEntity
+org.newdawn.spaceinvaders.multyplay.core.MultiplayerGameCanvas +.. org.newdawn.spaceinvaders.multyplay.core.MultiplayerGameCanvas$RemoteBossShotEntity
+org.newdawn.spaceinvaders.multyplay.core.Entity <|-- org.newdawn.spaceinvaders.multyplay.core.MultiplayerGameCanvas$RemoteBossShotEntity
+org.newdawn.spaceinvaders.multyplay.core.MultiplayerGameCanvas +.. org.newdawn.spaceinvaders.multyplay.core.MultiplayerGameCanvas$RemoteHeatEffectEntity
+org.newdawn.spaceinvaders.multyplay.core.Entity <|-- org.newdawn.spaceinvaders.multyplay.core.MultiplayerGameCanvas$RemoteHeatEffectEntity
+org.newdawn.spaceinvaders.multyplay.core.MultiplayerGameCanvas +.. org.newdawn.spaceinvaders.multyplay.core.MultiplayerGameCanvas$RemoteSpriteEntity
+org.newdawn.spaceinvaders.multyplay.core.Entity <|-- org.newdawn.spaceinvaders.multyplay.core.MultiplayerGameCanvas$RemoteSpriteEntity
+org.newdawn.spaceinvaders.multyplay.core.MultiplayerGameCanvas +.. org.newdawn.spaceinvaders.multyplay.core.MultiplayerGameCanvas$RemoteShotEntity
+org.newdawn.spaceinvaders.multyplay.core.Entity <|-- org.newdawn.spaceinvaders.multyplay.core.MultiplayerGameCanvas$RemoteShotEntity
+org.newdawn.spaceinvaders.multyplay.core.MultiplayerGameCanvas +.. org.newdawn.spaceinvaders.multyplay.core.MultiplayerGameCanvas$RemoteExplosionEntity
+org.newdawn.spaceinvaders.multyplay.core.Entity <|-- org.newdawn.spaceinvaders.multyplay.core.MultiplayerGameCanvas$RemoteExplosionEntity
+org.newdawn.spaceinvaders.gameplay.entity.Entity <|-- org.newdawn.spaceinvaders.gameplay.entity.AlienEntity
+org.newdawn.spaceinvaders.gameplay.entity.Entity <|-- org.newdawn.spaceinvaders.gameplay.entity.ShotEntity
+org.newdawn.spaceinvaders.multyplay.entity.Entity <|-- org.newdawn.spaceinvaders.multyplay.entity.AlienEntity
+org.newdawn.spaceinvaders.multyplay.entity.Entity <|-- org.newdawn.spaceinvaders.multyplay.entity.attack.MagneticFieldEntity
+org.newdawn.spaceinvaders.multyplay.entity.Entity <|-- org.newdawn.spaceinvaders.multyplay.entity.NearEntity
+org.newdawn.spaceinvaders.multyplay.entity.Entity <|-- org.newdawn.spaceinvaders.multyplay.entity.HeatEffectEntity
+org.newdawn.spaceinvaders.multyplay.entity.Entity <|-- org.newdawn.spaceinvaders.multyplay.entity.ShipEntity
+org.newdawn.spaceinvaders.gameplay.entity.Entity <|-- org.newdawn.spaceinvaders.gameplay.entity.MissileEntity
+org.newdawn.spaceinvaders.app.Screen <|.. org.newdawn.spaceinvaders.gameplay.Game
+java.awt.Canvas <|-- org.newdawn.spaceinvaders.gameplay.Game
+org.newdawn.spaceinvaders.gameplay.entity.Entity <|-- org.newdawn.spaceinvaders.gameplay.entity.BossShotEntity
+org.newdawn.spaceinvaders.gameplay.entity.Entity <|-- org.newdawn.spaceinvaders.gameplay.entity.CoinEntity
+org.newdawn.spaceinvaders.multyplay.entity.Entity <|-- org.newdawn.spaceinvaders.multyplay.entity.CoinDisplayEntity
+org.newdawn.spaceinvaders.gameplay.entity.Entity <|-- org.newdawn.spaceinvaders.gameplay.entity.BossEntity
+org.newdawn.spaceinvaders.multyplay.entity.Entity <|-- org.newdawn.spaceinvaders.multyplay.entity.BossEntity
+org.newdawn.spaceinvaders.app.Screen <|.. org.newdawn.spaceinvaders.room.RoomListCanvas
+org.newdawn.spaceinvaders.room.GameClientListener <|.. org.newdawn.spaceinvaders.room.RoomListCanvas
+org.newdawn.spaceinvaders.room.Canvas <|-- org.newdawn.spaceinvaders.room.RoomListCanvas
+org.newdawn.spaceinvaders.gameplay.entity.Entity <|-- org.newdawn.spaceinvaders.gameplay.entity.ExplosionEntity
+org.newdawn.spaceinvaders.app.Screen <|.. org.newdawn.spaceinvaders.room.RoomLobbyCanvas
+org.newdawn.spaceinvaders.room.GameClientListener <|.. org.newdawn.spaceinvaders.room.RoomLobbyCanvas
+org.newdawn.spaceinvaders.room.Canvas <|-- org.newdawn.spaceinvaders.room.RoomLobbyCanvas
+org.newdawn.spaceinvaders.multyplay.entity.Entity <|-- org.newdawn.spaceinvaders.multyplay.entity.ExplosionEntity
+org.newdawn.spaceinvaders.gameplay.entity.Entity <|-- org.newdawn.spaceinvaders.gameplay.entity.NearEntity
+org.newdawn.spaceinvaders.multyplay.entity.Entity <|-- org.newdawn.spaceinvaders.multyplay.entity.MissileEntity
+org.newdawn.spaceinvaders.gameplay.entity.Entity <|-- org.newdawn.spaceinvaders.gameplay.entity.ShipEntity
+@enduml

@@ -7,21 +7,21 @@ import java.awt.Graphics2D;
 import org.newdawn.spaceinvaders.gameplay.Game;
 
 /**
- * The entity that represents the players ship
+ * 플레이어의 우주선을 나타내는 엔티티
  * 
  * @author Kevin Glass
  */
 public class ShipEntity extends Entity {
-	/** The game in which the ship exists */
+	/** 우주선이 존재하는 게임 */
 	private Game game;
 	
 	/**
-	 * Create a new entity to represent the players ship
+	 * 플레이어의 우주선을 나타내는 새로운 엔티티를 생성합니다
 	 *  
-	 * @param game The game in which the ship is being created
-	 * @param ref The reference to the sprite to show for the ship
-	 * @param x The initial x location of the player's ship
-	 * @param y The initial y location of the player's ship
+	 * @param game 우주선이 생성되는 게임
+	 * @param ref 우주선에 표시할 스프라이트의 참조
+	 * @param x 플레이어 우주선의 초기 x 위치
+	 * @param y 플레이어 우주선의 초기 y 위치
 	 */
 	public ShipEntity(Game game,String ref,int x,int y) {
 		super(ref,x,y);
@@ -30,22 +30,19 @@ public class ShipEntity extends Entity {
 	}
 	
 	/**
-	 * Request that the ship move itself based on an elapsed ammount of
-	 * time
+	 * 경과된 시간을 기반으로 우주선이 스스로 이동하도록 요청합니다
 	 * 
-	 * @param delta The time that has elapsed since last move (ms)
+	 * @param delta 마지막 이동 이후 경과된 시간 (ms)
 	 */
 	public void move(long delta) {
-		// Apply magnetic field effects before normal movement
+		// 일반 이동 전에 자기장 효과 적용
 		applyMagneticFieldEffects();
 		
-		// if we're moving left and have reached the left hand side
-		// of the screen, don't move
+		// 왼쪽으로 이동 중이고 화면 왼쪽 끝에 도달했다면 이동하지 않음
 		if ((dx < 0) && (x < 10)) {
 			return;
 		}
-		// if we're moving right and have reached the right hand side
-		// of the screen, don't move
+		// 오른쪽으로 이동 중이고 화면 오른쪽 끝에 도달했다면 이동하지 않음
 		if ((dx > 0) && (x > 750)) {
 			return;
 		}
@@ -54,7 +51,7 @@ public class ShipEntity extends Entity {
 	}
 	
 	/**
-	 * Apply magnetic field effects to the ship
+	 * 우주선에 자기장 효과를 적용합니다
 	 */
 	private void applyMagneticFieldEffects() {
 		// Get all entities and check for magnetic fields

@@ -9,35 +9,35 @@ import org.newdawn.spaceinvaders.gameplay.Game;
 import org.newdawn.spaceinvaders.gameplay.sprite.Sprite;
 
 /**
- * A simple side monster that moves horizontally with minimal hitbox
+ * 최소한의 히트박스로 수평 이동하는 간단한 사이드 몬스터
  * 
  * @author Space Invaders Team
  */
 public class SideMonster extends Entity {
-	/** The game in which the entity exists */
+	/** 엔티티가 존재하는 게임 */
 	private Game game;
-	/** Movement speed */
+	/** 이동 속도 */
 	private double moveSpeed = 50;
-	/** Direction (true = right, false = left) */
+	/** 방향 (true = 오른쪽, false = 왼쪽) */
 	private boolean movingRight = Math.random() < 0.5;
-	/** Current HP */
+	/** 현재 HP */
 	private int currentHP = 20;
-	/** Maximum HP */
+	/** 최대 HP */
 	private int maxHP = 20;
-	/** Round number for sprite selection */
+	/** 스프라이트 선택을 위한 라운드 번호 */
 	private int round;
-	/** Time since last ice attack */
+	/** 마지막 아이스 공격 이후의 시간 */
 	private long lastIceAttack = 0;
-	/** Ice attack interval */
+	/** 아이스 공격 간격 */
 	private long iceAttackInterval = 4000; // 4초마다 아이스 공격
 	
 	/**
-	 * Create a new side monster
+	 * 새로운 사이드 몬스터를 생성합니다
 	 * 
-	 * @param game The game in which the entity exists
-	 * @param x The initial x location
-	 * @param y The initial y location
-	 * @param round The round number
+	 * @param game 엔티티가 존재하는 게임
+	 * @param x 초기 x 위치
+	 * @param y 초기 y 위치
+	 * @param round 라운드 번호
 	 */
 	public SideMonster(Game game, int x, int y, int round) {
 		super(getSideMonsterSpriteForRound(round), x, y);

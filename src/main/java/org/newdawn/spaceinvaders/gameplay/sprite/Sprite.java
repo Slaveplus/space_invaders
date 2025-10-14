@@ -4,49 +4,47 @@ import java.awt.Graphics;
 import java.awt.Image;
 
 /**
- * A sprite to be displayed on the screen. Note that a sprite
- * contains no state information, i.e. its just the image and 
- * not the location. This allows us to use a single sprite in
- * lots of different places without having to store multiple 
- * copies of the image.
+ * 화면에 표시될 스프라이트입니다. 스프라이트는 상태 정보를 포함하지 않습니다.
+ * 즉, 이미지일 뿐이고 위치는 아닙니다. 이를 통해 이미지의 여러 복사본을
+ * 저장할 필요 없이 하나의 스프라이트를 많은 다른 곳에서 사용할 수 있습니다.
  * 
  * @author Kevin Glass
  */
 public class Sprite {
-	/** The image to be drawn for this sprite */
+	/** 이 스프라이트에 그려질 이미지 */
 	private Image image;
 	
 	/**
-	 * Create a new sprite based on an image
+	 * 이미지를 기반으로 새로운 스프라이트를 생성합니다
 	 * 
-	 * @param image The image that is this sprite
+	 * @param image 이 스프라이트인 이미지
 	 */
 	public Sprite(Image image) {
 		this.image = image;
 	}
 	
 	/**
-	 * Get the width of the drawn sprite
+	 * 그려진 스프라이트의 너비를 가져옵니다
 	 * 
-	 * @return The width in pixels of this sprite
+	 * @return 이 스프라이트의 픽셀 단위 너비
 	 */
 	public int getWidth() {
 		return image.getWidth(null);
 	}
 
 	/**
-	 * Get the height of the drawn sprite
+	 * 그려진 스프라이트의 높이를 가져옵니다
 	 * 
-	 * @return The height in pixels of this sprite
+	 * @return 이 스프라이트의 픽셀 단위 높이
 	 */
 	public int getHeight() {
 		return image.getHeight(null);
 	}
 	
 	/**
-	 * Get the image of this sprite
+	 * 이 스프라이트의 이미지를 가져옵니다
 	 * 
-	 * @return The image of this sprite
+	 * @return 이 스프라이트의 이미지
 	 */
 	public Image getImage() {
 		return image;

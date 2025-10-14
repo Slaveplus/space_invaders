@@ -17,8 +17,8 @@ import org.newdawn.spaceinvaders.multyplay.core.MultiplayerGameContext;
 import org.newdawn.spaceinvaders.multyplay.net.protocol.MetadataCodec;
 
 /**
- * Multiplayer variant of the player/alien shot entity that mirrors single-player behaviour
- * while retaining network metadata and multiplayer specific flags.
+ * 싱글플레이어 동작을 미러링하면서 네트워크 메타데이터와
+ * 멀티플레이어 전용 플래그를 유지하는 플레이어/외계인 발사 엔티티의 멀티플레이어 변형입니다.
  */
 public class ShotEntity extends Entity {
 	private static final double PLAYER_SHOT_SPEED = -300;

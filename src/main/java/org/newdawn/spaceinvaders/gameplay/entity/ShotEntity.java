@@ -10,37 +10,37 @@ import java.awt.image.BufferedImage;
 import org.newdawn.spaceinvaders.gameplay.Game;
 
 /**
- * An entity representing a shot fired by the player's ship
+ * 플레이어의 우주선에서 발사된 탄환을 나타내는 엔티티
  * 
  * @author Kevin Glass
  */
 public class ShotEntity extends Entity {
-	/** The vertical speed at which the players shot moves */
+	/** 플레이어 탄환이 이동하는 수직 속도 */
 	private double moveSpeed = -300;
-	/** The game in which this entity exists */
+	/** 이 엔티티가 존재하는 게임 */
 	private Game game;
-	/** True if this shot has been "used", i.e. its hit something */
+	/** 이 탄환이 "사용됨"인지 여부, 즉 무언가에 맞았는지 */
 	private boolean used = false;
-	/** True if this is an alien shot (moves downward) */
+	/** 이것이 외계인 탄환인지 여부 (아래로 이동) */
 	private boolean isAlienShot = false;
-	/** True if this is a skill drop */
+	/** 이것이 스킬 드롭인지 여부 */
 	private boolean isSkillDrop = false;
-	/** Skill type for skill drops (0: Invincible, 2: Triple Shot, 3: Missile) */
+	/** 스킬 드롭의 스킬 타입 (0: 무적, 2: 3연발, 3: 미사일) */
 	private int skillType = -1;
-	/** Skill value for skill drops */
+	/** 스킬 드롭의 스킬 값 */
 	private int skillValue = 0;
-	/** True if this shot has piercing ability */
+	/** 이 탄환이 관통 능력을 가지고 있는지 여부 */
 	private boolean hasPiercing = false;
-	/** True if this is a near monster shot (needs smaller size) */
+	/** 이것이 근거리 몬스터 탄환인지 여부 (더 작은 크기 필요) */
 	private boolean isNearMonsterShot = false;
 	
 	/**
-	 * Create a new shot from the player
+	 * 플레이어로부터 새로운 탄환을 생성합니다
 	 * 
-	 * @param game The game in which the shot has been created
-	 * @param sprite The sprite representing this shot
-	 * @param x The initial x location of the shot
-	 * @param y The initial y location of the shot
+	 * @param game 탄환이 생성된 게임
+	 * @param sprite 이 탄환을 나타내는 스프라이트
+	 * @param x 탄환의 초기 x 위치
+	 * @param y 탄환의 초기 y 위치
 	 */
 	public ShotEntity(Game game,String sprite,int x,int y) {
 		super(sprite,x,y);

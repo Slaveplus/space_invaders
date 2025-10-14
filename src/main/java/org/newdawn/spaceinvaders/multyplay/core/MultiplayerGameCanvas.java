@@ -60,32 +60,30 @@ import org.newdawn.spaceinvaders.room.GameInitInfo;
 import org.newdawn.spaceinvaders.multyplay.net.client.RoomGameNetworkAdapter;
 
 /**
- * The main hook of our game. This class with both act as a manager
- * for the display and central mediator for the game logic. 
+ * 게임의 메인 훅입니다. 이 클래스는 디스플레이 관리자와
+ * 게임 로직의 중앙 중재자 역할을 모두 수행합니다.
  * 
- * Display management will consist of a loop that cycles round all
- * entities in the game asking them to move and then drawing them
- * in the appropriate place. With the help of an inner class it
- * will also allow the player to control the main ship.
+ * 디스플레이 관리는 게임의 모든 엔티티를 순환하면서 이동을 요청하고
+ * 적절한 위치에 그리는 루프로 구성됩니다. 내부 클래스의 도움으로
+ * 플레이어가 메인 우주선을 제어할 수 있습니다.
  * 
- * As a mediator it will be informed when entities within our game
- * detect events (e.g. alient killed, played died) and will take
- * appropriate game actions.
+ * 중재자로서 게임 내 엔티티가 이벤트를 감지하면
+ * (예: 외계인 처치, 플레이어 사망) 알림을 받고 적절한 게임 액션을 취합니다.
  * 
  * @author Kevin Glass
  */
 public class MultiplayerGameCanvas extends Canvas implements Screen, MultiplayerGameContext
 {
-	/** The stragey that allows us to use accelerate page flipping */
+	/** 가속 페이지 플리핑을 사용할 수 있게 해주는 전략 */
 	// BufferStrategy는 상위 App에서 관리
 	// entities and removeList are now managed by MultiplayerGameStateManager
-	/** The entity representing the player */
+	/** 플레이어를 나타내는 엔티티 */
 	private ShipEntity ship;
-	/** The speed at which the player's ship should move (pixels/sec) */
+	/** 플레이어 우주선이 이동해야 하는 속도 (픽셀/초) */
 	private double moveSpeed = 300;
-	/** UserManager for accessing equipped items */
+	/** 장착된 아이템에 접근하기 위한 UserManager */
 	private UserManager userManager;
-	/** ResolutionManager for handling resolution scaling */
+	/** 해상도 스케일링을 처리하기 위한 ResolutionManager */
 	private ResolutionManager resolutionManager;
 	// lastFire and firingInterval are now managed by MultiplayerGameStateManager
 	/** 현재 장착된 우주선 스킨 경로 */

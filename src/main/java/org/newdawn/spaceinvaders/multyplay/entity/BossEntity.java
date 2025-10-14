@@ -26,7 +26,7 @@ import org.newdawn.spaceinvaders.multyplay.entity.attack.Round4PlayerLineAttack;
 import org.newdawn.spaceinvaders.multyplay.net.protocol.MetadataCodec;
 
 /**
- * Multiplayer boss entity that mirrors the single-player encounter behaviour.
+ * 싱글플레이어 보스 전투 동작을 미러링하는 멀티플레이어 보스 엔티티입니다.
  */
 public class BossEntity extends Entity {
 
@@ -40,7 +40,7 @@ public class BossEntity extends Entity {
 
     private double moveSpeed = 50;
 
-    /** Round 1 timers */
+    /** 라운드 1 타이머 */
     private long lastIceAttack = 0;
     private long iceAttackInterval = 4000;
     private long lastIceBallAttack = 0;
@@ -53,17 +53,17 @@ public class BossEntity extends Entity {
     private final int[] attackPatterns = {1, 2, 3, 4, 5};
     private final boolean[] attackUsed = new boolean[attackPatterns.length];
 
-    /** Round 2 timers */
+    /** 라운드 2 타이머 */
     private long lastRound2Attack = 0;
     private long round2AttackInterval = 4000;
     private int round2AttackPattern = 0;
 
-    /** Round 3 timers */
+    /** 라운드 3 타이머 */
     private long lastRound3Attack = 0;
     private long round3AttackInterval = 4000;
     private int round3AttackPattern = 0;
 
-    /** Round 4 timers */
+    /** 라운드 4 타이머 */
     private long lastRound4HealAttack = 0;
     private long round4HealInterval = 60000;
     private long lastRound4GreenSphereAttack = 0;

@@ -7,30 +7,30 @@ import java.awt.RenderingHints;
 import org.newdawn.spaceinvaders.gameplay.Game;
 
 /**
- * An entity representing a missile fired by the player
+ * 플레이어가 발사한 미사일을 나타내는 엔티티
  * 
  * @author Space Invaders Team
  */
 public class MissileEntity extends Entity {
-    /** The game in which this entity exists */
+    /** 이 엔티티가 존재하는 게임 */
     private Game game;
-    /** Target coordinates */
+    /** 목표 좌표 */
     private double targetX;
     private double targetY;
-    /** Missile speed */
+    /** 미사일 속도 */
     private double speed = 400;
-    /** True if this missile has been "used", i.e. its hit something */
+    /** 이 미사일이 "사용됨"인지 여부, 즉 무언가에 맞았는지 */
     private boolean used = false;
     
     /**
-     * Create a new missile
+     * 새로운 미사일을 생성합니다
      * 
-     * @param game The game in which the missile has been created
-     * @param sprite The sprite representing this missile
-     * @param x The initial x location of the missile
-     * @param y The initial y location of the missile
-     * @param targetX The target x location
-     * @param targetY The target y location
+     * @param game 미사일이 생성된 게임
+     * @param sprite 이 미사일을 나타내는 스프라이트
+     * @param x 미사일의 초기 x 위치
+     * @param y 미사일의 초기 y 위치
+     * @param targetX 목표 x 위치
+     * @param targetY 목표 y 위치
      */
     public MissileEntity(Game game, String sprite, int x, int y, double targetX, double targetY) {
         super(sprite, x, y);

@@ -10,35 +10,35 @@ import java.awt.Color;
  * 1near.png, 2near.png, 3near.png, 4near.png를 사용
  */
 public class NearEntity extends Entity {
-    /** The game in which this entity exists */
+    /** 이 엔티티가 존재하는 게임 */
     private Game game;
-    /** The near monster image */
+    /** 근거리 몬스터 이미지 */
     private java.awt.Image nearImage;
-    /** Current HP */
+    /** 현재 HP */
     private int currentHP;
-    /** Maximum HP */
+    /** 최대 HP */
     private int maxHP;
-    /** Movement speed */
+    /** 이동 속도 */
     private double moveSpeed = 50;
-    /** Movement direction */
+    /** 이동 방향 */
     private boolean movingRight = true;
-    /** Near monster round number */
+    /** 근거리 몬스터 라운드 번호 */
     private int round;
-    /** Near monster size */
+    /** 근거리 몬스터 크기 */
     private int nearWidth = 120;
     private int nearHeight = 120;
-    /** Time since last shot */
+    /** 마지막 발사 이후의 시간 */
     private long lastShot = 0;
-    /** Shot interval */
+    /** 발사 간격 */
     private long shotInterval = 2000; // 2초마다 공격
-    /** Monster ID for unique timing */
+    /** 고유 타이밍을 위한 몬스터 ID */
     private int monsterId;
 
     /**
-     * Get the near sprite path based on round number
+     * 라운드 번호를 기반으로 근거리 스프라이트 경로를 가져옵니다
      * 
-     * @param round The round number (1,3,5,7 = near rounds before boss rounds 1,2,3,4)
-     * @return The sprite path for the near monster
+     * @param round 라운드 번호 (1,3,5,7 = 보스 라운드 1,2,3,4 전의 근거리 라운드)
+     * @return 근거리 몬스터의 스프라이트 경로
      */
     private static String getNearSpriteForRound(int round) {
         switch (round) {

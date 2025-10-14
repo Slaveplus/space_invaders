@@ -12,36 +12,35 @@ import java.awt.Graphics2D;
 import javax.imageio.ImageIO;
 
 /**
- * A resource manager for sprites in the game. Its often quite important
- * how and where you get your game resources from. In most cases
- * it makes sense to have a central resource loader that goes away, gets
- * your resources and caches them for future use.
+ * 게임의 스프라이트를 위한 리소스 관리자입니다. 게임 리소스를 어디서 어떻게
+ * 가져오는지는 종종 매우 중요합니다. 대부분의 경우 리소스를 가져와서
+ * 향후 사용을 위해 캐시하는 중앙 리소스 로더를 갖는 것이 합리적입니다.
  * <p>
- * [singleton]
+ * [싱글톤]
  * <p>
  * @author Kevin Glass
  */
 public class SpriteStore {
-	/** The single instance of this class */
+	/** 이 클래스의 단일 인스턴스 */
 	private static SpriteStore single = new SpriteStore();
 	
 	/**
-	 * Get the single instance of this class 
+	 * 이 클래스의 단일 인스턴스를 가져옵니다
 	 * 
-	 * @return The single instance of this class
+	 * @return 이 클래스의 단일 인스턴스
 	 */
 	public static SpriteStore get() {
 		return single;
 	}
 	
-	/** The cached sprite map, from reference to sprite instance */
+	/** 캐시된 스프라이트 맵, 참조에서 스프라이트 인스턴스로 */
 	private HashMap<String, Sprite> sprites = new HashMap<>();
 	
 	/**
-	 * Retrieve a sprite from the store
+	 * 저장소에서 스프라이트를 검색합니다
 	 * 
-	 * @param ref The reference to the image to use for the sprite
-	 * @return A sprite instance containing an accelerate image of the request reference
+	 * @param ref 스프라이트에 사용할 이미지의 참조
+	 * @return 요청된 참조의 가속화된 이미지를 포함하는 스프라이트 인스턴스
 	 */
 	public Sprite getSprite(String ref) {
 		// if we've already got the sprite in the cache

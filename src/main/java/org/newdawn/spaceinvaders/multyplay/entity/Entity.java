@@ -7,15 +7,13 @@ import org.newdawn.spaceinvaders.multyplay.sprite.Sprite;
 import org.newdawn.spaceinvaders.multyplay.sprite.SpriteStore;
 
 /**
- * An entity represents any element that appears in the game. The
- * entity is responsible for resolving collisions and movement
- * based on a set of properties defined either by subclass or externally.
+ * 엔티티는 게임에 나타나는 모든 요소를 나타냅니다.
+ * 엔티티는 서브클래스나 외부에서 정의된 속성 집합을 기반으로
+ * 충돌과 이동을 처리합니다.
  * 
- * Note that doubles are used for positions. This may seem strange
- * given that pixels locations are integers. However, using double means
- * that an entity can move a partial pixel. It doesn't of course mean that
- * they will be display half way through a pixel but allows us not lose
- * accuracy as we move.
+ * 위치에 double을 사용한다는 점에 주의하세요. 픽셀 위치가 정수라는 점을 고려하면
+ * 이상하게 보일 수 있지만, double을 사용하면 엔티티가 부분 픽셀을 이동할 수 있습니다.
+ * 물론 픽셀의 절반 위치에 표시되는 것은 아니지만, 이동 시 정확도를 잃지 않을 수 있습니다.
  * 
  * @author Kevin Glass
  */
@@ -27,28 +25,28 @@ public abstract class Entity {
 	/** 이 엔티티를 소유/생성한 플레이어 ID (탄환 등); 글로벌/중립은 null */
 	private String ownerId;
 
-	/** The current x location of this entity */ 
+	/** 이 엔티티의 현재 x 위치 */ 
 	protected double x;
-	/** The current y location of this entity */
+	/** 이 엔티티의 현재 y 위치 */
 	protected double y;
-	/** The sprite that represents this entity */
+	/** 이 엔티티를 나타내는 스프라이트 */
 	protected Sprite sprite;
 	protected String spritePath;
-	/** The current speed of this entity horizontally (pixels/sec) */
+	/** 이 엔티티의 현재 수평 속도 (픽셀/초) */
 	protected double dx;
-	/** The current speed of this entity vertically (pixels/sec) */
+	/** 이 엔티티의 현재 수직 속도 (픽셀/초) */
 	protected double dy;
-	/** The rectangle used for this entity during collisions  resolution */
+	/** 충돌 해결 시 이 엔티티에 사용되는 사각형 */
 	private Rectangle me = new Rectangle();
-	/** The rectangle used for other entities during collision resolution */
+	/** 충돌 해결 시 다른 엔티티에 사용되는 사각형 */
 	private Rectangle him = new Rectangle();
 	
 	/**
-	 * Construct a entity based on a sprite image and a location.
+	 * 스프라이트 이미지와 위치를 기반으로 엔티티를 생성합니다.
 	 * 
-	 * @param ref The reference to the image to be displayed for this entity
- 	 * @param x The initial x location of this entity
-	 * @param y The initial y location of this entity
+	 * @param ref 이 엔티티에 표시될 이미지에 대한 참조
+ 	 * @param x 이 엔티티의 초기 x 위치
+	 * @param y 이 엔티티의 초기 y 위치
 	 */
 	public Entity(String ref,int x,int y) {
 		this.spritePath = ref;

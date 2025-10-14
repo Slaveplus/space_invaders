@@ -19,33 +19,33 @@ import org.newdawn.spaceinvaders.gameplay.entity.entity_attack.Round4PlayerLineA
 import java.awt.Color;
 
 /**
- * An entity representing a boss enemy
+ * 보스 적을 나타내는 엔티티
  * 
  * @author Space Invaders Team
  */
 public class BossEntity extends Entity {
-    /** The game in which this entity exists */
+    /** 이 엔티티가 존재하는 게임 */
     private Game game;
-    /** True if this boss has been "used", i.e. its hit something */
+    /** 이 보스가 "사용됨"인지 여부, 즉 무언가에 맞았는지 */
     private boolean used = false;
-    /** Boss HP */
+    /** 보스 HP */
     private int currentHP;
     private int maxHP;
-    /** Boss movement speed */
+    /** 보스 이동 속도 */
     private double moveSpeed = 50;
-    /** Movement direction */
+    /** 이동 방향 */
     private boolean movingRight = true;
-    /** Time since last ice attack */
+    /** 마지막 아이스 공격 이후의 시간 */
     private long lastIceAttack = 0;
-    /** Ice attack interval */
+    /** 아이스 공격 간격 */
     private long iceAttackInterval = 4000; // 4초마다 아이스 공격
-    /** Time since last ice ball attack */
+    /** 마지막 아이스 볼 공격 이후의 시간 */
     private long lastIceBallAttack = 0;
-    /** Ice ball attack interval */
+    /** 아이스 볼 공격 간격 */
     private long iceBallAttackInterval = 4000; // 4초마다 아이스 볼 공격
-    /** Time since last magnetic field attack */
+    /** 마지막 자기장 공격 이후의 시간 */
     private long lastMagneticField = 0;
-    /** Magnetic field attack interval */
+    /** 자기장 공격 간격 */
     private long magneticFieldInterval = 15000; // 15초마다 자기장 공격
     
     /** Attack pattern management */

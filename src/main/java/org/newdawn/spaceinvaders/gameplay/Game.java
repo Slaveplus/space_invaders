@@ -2,7 +2,7 @@ package org.newdawn.spaceinvaders.gameplay;
 
 import java.awt.Canvas;
 import java.awt.Graphics2D;
-// no direct AWT listeners here; handled via InputManager
+// 여기서는 직접적인 AWT 리스너를 사용하지 않음; InputManager를 통해 처리
 import java.util.ArrayList;
 import java.util.List;
 
@@ -29,34 +29,31 @@ import org.newdawn.spaceinvaders.gameplay.net.GameNetworkAdapter;
 import org.newdawn.spaceinvaders.gameplay.net.LocalLoopbackNetworkAdapter;
 
 /**
- * The main hook of our game. This class with both act as a manager
- * for the display and central mediator for the game logic. 
+ * 게임의 메인 훅. 이 클래스는 디스플레이 관리자와 게임 로직의 중앙 조정자 역할을 합니다.
  * 
- * Display management will consist of a loop that cycles round all
- * entities in the game asking them to move and then drawing them
- * in the appropriate place. With the help of an inner class it
- * will also allow the player to control the main ship.
+ * 디스플레이 관리는 게임의 모든 엔티티들을 순환하며 이동을 요청하고
+ * 적절한 위치에 그리는 루프로 구성됩니다. 내부 클래스의 도움으로
+ * 플레이어가 메인 우주선을 제어할 수 있도록 합니다.
  * 
- * As a mediator it will be informed when entities within our game
- * detect events (e.g. alient killed, played died) and will take
- * appropriate game actions.
+ * 조정자로서 게임 내 엔티티들이 이벤트를 감지할 때 (예: 적 처치, 플레이어 사망)
+ * 알림을 받고 적절한 게임 액션을 취합니다.
  * 
  * @author Kevin Glass
  */
 public class Game extends Canvas implements Screen, GameplayContext
 {
-	/** The stragey that allows us to use accelerate page flipping */
+	/** 가속 페이지 플리핑을 사용할 수 있게 해주는 전략 */
 	// BufferStrategy는 상위 App에서 관리
-	// entities and removeList are now managed by GameStateManager
-	/** The entity representing the player */
+	// entities and removeList는 이제 GameStateManager에서 관리됨
+	/** 플레이어를 나타내는 엔티티 */
 	private ShipEntity ship;
-	/** The speed at which the player's ship should move (pixels/sec) */
+	/** 플레이어 우주선이 이동해야 하는 속도 (픽셀/초) */
 	private double moveSpeed = 300;
-	/** UserManager for accessing equipped items */
+	/** 장착된 아이템에 접근하기 위한 UserManager */
 	private UserManager userManager;
-	/** ResolutionManager for handling resolution scaling */
+	/** 해상도 스케일링을 처리하는 ResolutionManager */
 	private ResolutionManager resolutionManager;
-	// lastFire and firingInterval are now managed by GameStateManager
+	// lastFire과 firingInterval은 이제 GameStateManager에서 관리됨
 	/** 현재 장착된 우주선 스킨 경로 */
 	private String currentSpaceshipSkin = "sprites/ship.gif";
 	/** 현재 장착된 무기 스킨 경로 */
@@ -65,26 +62,26 @@ public class Game extends Canvas implements Screen, GameplayContext
 	/** 이전 프레임의 일시정지 상태 (상태 변화 감지용) */
 	private boolean wasPaused = false;
 
-	/** The current number of frames recorded */
+	/** 현재까지 기록된 프레임 수 */
 	// FPS 표시 기능은 상위에서 처리 가능, 내부적으로는 카운트만 유지하지 않음
 	
-	/** The game state manager */
+	/** 게임 상태 관리자 */
 	private GameStateManager gameStateManager;
-	/** The input manager */
+	/** 입력 관리자 */
 	private InputManager inputManager;
-	/** The skill manager */
+	/** 스킬 관리자 */
 	private SkillManager skillManager;
-	/** The UI renderer */
+	/** UI 렌더러 */
 	private UIRenderer uiRenderer;
-	/** Background renderer (cached) */
+	/** 배경 렌더러 (캐시됨) */
 	private BackgroundRenderer backgroundRenderer;
-	/** Shared gameplay coordinator */
+	/** 공유 게임플레이 조정자 */
 	private final SharedGameplayCoordinator gameplayCoordinator;
 	// gameplay는 mainmenu 패키지에 의존하지 않도록, 오버레이는 UIRenderer에서 처리
 	
 	/** 메인메뉴 전환 요청 플래그 */
 	private boolean requestMainMenu = false;
-	/** ScreenNavigator for menu navigation */
+	/** 메뉴 네비게이션을 위한 ScreenNavigator */
 	private ScreenNavigator navigator;
 	/** 게임 시작 시간 (3초 공격 지연용) */
 	private long gameStartTime = 0;
@@ -93,7 +90,7 @@ public class Game extends Canvas implements Screen, GameplayContext
 	private GameNetworkAdapter networkAdapter;
 	
 	/**
-	 * Construct our game and set it running.
+	 * 게임을 구성하고 실행합니다.
 	 */
 	public Game(ScreenNavigator navigator) {
 		this.navigator = navigator;
@@ -103,29 +100,28 @@ public class Game extends Canvas implements Screen, GameplayContext
 		setBounds(0,0,800,600);
 		setFocusable(true);
 		
-		// initialize the game state manager
+		// 게임 상태 관리자 초기화
 		gameStateManager = new GameStateManager();
 		
-	// initialize the skill manager
+	// 스킬 관리자 초기화
 	skillManager = new SkillManager(this);
 	gameplayCoordinator = new SharedGameplayCoordinator(this);
 
-	// initialize the UI renderer
+	// UI 렌더러 초기화
 		uiRenderer = new UIRenderer(this);
 
-		// background & overlays
+		// 배경 및 오버레이
 		backgroundRenderer = new BackgroundRenderer();
 		updateBackgroundForRound(1); // 1라운드부터 시작
 		
-		// initialize the input manager
+		// 입력 관리자 초기화
 		inputManager = new InputManager(gameStateManager, this);
 		
-		// add input handlers (after inputManager is initialized)
+		// 입력 핸들러 추가 (inputManager 초기화 후)
 		addKeyListener(inputManager.new KeyInputHandler());
 		addMouseListener(inputManager.new MouseInputHandler());
 		
-		// initialise the entities in our game so there's something
-		// to see at startup
+		// 게임의 엔티티들을 초기화하여 시작할 때 볼 수 있는 것이 있도록 함
 		System.out.println("🎮 Game constructor calling initEntities()...");
 		initEntities();
 
@@ -142,8 +138,7 @@ public class Game extends Canvas implements Screen, GameplayContext
 	}
 	
 	/**
-	 * Start a fresh game, this should clear out any old data and
-	 * create a new set.
+	 * 새로운 게임을 시작합니다. 기존 데이터를 모두 지우고 새로운 세트를 생성합니다.
 	 */
 	public void startGame() {
 		System.out.println("🎮 startGame() called!");

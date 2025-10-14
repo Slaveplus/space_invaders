@@ -14,25 +14,25 @@ import java.net.URL;
  * 플레이어 공격이 적에 맞을 때 나타나는 Heat 효과 엔티티
  */
 public class HeatEffectEntity extends Entity {
-    /** The game in which this heat effect exists */
+    /** 이 히트 효과가 존재하는 게임 */
     private Game game;
-    /** Heat effect duration in milliseconds */
-    private long heatDuration = 800; // 0.8 seconds
-    /** Time when heat effect started */
+    /** 히트 효과 지속 시간 (밀리초) */
+    private long heatDuration = 800; // 0.8초
+    /** 히트 효과가 시작된 시간 */
     private long startTime;
-    /** Heat effect image */
+    /** 히트 효과 이미지 */
     private BufferedImage heatImage;
-    /** Current alpha value for fading effect */
+    /** 페이딩 효과를 위한 현재 알파 값 */
     private float alpha = 1.0f;
-    /** Size scaling factor */
+    /** 크기 스케일링 팩터 */
     private float scale = 1.0f;
     
     /**
-     * Create a new heat effect
+     * 새로운 히트 효과를 생성합니다
      * 
-     * @param game The game in which the heat effect has been created
-     * @param x The x location of the heat effect
-     * @param y The y location of the heat effect
+     * @param game 히트 효과가 생성된 게임
+     * @param x 히트 효과의 x 위치
+     * @param y 히트 효과의 y 위치
      */
     public HeatEffectEntity(Game game, int x, int y) {
         super("sprites/Skill/Heat.gif", x, y);

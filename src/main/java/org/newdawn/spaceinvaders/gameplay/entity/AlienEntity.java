@@ -8,49 +8,49 @@ import org.newdawn.spaceinvaders.gameplay.Game;
 import org.newdawn.spaceinvaders.gameplay.sprite.Sprite;
 
 /**
- * An entity which represents one of our space invader aliens.
+ * 우리의 우주 침입자 중 하나를 나타내는 엔티티입니다.
  * 
  * @author Kevin Glass
  */
 public class AlienEntity extends Entity {
-	/** The speed at which the alient moves horizontally */
+	/** 외계인이 수평으로 이동하는 속도 */
 	private double moveSpeed = 75;
-	/** The game in which the entity exists */
+	/** 엔티티가 존재하는 게임 */
 	private Game game;
-	/** The animation frames */
+	/** 애니메이션 프레임들 */
 	private Sprite[] frames = new Sprite[4];
-	/** The time since the last frame change took place */
+	/** 마지막 프레임 변경이 일어난 이후의 시간 */
 	private long lastFrameChange;
-	/** The frame duration in milliseconds, i.e. how long any given frame of animation lasts */
+	/** 프레임 지속 시간 (밀리초), 즉 애니메이션의 주어진 프레임이 지속되는 시간 */
 	private long frameDuration = 250;
-	/** The current frame of animation being displayed */
+	/** 현재 표시되고 있는 애니메이션 프레임 */
 	private int frameNumber;
-	/** The time at which this alien last fired a shot */
+	/** 이 외계인이 마지막으로 발사한 시간 */
 	public long lastFire = 0;
-	/** The interval between alien shots (ms) */
+	/** 외계인 발사 간격 (ms) */
 	public long firingInterval = 2000;
-	/** The alien's current HP */
+	/** 외계인의 현재 HP */
 	private int currentHP = 2;
-	/** The alien's maximum HP */
+	/** 외계인의 최대 HP */
 	private int maxHP = 2;
-	/** Individual movement direction (true = right, false = left) */
+	/** 개별 이동 방향 (true = 오른쪽, false = 왼쪽) */
 	private boolean movingRight = Math.random() < 0.5;
-	/** Individual vertical movement direction (true = down, false = up) */
+	/** 개별 수직 이동 방향 (true = 아래, false = 위) */
 	private boolean movingDown = Math.random() < 0.5;
-	/** Time since last direction change */
+	/** 마지막 방향 변경 이후의 시간 */
 	private long lastDirectionChange = 0;
-	/** Minimum time between direction changes */
+	/** 방향 변경 간의 최소 시간 */
 	private long directionChangeInterval = 2000;
-	/** Time of last collision */
+	/** 마지막 충돌 시간 */
 	private long lastCollisionTime = 0;
-	/** Minimum time between collision reactions (ms) */
+	/** 충돌 반응 간의 최소 시간 (ms) */
 	private static final long COLLISION_COOLDOWN = 500;
 	
 	/**
-	 * Get the alien sprite path based on round number
+	 * 라운드 번호를 기반으로 외계인 스프라이트 경로를 가져옵니다
 	 * 
-	 * @param round The round number
-	 * @return The sprite path for the alien
+	 * @param round 라운드 번호
+	 * @return 외계인의 스프라이트 경로
 	 */
 	private static String getAlienSpriteForRound(int round) {
 		switch (round) {

@@ -1,7 +1,7 @@
 package org.newdawn.spaceinvaders.gameplay.ui;
 
 /**
- * Minimal data contract required to render the shared gameplay HUD.
+ * 공유 게임플레이 HUD를 렌더링하는 데 필요한 최소 데이터 계약입니다.
  */
 public interface HudContext {
     int getCurrentRound();

@@ -57,9 +57,9 @@ public class SpaceInvadersApp extends JFrame implements ScreenNavigator {
 
     // message, waitingForKeyPress, and logicRequiredThisLoop are now managed by GameStateManager
 
-    /** The last time at which we recorded the frame rate */
+    /** 프레임 레이트를 마지막으로 기록한 시간 */
     private long lastFpsTime;
-    /** The current number of frames recorded */
+    /** 현재까지 기록된 프레임 수 */
     private int fps;
 
     public SpaceInvadersApp() {
@@ -157,12 +157,11 @@ public class SpaceInvadersApp extends JFrame implements ScreenNavigator {
             long delta = SystemTimer.getTime() - lastLoopTime;
             lastLoopTime = SystemTimer.getTime();
 
-            // update the frame counter
+            // 프레임 카운터 업데이트
             lastFpsTime += delta;
             fps++;
 
-            // update our FPS counter if a second has passed since
-            // we last recorded
+            // 마지막으로 기록한 이후 1초가 지났으면 FPS 카운터 업데이트
             if (lastFpsTime >= 1000) {
                 this.setTitle(windowTitle+" (FPS: "+fps+")");
                 lastFpsTime = 0;
