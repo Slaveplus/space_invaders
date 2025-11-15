@@ -33,6 +33,10 @@ public class ShotEntity extends Entity {
 	private int skillValue;
 	private boolean hasPiercing;
 	private boolean nearMonsterShot;
+	/** 근거리 몬스터 라운드 정보 (1, 3, 5, 7) */
+	private int nearMonsterRound = -1;
+	/** 스프라이트 경로 저장 (특수 렌더링용) */
+	private String spritePath = null;
 
 	public ShotEntity(MultiplayerGameContext game, String sprite, int x, int y) {
 		super(sprite, x, y);
@@ -44,6 +48,7 @@ public class ShotEntity extends Entity {
 		super(sprite, x, y);
 		this.game = game;
 		this.isAlienShot = isAlienShot;
+		this.spritePath = sprite; // 스프라이트 경로 저장
 		this.dy = isAlienShot ? ALIEN_SHOT_SPEED : PLAYER_SHOT_SPEED;
 	}
 
@@ -97,7 +102,41 @@ public class ShotEntity extends Entity {
 			return;
 		}
 		if (nearMonsterShot) {
-			drawScaledSprite(g, 50);
+			// 근거리 몬스터 공격 렌더링 (라운드별)
+			Graphics2D g2d = (Graphics2D) g;
+			
+			// 7라운드: 초록색 구체 (Heat.gif)
+			if (spritePath != null && spritePath.equals("sprites/Skill/Heat.gif")) {
+				int sphereSize = 20;
+				g2d.setColor(Color.GREEN);
+				g2d.fillOval((int)Math.round(x) - sphereSize/2, (int)Math.round(y) - sphereSize/2, sphereSize, sphereSize);
+				g2d.setColor(Color.WHITE);
+				g2d.drawOval((int)Math.round(x) - sphereSize/2, (int)Math.round(y) - sphereSize/2, sphereSize, sphereSize);
+				g2d.setColor(new Color(0, 255, 0, 100));
+				g2d.fillOval((int)Math.round(x) - sphereSize/4, (int)Math.round(y) - sphereSize/4, sphereSize/2, sphereSize/2);
+			}
+			// 5라운드: 검정색 구체 (shot.gif)
+			else if (spritePath != null && (spritePath.equals("sprites/shot.gif") || spritePath.endsWith("/shot.gif"))) {
+				int sphereSize = 20;
+				g2d.setColor(Color.BLACK);
+				g2d.fillOval((int)Math.round(x) - sphereSize/2, (int)Math.round(y) - sphereSize/2, sphereSize, sphereSize);
+				g2d.setColor(Color.DARK_GRAY);
+				g2d.drawOval((int)Math.round(x) - sphereSize/2, (int)Math.round(y) - sphereSize/2, sphereSize, sphereSize);
+			}
+			// 3라운드: 2round1.gif (스프라이트 그리기) - 5배 크기
+			else if (spritePath != null && spritePath.equals("sprites/Boss_Attack/2round1.gif")) {
+				int size = 150; // 3라운드 공격 크기 (30 * 5 = 150)
+				drawScaledSprite(g, size);
+			}
+			// 1라운드: ice ball.gif (스프라이트 그리기) - 5배 크기
+			else if (spritePath != null && spritePath.equals("sprites/Boss_Attack/ice ball.gif")) {
+				int size = 100; // 1라운드 공격 크기 (20 * 5 = 100)
+				drawScaledSprite(g, size);
+			}
+			// 기타: 기본 스프라이트 그리기
+			else {
+				drawScaledSprite(g, 20);
+			}
 			return;
 		}
 		super.draw(g);
@@ -202,6 +241,24 @@ public class ShotEntity extends Entity {
 
 	public void setNearMonsterShot(boolean nearMonsterShot) {
 		this.nearMonsterShot = nearMonsterShot;
+	}
+	
+	/**
+	 * Set the round number for near monster shot (for round-specific rendering)
+	 * 
+	 * @param round The round number (1, 3, 5, 7)
+	 */
+	public void setNearMonsterRound(int round) {
+		this.nearMonsterRound = round;
+	}
+	
+	/**
+	 * Get the round number for near monster shot
+	 * 
+	 * @return The round number
+	 */
+	public int getNearMonsterRound() {
+		return nearMonsterRound;
 	}
 
 	@Override

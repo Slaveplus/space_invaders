@@ -28,6 +28,15 @@ public class NearEntity extends Entity {
     private final int maxHP;
     private double moveSpeed = 50;
     private boolean movingRight = true;
+    private boolean movingDown = true;
+    /** 현재 실제 X 이동 속도 (부드러운 가속/감속용) */
+    private double currentVelocityX = 0;
+    /** 현재 실제 Y 이동 속도 (부드러운 가속/감속용) */
+    private double currentVelocityY = 0;
+    /** 목표 X 속도 */
+    private double targetVelocityX = 0;
+    /** 목표 Y 속도 */
+    private double targetVelocityY = 0;
     private long lastShot = 0;
     private final long shotInterval;
     private static final int NEAR_WIDTH = 120;
@@ -58,11 +67,11 @@ public class NearEntity extends Entity {
             case 1:
                 return "sprites/Boss_Attack/ice ball.gif";
             case 3:
-                return "sprites/shot.gif";
+                return "sprites/Boss_Attack/2round1.gif";  // 3라운드: 2round1.gif
             case 5:
-                return "sprites/shot.gif";
+                return "sprites/shot.gif";                 // 5라운드: 검정색 구체
             case 7:
-                return "sprites/Boss_Attack/5round1.gif";
+                return "sprites/Skill/Heat.gif";          // 7라운드: 초록색 구체
             default:
                 return "sprites/shot.gif";
         }
@@ -103,18 +112,60 @@ public class NearEntity extends Entity {
 
     @Override
     public void move(long delta) {
-        double distance = moveSpeed * delta / 1000.0;
+        double deltaSeconds = delta / 1000.0;
+        double acceleration = 200.0; // 가속도 (픽셀/초²)
+        
+        // 목표 속도 설정 (좌우) - 벽 끝에 부딪히면 즉시 방향 변경
         if (movingRight) {
-            x += distance;
-            if (x > 700) {
+            if (x >= 700) {
                 movingRight = false;
+                currentVelocityX = -moveSpeed; // 즉시 반대 방향으로 속도 설정
             }
+            targetVelocityX = moveSpeed;
         } else {
-            x -= distance;
-            if (x < 100) {
+            if (x <= 100) {
                 movingRight = true;
+                currentVelocityX = moveSpeed; // 즉시 반대 방향으로 속도 설정
             }
+            targetVelocityX = -moveSpeed;
         }
+        
+        // 목표 속도 설정 (상하) - 맵 중간까지만 (60 ~ 300), 벽 끝에 부딪히면 즉시 방향 변경
+        if (movingDown) {
+            if (y >= 300) {
+                movingDown = false;
+                currentVelocityY = -moveSpeed * 0.6; // 즉시 반대 방향으로 속도 설정
+            }
+            targetVelocityY = moveSpeed * 0.6; // 상하 이동은 좌우보다 약간 느리게
+        } else {
+            if (y <= 60) {
+                movingDown = true;
+                currentVelocityY = moveSpeed * 0.6; // 즉시 반대 방향으로 속도 설정
+            }
+            targetVelocityY = -moveSpeed * 0.6;
+        }
+        
+        // 부드러운 가속/감속 적용
+        double maxVelocityChange = acceleration * deltaSeconds;
+        if (currentVelocityX < targetVelocityX) {
+            currentVelocityX = Math.min(targetVelocityX, currentVelocityX + maxVelocityChange);
+        } else if (currentVelocityX > targetVelocityX) {
+            currentVelocityX = Math.max(targetVelocityX, currentVelocityX - maxVelocityChange);
+        }
+        
+        if (currentVelocityY < targetVelocityY) {
+            currentVelocityY = Math.min(targetVelocityY, currentVelocityY + maxVelocityChange);
+        } else if (currentVelocityY > targetVelocityY) {
+            currentVelocityY = Math.max(targetVelocityY, currentVelocityY - maxVelocityChange);
+        }
+        
+        // 위치 업데이트
+        x += currentVelocityX * deltaSeconds;
+        y += currentVelocityY * deltaSeconds;
+        
+        // 경계 체크 및 제한
+        x = Math.max(100, Math.min(700, x));
+        y = Math.max(60, Math.min(300, y)); // 맵 중간까지만
 
         preventOverlap();
         tryShoot();
@@ -139,10 +190,50 @@ public class NearEntity extends Entity {
                 other.x -= nx * push;
                 other.y -= ny * push * 0.2;
 
-                this.x = Math.max(60, Math.min(740, this.x));
-                this.y = Math.max(60, Math.min(140, this.y));
-                other.x = Math.max(60, Math.min(740, other.x));
-                other.y = Math.max(60, Math.min(140, other.y));
+                this.x = Math.max(100, Math.min(700, this.x));
+                this.y = Math.max(60, Math.min(300, this.y)); // 맵 중간까지만
+                other.x = Math.max(100, Math.min(700, other.x));
+                other.y = Math.max(60, Math.min(300, other.y)); // 맵 중간까지만
+                
+                // 충돌 시 상대 위치를 보고 적절한 방향으로 변경
+                // X축 방향 변경: 상대가 왼쪽에 있으면 오른쪽으로, 오른쪽에 있으면 왼쪽으로
+                if (dx > 0) {
+                    // 상대가 왼쪽에 있음 -> 오른쪽으로 이동
+                    this.movingRight = true;
+                    this.currentVelocityX = this.moveSpeed;
+                } else {
+                    // 상대가 오른쪽에 있음 -> 왼쪽으로 이동
+                    this.movingRight = false;
+                    this.currentVelocityX = -this.moveSpeed;
+                }
+                
+                // Y축 방향 변경: 상대가 위에 있으면 아래로, 아래에 있으면 위로
+                if (dy > 0) {
+                    // 상대가 위에 있음 -> 아래로 이동
+                    this.movingDown = true;
+                    this.currentVelocityY = this.moveSpeed * 0.6;
+                } else {
+                    // 상대가 아래에 있음 -> 위로 이동
+                    this.movingDown = false;
+                    this.currentVelocityY = -this.moveSpeed * 0.6;
+                }
+                
+                // 다른 몬스터도 반대 방향으로 변경
+                if (dx > 0) {
+                    other.movingRight = false;
+                    other.currentVelocityX = -other.moveSpeed;
+                } else {
+                    other.movingRight = true;
+                    other.currentVelocityX = other.moveSpeed;
+                }
+                
+                if (dy > 0) {
+                    other.movingDown = false;
+                    other.currentVelocityY = -other.moveSpeed * 0.6;
+                } else {
+                    other.movingDown = true;
+                    other.currentVelocityY = other.moveSpeed * 0.6;
+                }
             }
         }
     }
@@ -163,6 +254,7 @@ public class NearEntity extends Entity {
         ShotEntity shot = new ShotEntity(game, shotPath, spawnX, spawnY, true);
         shot.setVerticalMovement(300);
         shot.setNearMonsterShot(true);
+        shot.setNearMonsterRound(round); // 라운드 정보 전달
         game.addEntity(shot);
 
         lastShot = now;
