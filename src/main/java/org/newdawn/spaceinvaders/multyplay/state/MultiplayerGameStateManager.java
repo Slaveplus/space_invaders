@@ -1,6 +1,6 @@
 package org.newdawn.spaceinvaders.multyplay.state;
 
-import org.newdawn.spaceinvaders.multyplay.entity.Entity;
+import org.newdawn.spaceinvaders.common.entity.Entity;
 import java.util.ArrayList;
 
 /**

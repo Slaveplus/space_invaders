@@ -1,6 +1,6 @@
 package org.newdawn.spaceinvaders.gameplay.entity.entity_attack;
 
-import org.newdawn.spaceinvaders.gameplay.entity.Entity;
+import org.newdawn.spaceinvaders.common.entity.Entity;
 import org.newdawn.spaceinvaders.gameplay.Game;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
@@ -138,7 +138,7 @@ public class Round3RandomAttack extends Entity {
      */
     public void collidedWith(Entity other) {
         // if we've hit the player's ship, check for delayed damage
-        if (other instanceof org.newdawn.spaceinvaders.gameplay.entity.ShipEntity) {
+        if (other instanceof org.newdawn.spaceinvaders.common.entity.ShipEntity) {
             // Check if player is invincible
             if (game.isPlayerInvincible()) {
                 System.out.println("🛡️ Player is invincible, random laser attack blocked");

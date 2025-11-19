@@ -10,7 +10,7 @@ import java.util.stream.Collectors;
 import org.junit.Test;
 import org.newdawn.spaceinvaders.multyplay.core.MultiplayerGameContext;
 import org.newdawn.spaceinvaders.multyplay.entity.AlienEntity;
-import org.newdawn.spaceinvaders.multyplay.entity.ShipEntity;
+import org.newdawn.spaceinvaders.common.entity.ShipEntity;
 import org.newdawn.spaceinvaders.multyplay.state.MultiplayerGameStateManager;
 import org.newdawn.spaceinvaders.multyplay.state.PlayerState;
 

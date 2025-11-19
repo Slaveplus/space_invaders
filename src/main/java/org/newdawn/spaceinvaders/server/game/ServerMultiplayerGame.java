@@ -14,18 +14,17 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Queue;
 import java.util.Random;
-
 import org.newdawn.spaceinvaders.multyplay.core.MultiplayerGameContext;
 import org.newdawn.spaceinvaders.multyplay.state.MultiplayerGameStateManager;
 import org.newdawn.spaceinvaders.multyplay.entity.AlienEntity;
 import org.newdawn.spaceinvaders.multyplay.entity.BossEntity;
-import org.newdawn.spaceinvaders.multyplay.entity.Entity;
-import org.newdawn.spaceinvaders.multyplay.entity.EntitySnapshot;
-import org.newdawn.spaceinvaders.multyplay.entity.ExplosionEntity;
+import org.newdawn.spaceinvaders.common.entity.Entity;
+import org.newdawn.spaceinvaders.common.entity.EntitySnapshot;
+import org.newdawn.spaceinvaders.common.entity.effect.ExplosionEntity;
 import org.newdawn.spaceinvaders.multyplay.entity.MissileEntity;
 import org.newdawn.spaceinvaders.multyplay.entity.NearEntity;
-import org.newdawn.spaceinvaders.multyplay.entity.ShipEntity;
-import org.newdawn.spaceinvaders.multyplay.entity.ShotEntity;
+import org.newdawn.spaceinvaders.common.entity.ShipEntity;
+import org.newdawn.spaceinvaders.common.entity.ShotEntity;
 import org.newdawn.spaceinvaders.multyplay.net.GameEvent;
 import org.newdawn.spaceinvaders.multyplay.net.GameSnapshot;
 import org.newdawn.spaceinvaders.multyplay.net.PlayerInput;
@@ -697,8 +696,7 @@ public class ServerMultiplayerGame implements MultiplayerGameContext {
 
     @Override
     public void createSkillDrop(int x, int y, int skillType, int skillValue) {
-        ShotEntity skillDrop = new ShotEntity(this, "sprites/shot.gif", x, y,
-                false, skillType, skillValue);
+        ShotEntity skillDrop = new ShotEntity(this, "sprites/shot.gif", x, y, skillType, skillValue);
         gameStateManager.getEntities().add(skillDrop);
     }
 
@@ -706,6 +704,11 @@ public class ServerMultiplayerGame implements MultiplayerGameContext {
     public void createExplosion(int x, int y, double radius) {
         ExplosionEntity explosion = new ExplosionEntity(this, "sprites/Skill/Explosion.png", x, y, radius);
         gameStateManager.getEntities().add(explosion);
+    }
+
+    @Override
+    public void createHeatEffect(int x, int y, double radius) {
+        // 서버는 히트 이펙트를 렌더링하지 않음
     }
 
     private boolean isBossAlive() {

@@ -3,9 +3,7 @@ package org.newdawn.spaceinvaders.server;
 import java.io.*;
 import java.net.Socket;
 import java.util.stream.Collectors;
-
 import org.newdawn.spaceinvaders.server.game.ServerGameSession;
-
 import static org.newdawn.spaceinvaders.server.MessageType.*;
 
 /** 클라이언트 개별 처리 스레드 */

@@ -4,7 +4,6 @@ import java.io.*;
 import java.net.Socket;
 import java.util.*;
 import java.util.concurrent.CopyOnWriteArrayList;
-
 import org.newdawn.spaceinvaders.multyplay.net.protocol.TextMessage;
 
 /** 간단 텍스트 프로토콜 클라이언트 */

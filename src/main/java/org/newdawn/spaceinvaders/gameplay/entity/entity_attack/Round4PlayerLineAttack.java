@@ -1,6 +1,6 @@
 package org.newdawn.spaceinvaders.gameplay.entity.entity_attack;
 
-import org.newdawn.spaceinvaders.gameplay.entity.Entity;
+import org.newdawn.spaceinvaders.common.entity.Entity;
 import org.newdawn.spaceinvaders.gameplay.Game;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
@@ -136,7 +136,7 @@ public class Round4PlayerLineAttack extends Entity {
      */
     public void collidedWith(Entity other) {
         // If we've hit the player's ship, deal moderate damage
-        if (other instanceof org.newdawn.spaceinvaders.gameplay.entity.ShipEntity) {
+        if (other instanceof org.newdawn.spaceinvaders.common.entity.ShipEntity) {
             // Check if player is invincible
             if (game.isPlayerInvincible()) {
                 System.out.println("🛡️ Player is invincible, round4 line attack blocked");
@@ -146,7 +146,7 @@ public class Round4PlayerLineAttack extends Entity {
             
             try {
                 // Get player's current HP
-                org.newdawn.spaceinvaders.gameplay.entity.ShipEntity player = (org.newdawn.spaceinvaders.gameplay.entity.ShipEntity) other;
+                org.newdawn.spaceinvaders.common.entity.ShipEntity player = (org.newdawn.spaceinvaders.common.entity.ShipEntity) other;
                 java.lang.reflect.Field hpField = player.getClass().getDeclaredField("currentHP");
                 hpField.setAccessible(true);
                 int currentHP = (Integer) hpField.get(player);

@@ -26,21 +26,19 @@ import java.util.Map;
 import java.util.Iterator;
 import java.util.Set;
 import java.net.URL;
-
 import javax.imageio.ImageIO;
-
 import java.awt.event.KeyEvent;
-
 import org.newdawn.spaceinvaders.multyplay.entity.AlienEntity;
 import org.newdawn.spaceinvaders.multyplay.entity.BossEntity;
-import org.newdawn.spaceinvaders.multyplay.entity.Entity;
-import org.newdawn.spaceinvaders.multyplay.entity.ExplosionEntity;
+import org.newdawn.spaceinvaders.common.entity.Entity;
+import org.newdawn.spaceinvaders.common.entity.effect.ExplosionEntity;
 import org.newdawn.spaceinvaders.multyplay.entity.MissileEntity;
 import org.newdawn.spaceinvaders.multyplay.entity.NearEntity;
-import org.newdawn.spaceinvaders.multyplay.entity.EntitySnapshot;
+import org.newdawn.spaceinvaders.common.entity.EntitySnapshot;
 import org.newdawn.spaceinvaders.multyplay.entity.CoinDisplayEntity;
-import org.newdawn.spaceinvaders.multyplay.entity.ShipEntity;
-import org.newdawn.spaceinvaders.multyplay.entity.ShotEntity;
+import org.newdawn.spaceinvaders.common.entity.ShipEntity;
+import org.newdawn.spaceinvaders.common.entity.ShotEntity;
+import org.newdawn.spaceinvaders.common.entity.effect.HeatEffectEntity;
 import org.newdawn.spaceinvaders.login.UserManager;
 import org.newdawn.spaceinvaders.database.GameRecord;
 import org.newdawn.spaceinvaders.shop.ShopCategory;
@@ -604,7 +602,7 @@ public class MultiplayerGameCanvas extends Canvas implements Screen, Multiplayer
 	@Override
 	public void createSkillDrop(int x, int y, int skillType, int skillValue) {
 		// Create skill drop using ShotEntity with skill drop functionality
-		ShotEntity skillDrop = new ShotEntity(this, "sprites/shot.gif", x, y, false, skillType, skillValue);
+		ShotEntity skillDrop = new ShotEntity(this, "sprites/shot.gif", x, y, skillType, skillValue);
 		gameStateManager.getEntities().add(skillDrop);
 	}
 
@@ -2852,6 +2850,16 @@ public class MultiplayerGameCanvas extends Canvas implements Screen, Multiplayer
 		} catch (Exception e) {
 			System.err.println("Error creating explosion: " + e.getMessage());
 			e.printStackTrace();
+		}
+	}
+
+	@Override
+	public void createHeatEffect(int x, int y, double radius) {
+		try {
+			HeatEffectEntity heat = new HeatEffectEntity(this, x, y);
+			gameStateManager.getEntities().add(heat);
+		} catch (Exception e) {
+			System.err.println("Error creating heat effect: " + e.getMessage());
 		}
 	}
 	

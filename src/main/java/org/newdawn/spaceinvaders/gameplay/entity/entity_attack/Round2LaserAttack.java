@@ -4,8 +4,7 @@ import java.awt.Graphics;
 import java.awt.Graphics2D;
 import java.awt.geom.AffineTransform;
 import java.awt.Image;
-
-import org.newdawn.spaceinvaders.gameplay.entity.Entity;
+import org.newdawn.spaceinvaders.common.entity.Entity;
 import org.newdawn.spaceinvaders.gameplay.Game;
 
 /**
@@ -141,7 +140,7 @@ public class Round2LaserAttack extends Entity {
      */
     public void collidedWith(Entity other) {
         // if we've hit the player's ship, damage it
-        if (other instanceof org.newdawn.spaceinvaders.gameplay.entity.ShipEntity) {
+        if (other instanceof org.newdawn.spaceinvaders.common.entity.ShipEntity) {
             game.removeEntity(this);
             game.notifyPlayerDamaged(damage);
         }

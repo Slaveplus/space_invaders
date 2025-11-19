@@ -1,5 +1,7 @@
 package org.newdawn.spaceinvaders.multyplay.entity;
 
+import org.newdawn.spaceinvaders.common.entity.Entity;
+import org.newdawn.spaceinvaders.common.entity.ShotEntity;
 import java.awt.Color;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
@@ -8,10 +10,9 @@ import java.awt.Rectangle;
 import java.net.URL;
 import java.util.LinkedHashMap;
 import java.util.Map;
-
 import org.newdawn.spaceinvaders.multyplay.core.MultiplayerGameContext;
 import org.newdawn.spaceinvaders.multyplay.net.protocol.MetadataCodec;
-import org.newdawn.spaceinvaders.multyplay.sprite.SpriteStore;
+import org.newdawn.spaceinvaders.common.sprite.SpriteStore;
 
 /**
  * Near Entity – 보스전에 등장하는 중간 몬스터 구현.
@@ -253,8 +254,7 @@ public class NearEntity extends Entity {
 
         ShotEntity shot = new ShotEntity(game, shotPath, spawnX, spawnY, true);
         shot.setVerticalMovement(300);
-        shot.setNearMonsterShot(true);
-        shot.setNearMonsterRound(round); // 라운드 정보 전달
+        shot.setNearMonsterShot(true, round, shotPath); // 라운드 정보 전달
         game.addEntity(shot);
 
         lastShot = now;

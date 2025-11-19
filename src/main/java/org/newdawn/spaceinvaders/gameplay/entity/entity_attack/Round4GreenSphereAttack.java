@@ -1,6 +1,6 @@
 package org.newdawn.spaceinvaders.gameplay.entity.entity_attack;
 
-import org.newdawn.spaceinvaders.gameplay.entity.Entity;
+import org.newdawn.spaceinvaders.common.entity.Entity;
 import org.newdawn.spaceinvaders.gameplay.Game;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
@@ -105,7 +105,7 @@ public class Round4GreenSphereAttack extends Entity {
      */
     public void collidedWith(Entity other) {
         // if we've hit the player's ship, damage it
-        if (other instanceof org.newdawn.spaceinvaders.gameplay.entity.ShipEntity) {
+        if (other instanceof org.newdawn.spaceinvaders.common.entity.ShipEntity) {
             System.out.println("🟣 Green sphere hit player ship! Damage: " + damage);
             game.notifyPlayerDamaged(damage);
             game.removeEntity(this);

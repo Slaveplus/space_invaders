@@ -1,6 +1,6 @@
 package org.newdawn.spaceinvaders.gameplay.entity.entity_attack;
 
-import org.newdawn.spaceinvaders.gameplay.entity.Entity;
+import org.newdawn.spaceinvaders.common.entity.Entity;
 import org.newdawn.spaceinvaders.gameplay.Game;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
@@ -106,7 +106,7 @@ public class Round3PullAttack extends Entity {
     private void pullPlayer() {
         try {
             // Get player entity
-            org.newdawn.spaceinvaders.gameplay.entity.ShipEntity player = game.getPlayerShip();
+            org.newdawn.spaceinvaders.common.entity.ShipEntity player = game.getPlayerShip();
             if (player == null) {
                 return;
             }

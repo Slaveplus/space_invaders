@@ -13,7 +13,6 @@ import org.newdawn.spaceinvaders.mainmenu.MainMenuCanvas;
 import org.newdawn.spaceinvaders.room.GameClient;
 import org.newdawn.spaceinvaders.room.RoomListCanvas;
 import org.newdawn.spaceinvaders.room.RoomLobbyCanvas;
-
 import javax.swing.*;
 import java.awt.*;
 import java.awt.image.BufferStrategy;

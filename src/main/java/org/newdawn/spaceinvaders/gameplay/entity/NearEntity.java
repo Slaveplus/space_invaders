@@ -1,5 +1,7 @@
 package org.newdawn.spaceinvaders.gameplay.entity;
 
+import org.newdawn.spaceinvaders.common.entity.Entity;
+import org.newdawn.spaceinvaders.common.entity.ShotEntity;
 import org.newdawn.spaceinvaders.gameplay.Game;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
@@ -318,8 +320,7 @@ public class NearEntity extends Entity {
             String shotSprite = getShotSpriteForRound(round);
             ShotEntity shot = new ShotEntity(game, shotSprite, (int)x, (int)y + nearHeight/2, true); // isAlienShot = true
             shot.setVerticalMovement(300); // Move down at 300 pixels/sec
-            shot.setNearMonsterShot(true); // Mark as near monster shot for smaller size
-            shot.setNearMonsterRound(round); // 라운드 정보 전달
+            shot.setNearMonsterShot(true, round, shotSprite); // Mark as near monster shot for special rendering
             
             game.addEntity(shot);
             

@@ -5,17 +5,18 @@ import java.awt.Graphics2D;
 // 여기서는 직접적인 AWT 리스너를 사용하지 않음; InputManager를 통해 처리
 import java.util.ArrayList;
 import java.util.List;
-
+import org.newdawn.spaceinvaders.common.GameContext;
 import org.newdawn.spaceinvaders.gameplay.entity.AlienEntity;
 import org.newdawn.spaceinvaders.gameplay.entity.BossEntity;
 import org.newdawn.spaceinvaders.gameplay.entity.CoinDisplayEntity;
-import org.newdawn.spaceinvaders.gameplay.entity.Entity;
+import org.newdawn.spaceinvaders.common.entity.Entity;
 import org.newdawn.spaceinvaders.gameplay.entity.NearEntity;
-import org.newdawn.spaceinvaders.gameplay.entity.ExplosionEntity;
+import org.newdawn.spaceinvaders.common.entity.effect.ExplosionEntity;
+import org.newdawn.spaceinvaders.common.entity.effect.HeatEffectEntity;
 import org.newdawn.spaceinvaders.gameplay.entity.entity_attack.IceAttack;
 import org.newdawn.spaceinvaders.gameplay.entity.MissileEntity;
-import org.newdawn.spaceinvaders.gameplay.entity.ShipEntity;
-import org.newdawn.spaceinvaders.gameplay.entity.ShotEntity;
+import org.newdawn.spaceinvaders.common.entity.ShipEntity;
+import org.newdawn.spaceinvaders.common.entity.ShotEntity;
 import org.newdawn.spaceinvaders.gameplay.core.GameplayContext;
 import org.newdawn.spaceinvaders.gameplay.core.SharedGameplayCoordinator;
 import org.newdawn.spaceinvaders.database.LeaderboardRecord;
@@ -40,7 +41,7 @@ import org.newdawn.spaceinvaders.gameplay.net.LocalLoopbackNetworkAdapter;
  * 
  * @author Kevin Glass
  */
-public class Game extends Canvas implements Screen, GameplayContext
+public class Game extends Canvas implements Screen, GameplayContext, GameContext
 {
 	/** 가속 페이지 플리핑을 사용할 수 있게 해주는 전략 */
 	// BufferStrategy는 상위 App에서 관리
@@ -211,6 +212,11 @@ public class Game extends Canvas implements Screen, GameplayContext
 		gameStateManager.getRemoveList().add(entity);
 	}
 	
+	@Override
+	public void notifyDeath(String ownerId) {
+		notifyDeath();
+	}
+
 	/**
 	 * Notification that the player has died. 
 	 */
@@ -227,6 +233,11 @@ public class Game extends Canvas implements Screen, GameplayContext
 		}
 	}
 	
+	@Override
+	public void notifyPlayerDamaged(String ownerId, int damage) {
+		notifyPlayerDamaged(damage);
+	}
+
 	/**
 	 * Notification that the player has been damaged by boss attack
 	 */
@@ -261,6 +272,18 @@ public class Game extends Canvas implements Screen, GameplayContext
 		gameplayCoordinator.handleRoundClear(gameStateManager.getLocalPlayerId());
 	}
 	
+	@Override
+	public void notifyAlienKilled(String ownerId, double x, double y) {
+		notifyAlienKilled();
+	}
+
+	@Override
+	public void addSkillToInventory(String ownerId, int skillType, int skillValue) {
+		if (skillManager != null) {
+			skillManager.addSkillToInventory(skillType, skillValue);
+		}
+	}
+
 	/**
 	 * Notification that an alien has been killed
 	 */
@@ -401,8 +424,23 @@ public class Game extends Canvas implements Screen, GameplayContext
 	 * 
 	 * @return The player's attack power
 	 */
+	@Override
+	public int getPlayerAttackPower(String ownerId) {
+		return getPlayerAttackPower();
+	}
+
 	public int getPlayerAttackPower() {
 		return gameStateManager.getAttackPower();
+	}
+
+	@Override
+	public int getPlayerShipX(String ownerId) {
+		return ship != null ? ship.getX() : 0;
+	}
+
+	@Override
+	public int getPlayerShipY(String ownerId) {
+		return ship != null ? ship.getY() : 0;
 	}
 	
 	/**
@@ -417,8 +455,13 @@ public class Game extends Canvas implements Screen, GameplayContext
 	/**
 	 * Check if player is currently invincible
 	 */
+	@Override
+	public boolean isPlayerInvincible(String ownerId) {
+		return isPlayerInvincible();
+	}
+
 	public boolean isPlayerInvincible() {
-		return skillManager.isInvincible();
+		return skillManager != null && skillManager.isInvincible();
 	}
 	
 	/**
@@ -877,6 +920,7 @@ public class Game extends Canvas implements Screen, GameplayContext
 	/**
 	 * 엔티티 리스트 반환 (gameplay 패키지용)
 	 */
+	@Override
 	public ArrayList<Entity> getEntities() {
 		return gameStateManager.getEntities();
 	}
@@ -966,10 +1010,11 @@ public class Game extends Canvas implements Screen, GameplayContext
 	 * @param y Y coordinate
 	 * @param radius Heat effect radius
 	 */
+	@Override
 	public void createHeatEffect(int x, int y, double radius) {
 		try {
-			org.newdawn.spaceinvaders.gameplay.entity.HeatEffectEntity heatEffect = 
-				new org.newdawn.spaceinvaders.gameplay.entity.HeatEffectEntity(this, x, y);
+			HeatEffectEntity heatEffect =
+				new HeatEffectEntity(this, x, y);
 			gameStateManager.getEntities().add(heatEffect);
 		} catch (Exception e) {
 			System.err.println("Error creating heat effect: " + e.getMessage());

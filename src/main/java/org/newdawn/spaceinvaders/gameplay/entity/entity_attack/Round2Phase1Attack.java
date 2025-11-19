@@ -3,8 +3,7 @@ package org.newdawn.spaceinvaders.gameplay.entity.entity_attack;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
 import java.awt.Image;
-
-import org.newdawn.spaceinvaders.gameplay.entity.Entity;
+import org.newdawn.spaceinvaders.common.entity.Entity;
 import org.newdawn.spaceinvaders.gameplay.Game;
 
 /**
@@ -45,7 +44,7 @@ public class Round2Phase1Attack extends Entity {
         
         // 이미지 로드
         try {
-            projectileImage = org.newdawn.spaceinvaders.gameplay.sprite.SpriteStore.get().getSprite("sprites/Boss_Attack/2round3.gif").getImage();
+            projectileImage = org.newdawn.spaceinvaders.common.sprite.SpriteStore.get().getSprite("sprites/Boss_Attack/2round3.gif").getImage();
         } catch (Exception e) {
             System.err.println("Failed to load projectile image: " + e.getMessage());
         }
@@ -121,7 +120,7 @@ public class Round2Phase1Attack extends Entity {
      */
     public void collidedWith(Entity other) {
         // if we've hit the player's ship, damage it
-        if (other instanceof org.newdawn.spaceinvaders.gameplay.entity.ShipEntity) {
+        if (other instanceof org.newdawn.spaceinvaders.common.entity.ShipEntity) {
             game.removeEntity(this);
             game.notifyPlayerDamaged(damage);
         }

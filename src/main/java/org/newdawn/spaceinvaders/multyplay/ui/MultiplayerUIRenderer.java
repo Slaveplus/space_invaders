@@ -5,7 +5,6 @@ import java.awt.Color;
 import java.awt.Font;
 import java.awt.FontMetrics;
 import java.awt.Graphics2D;
-
 import org.newdawn.spaceinvaders.gameplay.UIRenderer;
 import org.newdawn.spaceinvaders.gameplay.ui.HudContext;
 import org.newdawn.spaceinvaders.gameplay.ui.SharedHudRenderer;

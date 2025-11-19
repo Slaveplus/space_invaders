@@ -2,10 +2,9 @@ package org.newdawn.spaceinvaders.multyplay.entity.attack;
 
 import java.awt.Graphics;
 import java.awt.Image;
-
 import org.newdawn.spaceinvaders.multyplay.core.MultiplayerGameContext;
-import org.newdawn.spaceinvaders.multyplay.entity.Entity;
-import org.newdawn.spaceinvaders.multyplay.entity.ShipEntity;
+import org.newdawn.spaceinvaders.common.entity.Entity;
+import org.newdawn.spaceinvaders.common.entity.ShipEntity;
 
 /**
  * 멀티플레이용 2라운드 보스 베기 공격.

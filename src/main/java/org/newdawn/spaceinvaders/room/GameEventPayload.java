@@ -2,7 +2,6 @@ package org.newdawn.spaceinvaders.room;
 
 import java.util.Collections;
 import java.util.List;
-
 import org.newdawn.spaceinvaders.multyplay.net.GameEvent;
 import org.newdawn.spaceinvaders.multyplay.net.protocol.GameEventCodec;
 import org.newdawn.spaceinvaders.multyplay.net.protocol.TextMessage;

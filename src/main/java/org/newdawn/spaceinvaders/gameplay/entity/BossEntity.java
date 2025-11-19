@@ -1,8 +1,8 @@
 package org.newdawn.spaceinvaders.gameplay.entity;
 
+import org.newdawn.spaceinvaders.common.entity.Entity;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
-
 import org.newdawn.spaceinvaders.gameplay.Game;
 import org.newdawn.spaceinvaders.gameplay.entity.entity_attack.Round2LaserAttack;
 import org.newdawn.spaceinvaders.gameplay.entity.entity_attack.Round2Phase1Attack;
@@ -15,7 +15,8 @@ import org.newdawn.spaceinvaders.gameplay.entity.entity_attack.Round3PullAttack;
 import org.newdawn.spaceinvaders.gameplay.entity.entity_attack.Round4HealAttack;
 import org.newdawn.spaceinvaders.gameplay.entity.entity_attack.Round4GreenSphereAttack;
 import org.newdawn.spaceinvaders.gameplay.entity.entity_attack.Round4PlayerLineAttack;
-
+import org.newdawn.spaceinvaders.common.entity.ShipEntity;
+import org.newdawn.spaceinvaders.common.entity.MagneticFieldEntity;
 import java.awt.Color;
 
 /**
@@ -493,8 +494,8 @@ public class BossEntity extends Entity {
             int fieldY = (int)y;
             
             // 자기장 엔티티 생성
-            org.newdawn.spaceinvaders.gameplay.entity.entity_attack.MagneticFieldEntity magneticField = 
-                new org.newdawn.spaceinvaders.gameplay.entity.entity_attack.MagneticFieldEntity(game, fieldX, fieldY, fieldRadius, fieldStrength, duration);
+            MagneticFieldEntity magneticField =
+                new MagneticFieldEntity(game, fieldX, fieldY, fieldRadius, fieldStrength, duration);
             
             game.addEntity(magneticField);
             

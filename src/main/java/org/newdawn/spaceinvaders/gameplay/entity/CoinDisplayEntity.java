@@ -1,5 +1,6 @@
 package org.newdawn.spaceinvaders.gameplay.entity;
 
+import org.newdawn.spaceinvaders.common.entity.Entity;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
 import java.awt.image.BufferedImage;
@@ -7,7 +8,6 @@ import java.awt.Font;
 import java.awt.Color;
 import javax.imageio.ImageIO;
 import java.io.InputStream;
-
 import org.newdawn.spaceinvaders.gameplay.Game;
 
 /**

@@ -2,7 +2,6 @@ package org.newdawn.spaceinvaders.multyplay.net.protocol;
 
 import java.util.ArrayList;
 import java.util.List;
-
 import org.newdawn.spaceinvaders.multyplay.net.GameEvent;
 
 /**
