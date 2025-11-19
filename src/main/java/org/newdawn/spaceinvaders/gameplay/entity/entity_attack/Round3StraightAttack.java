@@ -1,6 +1,6 @@
 package org.newdawn.spaceinvaders.gameplay.entity.entity_attack;
 
-import org.newdawn.spaceinvaders.gameplay.entity.Entity;
+import org.newdawn.spaceinvaders.common.entity.Entity;
 import org.newdawn.spaceinvaders.gameplay.Game;
 import java.awt.Graphics;
 
@@ -129,7 +129,7 @@ public class Round3StraightAttack extends Entity {
      */
     public void collidedWith(Entity other) {
         // if we've hit the player's ship, damage it
-        if (other instanceof org.newdawn.spaceinvaders.gameplay.entity.ShipEntity) {
+        if (other instanceof org.newdawn.spaceinvaders.common.entity.ShipEntity) {
             // Check if player is invincible
             if (game.isPlayerInvincible()) {
                 System.out.println("🛡️ Player is invincible, straight attack blocked");

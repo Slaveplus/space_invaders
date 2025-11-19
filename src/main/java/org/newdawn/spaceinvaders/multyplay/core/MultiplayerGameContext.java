@@ -1,17 +1,17 @@
 package org.newdawn.spaceinvaders.multyplay.core;
 
 import java.util.List;
-
-import org.newdawn.spaceinvaders.multyplay.entity.Entity;
+import org.newdawn.spaceinvaders.common.GameContext;
+import org.newdawn.spaceinvaders.common.entity.Entity;
 import org.newdawn.spaceinvaders.multyplay.entity.NearEntity;
 import org.newdawn.spaceinvaders.multyplay.state.MultiplayerGameStateManager;
-import org.newdawn.spaceinvaders.multyplay.entity.ShipEntity;
+import org.newdawn.spaceinvaders.common.entity.ShipEntity;
 
 /**
  * 게임 엔티티/스킬 시스템이 상호작용해야 하는 최소한의 게임 컨텍스트.
  * Canvas 기반 구현과 서버 사이에서 공통으로 사용된다.
  */
-public interface MultiplayerGameContext {
+public interface MultiplayerGameContext extends GameContext {
     MultiplayerGameStateManager getGameStateManager();
     MultiplayerSkillManager getSkillManager(String playerId);
 

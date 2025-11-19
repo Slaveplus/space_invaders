@@ -2,11 +2,10 @@ package org.newdawn.spaceinvaders.multyplay.entity.attack;
 
 import java.awt.Graphics;
 import java.awt.Image;
-
 import org.newdawn.spaceinvaders.multyplay.core.MultiplayerGameContext;
-import org.newdawn.spaceinvaders.multyplay.entity.Entity;
-import org.newdawn.spaceinvaders.multyplay.entity.ShipEntity;
-import org.newdawn.spaceinvaders.multyplay.sprite.SpriteStore;
+import org.newdawn.spaceinvaders.common.entity.Entity;
+import org.newdawn.spaceinvaders.common.entity.ShipEntity;
+import org.newdawn.spaceinvaders.common.sprite.SpriteStore;
 
 /**
  * 멀티플레이용 2라운드 1단계 공격.

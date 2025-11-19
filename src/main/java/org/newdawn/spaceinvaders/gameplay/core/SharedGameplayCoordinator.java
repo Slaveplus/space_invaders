@@ -2,14 +2,13 @@ package org.newdawn.spaceinvaders.gameplay.core;
 
 import java.util.List;
 import java.util.Objects;
-
 import org.newdawn.spaceinvaders.gameplay.GameStateManager;
 import org.newdawn.spaceinvaders.gameplay.SkillManager;
 import org.newdawn.spaceinvaders.gameplay.entity.AlienEntity;
 import org.newdawn.spaceinvaders.gameplay.entity.BossEntity;
-import org.newdawn.spaceinvaders.gameplay.entity.Entity;
+import org.newdawn.spaceinvaders.common.entity.Entity;
 import org.newdawn.spaceinvaders.gameplay.entity.NearEntity;
-import org.newdawn.spaceinvaders.gameplay.entity.ShipEntity;
+import org.newdawn.spaceinvaders.common.entity.ShipEntity;
 
 /**
  * Shared gameplay coordinator consolidating round progression and reward logic.

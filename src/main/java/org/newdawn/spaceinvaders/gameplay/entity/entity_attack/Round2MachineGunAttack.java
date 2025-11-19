@@ -1,6 +1,6 @@
 package org.newdawn.spaceinvaders.gameplay.entity.entity_attack;
 
-import org.newdawn.spaceinvaders.gameplay.entity.Entity;
+import org.newdawn.spaceinvaders.common.entity.Entity;
 import org.newdawn.spaceinvaders.gameplay.Game;
 import java.awt.Graphics;
 
@@ -128,7 +128,7 @@ public class Round2MachineGunAttack extends Entity {
      */
     public void collidedWith(Entity other) {
         // if we've hit the player's ship, damage it
-        if (other instanceof org.newdawn.spaceinvaders.gameplay.entity.ShipEntity) {
+        if (other instanceof org.newdawn.spaceinvaders.common.entity.ShipEntity) {
             System.out.println("🔫 Machine gun attack hit player ship!");
             game.removeEntity(this);
             game.notifyPlayerDamaged(damage);

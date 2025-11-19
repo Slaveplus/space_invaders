@@ -2,8 +2,7 @@ package org.newdawn.spaceinvaders.gameplay.entity.entity_attack;
 
 import java.awt.Graphics;
 import java.awt.Image;
-
-import org.newdawn.spaceinvaders.gameplay.entity.Entity;
+import org.newdawn.spaceinvaders.common.entity.Entity;
 import org.newdawn.spaceinvaders.gameplay.Game;
 
 /**
@@ -41,7 +40,7 @@ public class Round2Phase2Attack extends Entity {
         
         // 이미지 로드
         try {
-            projectileImage = org.newdawn.spaceinvaders.gameplay.sprite.SpriteStore.get().getSprite("sprites/Boss_Attack/2round1.gif").getImage();
+            projectileImage = org.newdawn.spaceinvaders.common.sprite.SpriteStore.get().getSprite("sprites/Boss_Attack/2round1.gif").getImage();
         } catch (Exception e) {
             System.err.println("Failed to load phase 2 projectile image: " + e.getMessage());
         }
@@ -87,7 +86,7 @@ public class Round2Phase2Attack extends Entity {
      */
     public void collidedWith(Entity other) {
         // if we've hit the player's ship, damage it
-        if (other instanceof org.newdawn.spaceinvaders.gameplay.entity.ShipEntity) {
+        if (other instanceof org.newdawn.spaceinvaders.common.entity.ShipEntity) {
             // Check if player is invincible
             if (game.isPlayerInvincible()) {
                 System.out.println("🛡️ Player is invincible, phase2 attack blocked");

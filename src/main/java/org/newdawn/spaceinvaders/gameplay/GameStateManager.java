@@ -1,6 +1,6 @@
 package org.newdawn.spaceinvaders.gameplay;
 
-import org.newdawn.spaceinvaders.gameplay.entity.Entity;
+import org.newdawn.spaceinvaders.common.entity.Entity;
 import java.util.ArrayList;
 
 /**

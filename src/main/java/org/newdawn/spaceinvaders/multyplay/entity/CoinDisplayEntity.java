@@ -1,5 +1,6 @@
 package org.newdawn.spaceinvaders.multyplay.entity;
 
+import org.newdawn.spaceinvaders.common.entity.Entity;
 import java.awt.AlphaComposite;
 import java.awt.BasicStroke;
 import java.awt.Color;
@@ -9,9 +10,7 @@ import java.awt.Graphics;
 import java.awt.Graphics2D;
 import java.awt.image.BufferedImage;
 import java.io.InputStream;
-
 import javax.imageio.ImageIO;
-
 import org.newdawn.spaceinvaders.multyplay.core.MultiplayerGameCanvas;
 
 /**

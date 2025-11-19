@@ -6,7 +6,6 @@ import java.net.Socket;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.Set;
-
 import org.newdawn.spaceinvaders.server.game.ServerGameManager;
 
 /** 매우 단순한 스레드형 게임 서버 (학습/프로토타입 용) */

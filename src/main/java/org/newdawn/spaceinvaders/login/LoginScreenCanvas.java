@@ -3,7 +3,6 @@ package org.newdawn.spaceinvaders.login;
 import org.newdawn.spaceinvaders.SpaceInvadersApp;
 import org.newdawn.spaceinvaders.app.Screen;
 import org.newdawn.spaceinvaders.app.ScreenNavigator;
-
 import java.awt.*;
 import java.awt.event.KeyAdapter;
 import java.awt.event.KeyEvent;

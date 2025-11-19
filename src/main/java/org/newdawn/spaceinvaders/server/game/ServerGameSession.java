@@ -3,7 +3,6 @@ package org.newdawn.spaceinvaders.server.game;
 import static org.newdawn.spaceinvaders.server.MessageType.GAME_EVENT;
 import static org.newdawn.spaceinvaders.server.MessageType.GAME_INIT;
 import static org.newdawn.spaceinvaders.server.MessageType.GAME_STATE;
-
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
@@ -14,7 +13,6 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
-
 import org.newdawn.spaceinvaders.database.FirebaseConfig;
 import org.newdawn.spaceinvaders.database.FirebaseDatabaseClient;
 import org.newdawn.spaceinvaders.database.LeaderboardRecord;

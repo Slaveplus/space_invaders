@@ -1,5 +1,6 @@
 package org.newdawn.spaceinvaders.multyplay.entity;
 
+import org.newdawn.spaceinvaders.common.entity.Entity;
 import java.awt.Color;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
@@ -7,7 +8,6 @@ import java.awt.Rectangle;
 import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.Map;
-
 import org.newdawn.spaceinvaders.multyplay.core.MultiplayerGameContext;
 import org.newdawn.spaceinvaders.multyplay.entity.attack.IceAttack;
 import org.newdawn.spaceinvaders.multyplay.entity.attack.IceBallAttack;

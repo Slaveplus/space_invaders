@@ -3,7 +3,6 @@ package org.newdawn.spaceinvaders.server.game;
 import java.util.Collection;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
-
 import org.newdawn.spaceinvaders.server.GameServer;
 import org.newdawn.spaceinvaders.server.PlayerSession;
 import org.newdawn.spaceinvaders.server.Room;

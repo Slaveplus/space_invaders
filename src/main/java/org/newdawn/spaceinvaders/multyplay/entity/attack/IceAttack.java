@@ -6,10 +6,9 @@ import java.awt.Image;
 import java.awt.Rectangle;
 import java.awt.RenderingHints;
 import java.awt.Toolkit;
-
 import org.newdawn.spaceinvaders.multyplay.core.MultiplayerGameContext;
-import org.newdawn.spaceinvaders.multyplay.entity.Entity;
-import org.newdawn.spaceinvaders.multyplay.entity.ShipEntity;
+import org.newdawn.spaceinvaders.common.entity.Entity;
+import org.newdawn.spaceinvaders.common.entity.ShipEntity;
 
 /**
  * 멀티플레이용 아이스 공격 엔티티.

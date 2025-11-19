@@ -1,18 +1,16 @@
 package org.newdawn.spaceinvaders.gameplay.entity.entity_attack;
 
-import org.newdawn.spaceinvaders.gameplay.entity.Entity;
-import org.newdawn.spaceinvaders.gameplay.entity.ShipEntity;
+import org.newdawn.spaceinvaders.common.entity.Entity;
+import org.newdawn.spaceinvaders.common.entity.ShipEntity;
 import org.newdawn.spaceinvaders.gameplay.Game;
-import org.newdawn.spaceinvaders.gameplay.sprite.Sprite;
-import org.newdawn.spaceinvaders.gameplay.sprite.SpriteStore;
-
+import org.newdawn.spaceinvaders.common.sprite.Sprite;
+import org.newdawn.spaceinvaders.common.sprite.SpriteStore;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
 import java.awt.Image;
 import java.awt.Rectangle;
 import java.awt.RenderingHints;
 import java.awt.Toolkit;
-
 import org.newdawn.spaceinvaders.gameplay.Game;
 
 /**

@@ -3,10 +3,8 @@ package org.newdawn.spaceinvaders.mainmenu;
 import java.awt.*;
 import java.awt.image.BufferedImage;
 import javax.imageio.ImageIO;
-
 import org.newdawn.spaceinvaders.multyplay.core.MultiplayerSkillManager;
 import org.newdawn.spaceinvaders.gameplay.SkillManager;
-
 import java.io.IOException;
 import java.io.InputStream;
 
