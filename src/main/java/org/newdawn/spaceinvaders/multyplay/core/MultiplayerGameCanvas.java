@@ -146,19 +146,28 @@ public class MultiplayerGameCanvas extends Canvas implements Screen, Multiplayer
 	 * Construct our game and set it running.
 	 */
 	public MultiplayerGameCanvas() {
+		initCanvas();
+		initComponents();
+		initInputHandlers();
+		initEntities();
+	}
+
+	private void initCanvas() {
 		setIgnoreRepaint(true);
 		setBounds(0,0,800,600);
 		setFocusable(true);
+	}
+
+	private void initComponents() {
+		// initialize the game state manager
+		gameStateManager = new MultiplayerGameStateManager();
+		localPlayerId = gameStateManager.getLocalPlayerId();
+		gameStateManager.ensurePlayer(localPlayerId);
+		gameStateManager.setLocalPlayerId(localPlayerId);
 		
-	// initialize the game state manager
-	gameStateManager = new MultiplayerGameStateManager();
-	localPlayerId = gameStateManager.getLocalPlayerId();
-	gameStateManager.ensurePlayer(localPlayerId);
-	gameStateManager.setLocalPlayerId(localPlayerId);
-	
-	// initialize the skill manager
-	skillManager = new MultiplayerSkillManager(this, localPlayerId);
-		
+		// initialize the skill manager
+		skillManager = new MultiplayerSkillManager(this, localPlayerId);
+			
 		// initialize the UI renderer
 		uiRenderer = new MultiplayerUIRenderer(this);
 
@@ -168,16 +177,14 @@ public class MultiplayerGameCanvas extends Canvas implements Screen, Multiplayer
 		// initialize the input manager
 		inputManager = new MultiplayerInputManager(gameStateManager, this);
 		
+		// 기본 로컬 네트워크 어댑터 설정 (멀티 환경에서는 외부에서 교체)
+		this.networkAdapter = new LocalLoopbackNetworkAdapter(gameStateManager);
+	}
+
+	private void initInputHandlers() {
 		// add input handlers (after inputManager is initialized)
 		addKeyListener(inputManager.new KeyInputHandler());
 		addMouseListener(inputManager.new MouseInputHandler());
-		
-		// initialise the entities in our game so there's something
-		// to see at startup
-		initEntities();
-
-		// 기본 로컬 네트워크 어댑터 설정 (멀티 환경에서는 외부에서 교체)
-		this.networkAdapter = new LocalLoopbackNetworkAdapter(gameStateManager);
 	}
 
 	public void setNetworkAdapter(GameNetworkAdapter adapter) {

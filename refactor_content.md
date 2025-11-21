@@ -134,3 +134,24 @@ case "Round4GreenSphereAttack":
 
 #### **변경 내용**:
 *   `MultiplayerInputManager.java` 클래스 내부에 `SKILL_POINT_LACK_PREFIX`, `SKILL_LEVEL_SUFFIX`, `SKILL_POINT_HOLD_SUFFIX` 상수를 선언하고 중복된 문자열 리터럴을 해당 상수로 대체.
+---
+### **생성자 복잡도 감소 (MultiplayerGameCanvas)**
+
+#### **냄새**: **높은 인지 복잡도 (High Cognitive Complexity)**
+
+`MultiplayerGameCanvas` 클래스의 생성자는 캔버스 설정, 컴포넌트 초기화, 입력 핸들러 등록 등 여러 역할을 동시에 수행하고 있어 인지 복잡도가 20으로 높았습니다. 이로 인해 코드의 가독성과 유지보수성이 저하되었습니다.
+
+#### **대상**: `MultiplayerGameCanvas` 생성자
+
+#### **적용 기법**: **메서드 추출 (Extract Method)**
+
+생성자의 각기 다른 책임들을 별도의 private 메서드로 분리했습니다.
+-   `initCanvas()`: 캔버스 관련 설정을 담당합니다.
+-   `initComponents()`: `gameStateManager`, `skillManager`, `uiRenderer` 등 핵심 컴포넌트들의 초기화를 담당합니다.
+-   `initInputHandlers()`: 키보드 및 마우스 입력 핸들러 등록을 담당합니다.
+
+이를 통해 생성자의 복잡도를 낮추고, 각 초기화 단계의 역할을 명확히 하여 코드의 가독성과 유지보수성을 향상시켰습니다.
+
+#### **변경 내용**:
+*   `MultiplayerGameCanvas` 생성자의 내용을 `initCanvas()`, `initComponents()`, `initInputHandlers()`, `initEntities()` 메서드 호출로 변경.
+*   `initCanvas()`, `initComponents()`, `initInputHandlers()` private 메서드를 새로 생성하여 기존 생성자의 초기화 로직을 분리.
