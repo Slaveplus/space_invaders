@@ -1672,11 +1672,9 @@ public class MultiplayerGameCanvas extends Canvas implements Screen, Multiplayer
 		private int skillValue;
 		private boolean hasPiercing;
 		private boolean nearMonsterShot;
-		private String spritePath;
 
 		RemoteShotEntity(EntitySnapshot snapshot, Map<String, String> meta) {
 			super(resolveShotSprite(snapshot), (int) snapshot.x, (int) snapshot.y);
-			this.spritePath = resolveShotSprite(snapshot);
 			apply(meta);
 		}
 
@@ -1696,8 +1694,7 @@ public class MultiplayerGameCanvas extends Canvas implements Screen, Multiplayer
 			nearMonsterShot = "1".equals(meta.get("near"));
 			String spriteOverride = meta.get("sprite");
 			if (spriteOverride != null && !spriteOverride.isEmpty()) {
-				spritePath = spriteOverride;
-				changeSkin(spritePath);
+				changeSkin(spriteOverride);
 			}
 		}
 
