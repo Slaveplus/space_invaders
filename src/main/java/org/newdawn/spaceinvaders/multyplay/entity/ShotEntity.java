@@ -123,9 +123,9 @@ public class ShotEntity extends Entity {
 				g2d.setColor(Color.DARK_GRAY);
 				g2d.drawOval((int)Math.round(x) - sphereSize/2, (int)Math.round(y) - sphereSize/2, sphereSize, sphereSize);
 			}
-			// 3라운드: 2round1.gif (스프라이트 그리기) - 5배 크기
+			// 3라운드: 2round1.gif (스프라이트 그리기) - 원래 크기
 			else if (spritePath != null && spritePath.equals("sprites/Boss_Attack/2round1.gif")) {
-				int size = 150; // 3라운드 공격 크기 (30 * 5 = 150)
+				int size = 30; // 3라운드 공격 크기 (원래 크기)
 				drawScaledSprite(g, size);
 			}
 			// 1라운드: ice ball.gif (스프라이트 그리기) - 5배 크기
@@ -162,7 +162,14 @@ public class ShotEntity extends Entity {
 			if (other instanceof ShipEntity) {
 				ShipEntity ship = (ShipEntity) other;
 				game.removeEntity(this);
-				game.notifyPlayerDamaged(ship.getOwnerId(), 1);
+				// 라운드별 데미지: 1,3라운드=1, 5라운드=2, 7라운드=3
+				int damage = 1; // 기본 데미지
+				if (nearMonsterRound == 5) {
+					damage = 2; // 5라운드 몬스터 데미지 2
+				} else if (nearMonsterRound == 7) {
+					damage = 3; // 7라운드 몬스터 데미지 3
+				}
+				game.notifyPlayerDamaged(ship.getOwnerId(), damage);
 				used = true;
 			}
 			return;

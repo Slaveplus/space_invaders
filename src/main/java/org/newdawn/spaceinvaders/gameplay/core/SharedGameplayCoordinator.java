@@ -55,6 +55,10 @@ public class SharedGameplayCoordinator {
     }
 
     public void handleAlienKilled(String playerId) {
+        handleAlienKilled(playerId, 400, 100); // 기본 위치로 호출 (레거시 호환)
+    }
+    
+    public void handleAlienKilled(String playerId, int x, int y) {
         GameStateManager gsm = getGameStateManager();
         String targetId = playerId != null ? playerId : gsm.getLocalPlayerId();
         SkillManager skillManager = context.getSkillManager(targetId);
@@ -62,7 +66,7 @@ public class SharedGameplayCoordinator {
         gsm.addSkillPoints(skillManager.getRandomSkillPoints(gsm.getCurrentRound()));
         double dropChance = skillManager.getSkillDropChance(gsm.getCurrentRound());
         if (Math.random() < dropChance) {
-            skillManager.dropSkill(gsm.getCurrentRound());
+            skillManager.dropSkill(gsm.getCurrentRound(), x, y);
         }
 
         int remainingHostiles = 0;

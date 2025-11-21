@@ -179,11 +179,14 @@ public class ShotEntity extends Entity {
 			game.createHeatEffect((int)other.getX(), (int)other.getY(), 50.0);
 			
 			// remove the affected entities
+			// 위치 정보 저장 (제거 전에)
+			int killX = (int) other.getX();
+			int killY = (int) other.getY();
 			game.removeEntity(this);
 			game.removeEntity(other);
 			
-			// notify the game that the alien has been killed
-			game.notifyAlienKilled();
+			// notify the game that the alien has been killed (위치 정보 전달)
+			game.notifyAlienKilled(killX, killY);
 			used = true;
 		}
 		
@@ -241,16 +244,24 @@ public class ShotEntity extends Entity {
 			game.removeEntity(this);
 			
 			// notify the game that the player has been damaged
-			game.notifyPlayerDamaged(1);
+			// 라운드별 데미지: 1,3라운드=1, 5라운드=2, 7라운드=3
+			int damage = 1; // 기본 데미지
+			if (nearMonsterRound == 5) {
+				damage = 2; // 5라운드 몬스터 데미지 2
+			} else if (nearMonsterRound == 7) {
+				damage = 3; // 7라운드 몬스터 데미지 3
+			}
+			game.notifyPlayerDamaged(damage);
 			used = true;
 		}
 		
 		// if this is a skill drop and we've hit the player's ship
 		if (isSkillDrop && other instanceof ShipEntity) {
+			// 스킬을 인벤토리에 추가
+			game.addSkillToInventory(skillType, skillValue);
+			
 			// remove the skill drop
 			game.removeEntity(this);
-			
-			// TODO: Implement skill collection logic
 			used = true;
 		}
 	}
@@ -338,9 +349,9 @@ public class ShotEntity extends Entity {
 				g2d.setColor(Color.DARK_GRAY);
 				g2d.drawOval((int)x - sphereSize/2, (int)y - sphereSize/2, sphereSize, sphereSize);
 			}
-			// 3라운드: 2round1.gif (스프라이트 그리기) - 5배 크기
+			// 3라운드: 2round1.gif (스프라이트 그리기) - 원래 크기
 			else if (spritePath != null && spritePath.equals("sprites/Boss_Attack/2round1.gif")) {
-				int size = 150; // 3라운드 공격 크기 (30 * 5 = 150)
+				int size = 30; // 3라운드 공격 크기 (원래 크기)
 				sprite.draw(g, (int)x - size/2, (int)y - size/2, size, size);
 			}
 			// 1라운드: ice ball.gif (스프라이트 그리기) - 5배 크기

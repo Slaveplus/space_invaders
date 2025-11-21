@@ -126,7 +126,24 @@ public class BossEntity extends Entity {
         this.round = round;
         
         // Scale boss stats based on round
-        maxHP = 50 + (round * 30); // 80, 110, 140, 170, 200...
+        // 보스 라운드별 HP 설정 (2배 증가): 1라운드=200, 2라운드=280, 3라운드=400, 4라운드=600
+        switch (round) {
+            case 1:
+                maxHP = 200; // 게임 라운드 2 (100 * 2)
+                break;
+            case 2:
+                maxHP = 280; // 게임 라운드 4 (140 * 2)
+                break;
+            case 3:
+                maxHP = 400; // 게임 라운드 6 (200 * 2)
+                break;
+            case 4:
+                maxHP = 600; // 게임 라운드 8 (300 * 2)
+                break;
+            default:
+                maxHP = 200; // 기본값
+                break;
+        }
         currentHP = maxHP;
         
         // Scale movement speed
@@ -1200,6 +1217,17 @@ public class BossEntity extends Entity {
     public void healToFull() {
         currentHP = maxHP;
         System.out.println("🟣 Boss healed to full HP: " + currentHP + "/" + maxHP);
+    }
+    
+    /**
+     * Heal boss by specified amount (called by Round4HealAttack)
+     * 
+     * @param amount The amount of HP to heal
+     */
+    public void healByAmount(int amount) {
+        int oldHP = currentHP;
+        currentHP = Math.min(maxHP, currentHP + amount);
+        System.out.println("🟣 Boss healed by " + amount + " HP: " + oldHP + " → " + currentHP + "/" + maxHP);
     }
 
 }
