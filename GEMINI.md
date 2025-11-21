@@ -71,24 +71,26 @@ java -cp target/space_invaders-1.0-SNAPSHOT.jar org.newdawn.spaceinvaders.server
 
 *   리펙토링을 진행할 때, 기존의 기능이 똑같이 작동하도록 유지하면서 리펙토링을 해야합니다.
 *   리펙토링을 진행한 후, 빌드를 실행하여 오류가 없는지 확인합니다. 실행은 하지 않아도 됩니다.
-*   리펙토링을 진행한 내용을 아래에 표시된 내용과 같은 양식 예시(리펙토링 진행 내용 작성 예시)대로 refactor_content.m에 작성해야합니다.
+*   리펙토링을 진행한 내용을 아래에 표시된 내용과 같은 양식 예시(리펙토링 진행 내용 작성 예시)대로 refactor_content.md에 작성해야합니다. 이때 기존 내용 뒤에 덧붙혀 작성합니다. 
+*   절대 임의로 커밋하지 않습니다.
 
 ## 리펙토링 진행 내용 작성 예시
 """
-# **응답 처리 불일관성 수정**
+### **CRUD 공통화 (Create, Read, Update, Delete)**
 
-## **냄새 : 추상화 불일관성 (Inconsistent Abstraction)**
+#### **냄새** : **중복 코드 (Duplicated Code)**
 
-## 대상 : 클래스 내부의 ”null” 응답 검사, 에러 스트림 읽기, JSON 파싱 로직
+기존 putData, updateData, postData, getData, getDataAsMap, deleteData는 URL 생성, 직렬화, 스트림 처리, 오류 메시지를 모두 개별적으로 구현했음.
+동일한 변경이 필요할 때 여러 메서드를 동시 수정해야 함.
 
-## 적용기법 : 응답 정보를 DatabaseResponse 값 객체로 캡슐화를 진행. readData 에서만 hasBody() / isSuccessful()을 해석하도록 변경. 이를 적용함으로써 호출부는 “성공 여부” + “원하는 타입”만 다루고, 이외의 응답 파싱은 외부로부터 숨겨짐.
+#### **대상** : putData, updateData, deleteData, postData, getData, getDataAsMap, createConnection
+
+#### **적용 기법 :** 공통 로직을 writeData, readData, executeRequest, DatabaseResponse로 템플릿화하여 **캡슐화함.** 이를 통해 CRUD 메서드는 용도에 맞는 파라미터만 넘기고, 내부 구현 세부사항은 템플릿이 감싸게 됨.
 
 ```java
-private static final class DatabaseResponse {
-    private final int code;
-    private final String body;
-    private boolean isSuccessful() { return code >= 200 && code < 300; }
-    private boolean hasBody() { return body != null && !body.isEmpty() && !"null".equals(body); }
-}
+
+private boolean writeData(String path, Object data, HttpMethod method, String operation) { ... }
+private <T> T readData(String path, Type responseType) { ... }
+private DatabaseResponse executeRequest(String path, HttpMethod method, Object payload) throws IOException {
 ```
 """
