@@ -95,94 +95,105 @@ public class MultiplayerInputManager {
          * 게임플레이 중 키 눌림 처리
          */
 		private void handleGameplayKeyPressed(KeyEvent e) {
-			if (game.handleIntermissionKeyPressed(e)) {
+			if (shouldIgnoreInput(e)) {
 				return;
+			}
+
+			if (handleMenuKeys(e) || handleNavigationAndActivationKeys(e)) {
+				return;
+			}
+
+			handleMovementKeys(e);
+		}
+
+		private boolean shouldIgnoreInput(KeyEvent e) {
+			if (game.handleIntermissionKeyPressed(e)) {
+				return true;
 			}
 			int keyCode = e.getKeyCode();
 			boolean intermissionVisible = game.isIntermissionOverlayVisible() || game.isSpectatorOverlayVisible();
 			boolean allowSkillMenu = gameStateManager.isShowingSkillMenu() && intermissionVisible;
 			boolean keyOpensSkillMenu = keyCode == KeyEvent.VK_Q;
-			if ((gameStateManager.isWaitingForKeyPress() || intermissionVisible) && !allowSkillMenu && !keyOpensSkillMenu) {
-				return;
+			return (gameStateManager.isWaitingForKeyPress() || intermissionVisible) && !allowSkillMenu && !keyOpensSkillMenu;
+		}
+
+		private boolean handleMenuKeys(KeyEvent e) {
+			int keyCode = e.getKeyCode();
+			if (keyCode == KeyEvent.VK_F4) {
+				gameStateManager.toggleDebugDrawHitboxes();
+				System.out.println("Hitbox debug overlay (multiplayer): " + (gameStateManager.isDebugDrawHitboxes() ? "ON" : "OFF"));
+				return true;
 			}
-            if (keyCode == KeyEvent.VK_F4) {
-                gameStateManager.toggleDebugDrawHitboxes();
-                boolean enabled = gameStateManager.isDebugDrawHitboxes();
-                System.out.println("Hitbox debug overlay (multiplayer): " + (enabled ? "ON" : "OFF"));
-                return;
-            }
-            
-            // Handle ESC key for pause menu (only during gameplay)
 			if (keyCode == KeyEvent.VK_ESCAPE) {
-                if (gameStateManager.isShowingPauseMenu()) {
-                    gameStateManager.hidePauseMenu();
-                } else if (!gameStateManager.isShowingSkillMenu()) {
-                    // Only open pause menu if skill menu is not open
-                    gameStateManager.showPauseMenu();
-                }
-                return;
-            }
-            
-            // Handle Q key for skill menu
-			if (keyCode == KeyEvent.VK_Q) {
-			if (gameStateManager.isShowingSkillMenu()) {
-				gameStateManager.hideSkillMenu();
-			} else if (!gameStateManager.isShowingPauseMenu()) {
-				gameStateManager.showSkillMenu();
+				if (gameStateManager.isShowingPauseMenu()) {
+					gameStateManager.hidePauseMenu();
+				} else if (!gameStateManager.isShowingSkillMenu()) {
+					gameStateManager.showPauseMenu();
+				}
+				return true;
 			}
-                return;
-            }
-            
-			// Handle pause menu navigation when pause menu is open
+			if (keyCode == KeyEvent.VK_Q) {
+				if (gameStateManager.isShowingSkillMenu()) {
+					gameStateManager.hideSkillMenu();
+				} else if (!gameStateManager.isShowingPauseMenu()) {
+					gameStateManager.showSkillMenu();
+				}
+				return true;
+			}
+			return false;
+		}
+
+		private boolean handleNavigationAndActivationKeys(KeyEvent e) {
 			if (gameStateManager.isShowingPauseMenu()) {
 				handlePauseMenuInput(e);
-				return;
+				return true;
 			}
-			
-			// Handle skill menu navigation when skill menu is open
 			if (gameStateManager.isShowingSkillMenu()) {
-                handleSkillMenuInput(e);
-                return;
-            }
-            
-            // Handle skill activation keys (only when skill menu is not open)
-			if (keyCode == KeyEvent.VK_1) {
-                if (game.isRemoteSession()) {
-                    game.sendSkillActivationRequest(0);
-                } else {
-                    skillManager.extendSkill(0, 5); // 5 seconds invincible
-                }
-                return;
-            }
-            
-			if (keyCode == KeyEvent.VK_2) {
-                if (game.isRemoteSession()) {
-                    game.sendSkillActivationRequest(2);
-                } else {
-                    skillManager.extendSkill(2, 8); // 8 seconds triple shot
-                }
-                return;
-            }
-            
-			if (keyCode == KeyEvent.VK_3) {
-                if (game.isRemoteSession()) {
-                    game.sendSkillActivationRequest(3);
-                } else {
-                    skillManager.activateSkill(3, 1); // Activate missile skill
-                }
-                return;
-            }
-            
+				handleSkillMenuInput(e);
+				return true;
+			}
+			return handleSkillActivationKeys(e);
+		}
+
+		private boolean handleSkillActivationKeys(KeyEvent e) {
+			int keyCode = e.getKeyCode();
+			switch (keyCode) {
+				case KeyEvent.VK_1:
+					activateSkill(0, 5);
+					return true;
+				case KeyEvent.VK_2:
+					activateSkill(2, 8);
+					return true;
+				case KeyEvent.VK_3:
+					activateSkill(3, 1);
+					return true;
+				default:
+					return false;
+			}
+		}
+
+		private void activateSkill(int skillType, int value) {
+			if (game.isRemoteSession()) {
+				game.sendSkillActivationRequest(skillType);
+			} else {
+				if(skillType == 3) {
+					skillManager.activateSkill(skillType, value);
+				} else {
+					skillManager.extendSkill(skillType, value);
+				}
+			}
+		}
+
+		private void handleMovementKeys(KeyEvent e) {
+			int keyCode = e.getKeyCode();
 			if (keyCode == KeyEvent.VK_LEFT) {
-                leftPressed = true;
-            }
-			if (keyCode == KeyEvent.VK_RIGHT) {
-                rightPressed = true;
-            }
-			if (keyCode == KeyEvent.VK_SPACE) {
-                firePressed = true;
-            }
-        }
+				leftPressed = true;
+			} else if (keyCode == KeyEvent.VK_RIGHT) {
+				rightPressed = true;
+			} else if (keyCode == KeyEvent.VK_SPACE) {
+				firePressed = true;
+			}
+		}
         
         /**
          * 게임플레이 중 키 릴리즈 처리
@@ -287,6 +298,10 @@ public class MultiplayerInputManager {
                 gameStateManager.hidePauseMenu();
                 gameStateManager.setWaitingForKeyPress(true);
                 break;
+            default:
+                // Log or handle unexpected selectedPauseMenuItem value
+                System.err.println("Unexpected selectedPauseMenuItem: " + gameStateManager.getSelectedPauseMenuItem());
+                break;
         }
     }
     
@@ -368,6 +383,9 @@ public class MultiplayerInputManager {
                 } else {
                     result = SKILL_POINT_LACK_PREFIX + skillManager.getHpUpCost() + SKILL_POINT_HOLD_SUFFIX + skillPoints + ")";
                 }
+                break;
+            default:
+                result = "알 수 없는 스킬입니다.";
                 break;
         }
         

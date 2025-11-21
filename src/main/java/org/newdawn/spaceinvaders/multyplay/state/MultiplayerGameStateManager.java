@@ -424,6 +424,10 @@ public class MultiplayerGameStateManager {
         selectedPauseMenuItem = item;
     }
 
+    public boolean isGamePaused() {
+        return isWaitingForKeyPress() || isShowingPauseMenu() || isShowingSkillMenu();
+    }
+
     private void startPauseTimer() {
         if (pauseStartTime == 0) {
             pauseStartTime = System.currentTimeMillis();

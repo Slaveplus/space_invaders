@@ -103,39 +103,47 @@ public final class SharedMultiplayerRoundCoordinator {
                                                      double killX,
                                                      double killY) {
         MultiplayerGameStateManager gsm = context.getGameStateManager();
-        if (killerPlayerId == null) {
-            killerPlayerId = gsm.getLocalPlayerId();
-        }
+        String finalKillerId = (killerPlayerId == null) ? gsm.getLocalPlayerId() : killerPlayerId;
 
-        if (killerPlayerId != null) {
-            context.addSkillPoints(killerPlayerId, 2 + mapBossRound(nearEntity.getRound()));
-            MultiplayerSkillManager manager = context.getSkillManager(killerPlayerId);
-            if (manager != null) {
-                double dropChance = manager.getSkillDropChance(gsm.getCurrentRound());
-                if (RNG.nextDouble() < dropChance) {
-                    manager.dropSkill(gsm.getCurrentRound(), killX, killY);
-                }
-            }
-            int coinReward = 5 + mapBossRound(nearEntity.getRound());
-            context.addCoins(killerPlayerId, coinReward);
-            int coinX = Double.isNaN(killX) ? 400 : (int) killX;
-            int coinY = Double.isNaN(killY) ? 200 : (int) killY;
-            context.showCoinEarned(killerPlayerId, coinX, coinY, coinReward);
+        if (finalKillerId != null) {
+            givePlayerRewards(context, nearEntity, finalKillerId, killX, killY);
         }
 
         int remaining = Math.max(0, gsm.getAlienCount() - 1);
         gsm.setAlienCount(remaining);
         if (remaining == 0) {
-            int waveClearReward = Math.max(0, gsm.getCurrentRound() * 8);
-            if (waveClearReward > 0) {
-                context.addCoins(killerPlayerId, waveClearReward);
-                int rewardX = Double.isNaN(killX) ? 400 : (int) killX;
-                int rewardY = Double.isNaN(killY) ? 200 : (int) killY;
-                context.showCoinEarned(killerPlayerId, rewardX, rewardY, waveClearReward);
-            }
-            return true;
+            return checkWaveClear(context, finalKillerId, killX, killY);
         }
         return false;
+    }
+
+    private static void givePlayerRewards(MultiplayerGameContext context, NearEntity nearEntity, String killerPlayerId, double killX, double killY) {
+        MultiplayerGameStateManager gsm = context.getGameStateManager();
+        context.addSkillPoints(killerPlayerId, 2 + mapBossRound(nearEntity.getRound()));
+        MultiplayerSkillManager manager = context.getSkillManager(killerPlayerId);
+        if (manager != null) {
+            double dropChance = manager.getSkillDropChance(gsm.getCurrentRound());
+            if (RNG.nextDouble() < dropChance) {
+                manager.dropSkill(gsm.getCurrentRound(), killX, killY);
+            }
+        }
+        int coinReward = 5 + mapBossRound(nearEntity.getRound());
+        context.addCoins(killerPlayerId, coinReward);
+        int coinX = Double.isNaN(killX) ? 400 : (int) killX;
+        int coinY = Double.isNaN(killY) ? 200 : (int) killY;
+        context.showCoinEarned(killerPlayerId, coinX, coinY, coinReward);
+    }
+
+    private static boolean checkWaveClear(MultiplayerGameContext context, String killerPlayerId, double killX, double killY) {
+        MultiplayerGameStateManager gsm = context.getGameStateManager();
+        int waveClearReward = Math.max(0, gsm.getCurrentRound() * 8);
+        if (waveClearReward > 0 && killerPlayerId != null) {
+            context.addCoins(killerPlayerId, waveClearReward);
+            int rewardX = Double.isNaN(killX) ? 400 : (int) killX;
+            int rewardY = Double.isNaN(killY) ? 200 : (int) killY;
+            context.showCoinEarned(killerPlayerId, rewardX, rewardY, waveClearReward);
+        }
+        return true;
     }
 
     public static void handleBossDefeated(MultiplayerGameContext context, String killerPlayerId) {
