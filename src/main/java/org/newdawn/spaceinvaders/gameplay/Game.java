@@ -308,6 +308,13 @@ public class Game extends Canvas implements Screen, GameplayContext, GameContext
 	}
 	
 	/**
+	 * Notification that an alien has been killed (with position)
+	 */
+	public void notifyAlienKilled(int x, int y) {
+		gameplayCoordinator.handleAlienKilled(gameStateManager.getLocalPlayerId(), x, y);
+	}
+	
+	/**
 	 * Attempt to fire a shot from the player. Its called "try"
 	 * since we must first check that the player can fire at this 
 	 * point, i.e. has he/she waited long enough between shots

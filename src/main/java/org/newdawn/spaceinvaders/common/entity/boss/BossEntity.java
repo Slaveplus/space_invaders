@@ -79,7 +79,24 @@ public class BossEntity extends Entity {
         this.environment = environment;
         this.round = round;
 
-        maxHP = 50 + (round * 30);
+        // 보스 라운드별 HP 설정 (2배 증가): 1라운드=200, 2라운드=280, 3라운드=400, 4라운드=600
+        switch (round) {
+            case 1:
+                maxHP = 200; // 게임 라운드 2 (100 * 2)
+                break;
+            case 2:
+                maxHP = 280; // 게임 라운드 4 (140 * 2)
+                break;
+            case 3:
+                maxHP = 400; // 게임 라운드 6 (200 * 2)
+                break;
+            case 4:
+                maxHP = 600; // 게임 라운드 8 (300 * 2)
+                break;
+            default:
+                maxHP = 200; // 기본값
+                break;
+        }
         currentHP = maxHP;
         moveSpeed = 50 + (round * 10);
 
