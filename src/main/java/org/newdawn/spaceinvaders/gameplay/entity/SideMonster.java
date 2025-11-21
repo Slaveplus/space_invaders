@@ -192,11 +192,13 @@ public class SideMonster extends Entity {
 			ExplosionEntity explosion = new ExplosionEntity(game, "sprites/Skill/Explosion.png", (int)x, (int)y, 1000);
 			game.addEntity(explosion);
 			
-			// Remove this entity
+			// Remove this entity - 위치 정보 저장 (제거 전에)
+			int killX = (int) x;
+			int killY = (int) y;
 			game.removeEntity(this);
 			
-			// Notify game
-			game.notifyAlienKilled();
+			// Notify game (위치 정보 전달)
+			game.notifyAlienKilled(killX, killY);
 		}
 	}
 	

@@ -152,7 +152,7 @@ public class Round4PlayerLineAttack extends Entity {
                 int currentHP = (Integer) hpField.get(player);
                 
                 // Calculate small fixed damage instead of percentage
-                int smallDamage = 5; // 고정 5 데미지
+                int smallDamage = 8; // 고정 8 데미지
                 
                 System.out.println("🟣 4round3 attack hit player! Small damage: " + smallDamage + " (from " + currentHP + " HP)");
                 
@@ -163,7 +163,7 @@ public class Round4PlayerLineAttack extends Entity {
             } catch (Exception e) {
                 System.err.println("🟣 Error dealing small damage: " + e.getMessage());
                 // Fallback to tiny damage if reflection fails
-                game.notifyPlayerDamaged(2);
+                game.notifyPlayerDamaged(8);
                 game.removeEntity(this);
             }
         }

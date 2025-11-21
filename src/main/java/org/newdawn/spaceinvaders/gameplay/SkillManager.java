@@ -20,9 +20,9 @@ public class SkillManager {
     private int hpUpLevel = 0;
     
     // 기본 스킬 비용 (밸런스 조정)
-    private final int baseAttackPowerCost = 2;   // 공격력: 2, 4, 6, 8, 10...
-    private final int baseAttackSpeedCost = 2;   // 공격속도: 2, 4, 6, 8, 10...
-    private final int baseHpUpCost = 15;         // 체력: 15, 23, 31, 39...
+    private final int baseAttackPowerCost = 2;   // 공격력: 2, 3, 4, 5, 6... (점진적 증가)
+    private final int baseAttackSpeedCost = 2;   // 공격속도: 2, 3, 4, 5, 6... (점진적 증가)
+    private final int baseHpUpCost = 2;          // 체력: 2, 3, 4, 5, 6... (점진적 증가)
     
     // 스킬 효과 상태
     private boolean isInvincible = false;
@@ -143,25 +143,18 @@ public class SkillManager {
     }
     
     /**
-     * 스킬 드롭 생성
+     * 스킬 드롭 생성 (위치 정보 없음 - 레거시 호환)
      */
     public void dropSkill(int currentRound) {
-        // Find the last killed alien's position (approximate)
-        int dropX = 400; // Default center position
-        int dropY = 100; // Default top position
-        
-        // Try to find an alien position for more realistic dropping
-        List<Entity> entities = context.getActiveEntities();
-        for (Entity entity : entities) {
-            if (entity instanceof org.newdawn.spaceinvaders.gameplay.entity.AlienEntity) {
-                dropX = (int) entity.getX();
-                dropY = (int) entity.getY();
-                break;
-            }
-        }
-        
+        dropSkill(currentRound, 400, 100); // 기본 위치 사용
+    }
+    
+    /**
+     * 스킬 드롭 생성 (위치 정보 포함)
+     */
+    public void dropSkill(int currentRound, int x, int y) {
         SkillDrop drop = SkillDropTable.rollDrop(currentRound);
-        addSkillDrop(dropX, dropY, drop.skillType, drop.skillValue);
+        addSkillDrop(x, y, drop.skillType, drop.skillValue);
     }
     
     /**
@@ -173,49 +166,11 @@ public class SkillManager {
     
     
     /**
-     * 스킬 포인트 계산 (라운드별)
+     * 스킬 포인트 계산 - 항상 2포인트씩 지급
      */
     public int getRandomSkillPoints(int currentRound) {
-        double random = Math.random() * 100; // 0.0 to 99.9
-        int basePoints = 0;
-        
-        // Base probability changes with round
-        if (currentRound <= 2) {
-            // Rounds 1-2: 0,1,2 points
-            if (random < 50.0) {
-                basePoints = 0; // 50% chance
-            } else if (random < 85.0) {
-                basePoints = 1; // 35% chance
-            } else {
-                basePoints = 2; // 15% chance
-            }
-        } else if (currentRound <= 4) {
-            // Rounds 3-4: 1,2,3,4 points
-            if (random < 40.0) {
-                basePoints = 1; // 40% chance
-            } else if (random < 70.0) {
-                basePoints = 2; // 30% chance
-            } else if (random < 90.0) {
-                basePoints = 3; // 20% chance
-            } else {
-                basePoints = 4; // 10% chance
-            }
-        } else {
-            // Round 5: 2,3,4,5,6 points
-            if (random < 35.0) {
-                basePoints = 2; // 35% chance
-            } else if (random < 65.0) {
-                basePoints = 3; // 30% chance
-            } else if (random < 85.0) {
-                basePoints = 4; // 20% chance
-            } else if (random < 95.0) {
-                basePoints = 5; // 10% chance
-            } else {
-                basePoints = 6; // 5% chance
-            }
-        }
-        
-        return basePoints;
+        // 항상 2포인트씩 지급
+        return 2;
     }
     
     /**
@@ -225,17 +180,17 @@ public class SkillManager {
         return 0.15 + (currentRound * 0.05); // 20%, 25%, 30%, 35%, 40% for rounds 1-5 (increased for testing)
     }
     
-    // 점진적 비용 계산 메서드들
+    // 점진적 비용 계산 메서드들 (2, 3, 4, 5, 6... 형태로 증가)
     public int getAttackPowerCost() { 
-        return baseAttackPowerCost + (attackPowerLevel * 2); // 2, 4, 6, 8, 10...
+        return baseAttackPowerCost + attackPowerLevel; // 2, 3, 4, 5, 6...
     }
     
     public int getAttackSpeedCost() { 
-        return baseAttackSpeedCost + (attackSpeedLevel * 2); // 2, 4, 6, 8, 10...
+        return baseAttackSpeedCost + attackSpeedLevel; // 2, 3, 4, 5, 6...
     }
     
     public int getHpUpCost() { 
-        return baseHpUpCost + (hpUpLevel * 8); // 15, 23, 31, 39...
+        return baseHpUpCost + hpUpLevel; // 2, 3, 4, 5, 6...
     }
     
     // 강화 레벨 증가 메서드들

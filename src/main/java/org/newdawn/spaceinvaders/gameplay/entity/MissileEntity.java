@@ -118,11 +118,14 @@ public class MissileEntity extends Entity {
         // if we've hit an alien, kill it!
         if (other instanceof AlienEntity) {
             // remove the affected entities
+            // 위치 정보 저장 (제거 전에)
+            int killX = (int) other.getX();
+            int killY = (int) other.getY();
             game.removeEntity(this);
             game.removeEntity(other);
             
-            // notify the game that the alien has been killed
-            game.notifyAlienKilled();
+            // notify the game that the alien has been killed (위치 정보 전달)
+            game.notifyAlienKilled(killX, killY);
             used = true;
         }
         

@@ -4,7 +4,6 @@ import java.awt.Color;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
 import java.awt.Image;
-import java.awt.Rectangle;
 import java.net.URL;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -88,7 +87,38 @@ public class NearEntity extends Entity {
         this.currentHP = maxHP;
 
         moveSpeed = 50 + (bossRound * 10);
-        shotInterval = 3000 + (monsterId * 500);
+        
+        // Set unique shot interval based on monster ID and round
+        // 1라운드는 그대로, 3,5,7라운드는 점진적으로 공격 속도 증가 (간격 감소)
+        if (round == 1) {
+            // 1라운드: 3000, 3500, 4000, 4500, 5000, 5500 ms (기본 속도)
+            shotInterval = 3000 + (monsterId * 500);
+        } else if (round == 3) {
+            // 3라운드: 2500, 2900, 3300, 3700, 4100, 4500 ms (더 빠름)
+            shotInterval = 2500 + (monsterId * 400);
+        } else if (round == 5) {
+            // 5라운드: 2000, 2300, 2600, 2900, 3200, 3500 ms (더 빠름)
+            shotInterval = 2000 + (monsterId * 300);
+        } else if (round == 7) {
+            // 7라운드: 1500, 1700, 1900, 2100, 2300, 2500 ms (가장 빠름)
+            shotInterval = 1500 + (monsterId * 200);
+        } else {
+            // 기본값 (1라운드와 동일)
+            shotInterval = 3000 + (monsterId * 500);
+        }
+
+        // 초기 이동 속도 설정 (상하 이동 활성화)
+        // 랜덤하게 위 또는 아래로 시작하여 자연스러운 움직임 생성
+        boolean startMovingDown = Math.random() > 0.5;
+        movingDown = startMovingDown;
+        currentVelocityY = startMovingDown ? moveSpeed * 0.6 : -moveSpeed * 0.6;
+        targetVelocityY = currentVelocityY;
+        
+        // 좌우 이동도 초기 속도 설정
+        boolean startMovingRight = Math.random() > 0.5;
+        movingRight = startMovingRight;
+        currentVelocityX = startMovingRight ? moveSpeed : -moveSpeed;
+        targetVelocityX = currentVelocityX;
 
         loadSprite();
     }

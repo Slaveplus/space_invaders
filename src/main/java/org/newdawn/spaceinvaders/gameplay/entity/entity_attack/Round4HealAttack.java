@@ -94,31 +94,33 @@ public class Round4HealAttack extends Entity {
     }
 
     /**
-     * Heal boss to full HP
+     * Heal boss by 250 HP
      */
     private void healBossToFull() {
         try {
-            // Find the boss entity and heal it to full HP
+            // Find the boss entity and heal it by 250 HP
             for (Entity entity : game.getEntities()) {
                 if (entity instanceof org.newdawn.spaceinvaders.gameplay.entity.BossEntity) {
                     org.newdawn.spaceinvaders.gameplay.entity.BossEntity boss = (org.newdawn.spaceinvaders.gameplay.entity.BossEntity) entity;
                     
-                    // Use reflection to call healToFull method or set HP directly
+                    // Use reflection to call healByAmount method or set HP directly
                     try {
-                        java.lang.reflect.Method healMethod = boss.getClass().getMethod("healToFull");
-                        healMethod.invoke(boss);
-                        System.out.println("🟣 Boss healed to full HP using healToFull method!");
+                        java.lang.reflect.Method healMethod = boss.getClass().getMethod("healByAmount", int.class);
+                        healMethod.invoke(boss, 250);
+                        System.out.println("🟣 Boss healed by 250 HP using healByAmount method!");
                     } catch (NoSuchMethodException e) {
-                        // If healToFull method doesn't exist, try to set HP directly
+                        // If healByAmount method doesn't exist, try to set HP directly
                         try {
                             java.lang.reflect.Field hpField = boss.getClass().getDeclaredField("currentHP");
                             hpField.setAccessible(true);
                             java.lang.reflect.Field maxHpField = boss.getClass().getDeclaredField("maxHP");
                             maxHpField.setAccessible(true);
                             
+                            int currentHP = (Integer) hpField.get(boss);
                             int maxHP = (Integer) maxHpField.get(boss);
-                            hpField.set(boss, maxHP);
-                            System.out.println("🟣 Boss healed to full HP: " + maxHP + " HP!");
+                            int newHP = Math.min(maxHP, currentHP + 250); // 최대 HP를 넘지 않도록
+                            hpField.set(boss, newHP);
+                            System.out.println("🟣 Boss healed by 250 HP: " + currentHP + " → " + newHP + "/" + maxHP + " HP!");
                         } catch (Exception ex) {
                             System.err.println("🟣 Failed to heal boss: " + ex.getMessage());
                         }

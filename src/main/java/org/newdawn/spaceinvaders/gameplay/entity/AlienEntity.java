@@ -272,9 +272,11 @@ public class AlienEntity extends Entity {
 	public void takeDamage(int damage) {
 		currentHP -= damage;
 		if (currentHP <= 0) {
-			// Alien is destroyed
+			// Alien is destroyed - 위치 정보 전달
+			int killX = (int) x;
+			int killY = (int) y;
 			game.removeEntity(this);
-			game.notifyAlienKilled();
+			game.notifyAlienKilled(killX, killY);
 		}
 	}
 	
