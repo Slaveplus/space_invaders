@@ -28,17 +28,18 @@ import java.util.Set;
 import java.net.URL;
 import javax.imageio.ImageIO;
 import java.awt.event.KeyEvent;
-import org.newdawn.spaceinvaders.multyplay.entity.AlienEntity;
-import org.newdawn.spaceinvaders.multyplay.entity.BossEntity;
+import org.newdawn.spaceinvaders.common.entity.alien.AlienEntity;
+import org.newdawn.spaceinvaders.common.entity.boss.BossEntity;
 import org.newdawn.spaceinvaders.common.entity.Entity;
-import org.newdawn.spaceinvaders.common.entity.effect.ExplosionEntity;
-import org.newdawn.spaceinvaders.multyplay.entity.MissileEntity;
-import org.newdawn.spaceinvaders.multyplay.entity.NearEntity;
 import org.newdawn.spaceinvaders.common.entity.EntitySnapshot;
-import org.newdawn.spaceinvaders.multyplay.entity.CoinDisplayEntity;
 import org.newdawn.spaceinvaders.common.entity.ShipEntity;
 import org.newdawn.spaceinvaders.common.entity.ShotEntity;
+import org.newdawn.spaceinvaders.common.entity.effect.ExplosionEntity;
 import org.newdawn.spaceinvaders.common.entity.effect.HeatEffectEntity;
+import org.newdawn.spaceinvaders.common.entity.near.NearEntity;
+import org.newdawn.spaceinvaders.common.entity.projectile.MissileEntity;
+import org.newdawn.spaceinvaders.common.entity.ui.CoinDisplayEntity;
+import org.newdawn.spaceinvaders.multyplay.entity.MultiplayerMissileEnvironment;
 import org.newdawn.spaceinvaders.login.UserManager;
 import org.newdawn.spaceinvaders.database.GameRecord;
 import org.newdawn.spaceinvaders.shop.ShopCategory;
@@ -741,8 +742,13 @@ public class MultiplayerGameCanvas extends Canvas implements Screen, Multiplayer
 			if (source == null) {
 				return;
 			}
-			MissileEntity missile = new MissileEntity(this, "sprites/Skill/Missile.png",
-					source.getX() + 15, source.getY(), targetX, targetY);
+			MissileEntity missile = new MissileEntity(
+					new MultiplayerMissileEnvironment(this),
+					"sprites/Skill/Missile.png",
+					(int) source.getX() + 15,
+					(int) source.getY(),
+					targetX,
+					targetY);
 			if (playerId != null) {
 				missile.setOwnerId(playerId);
 			}
@@ -1344,6 +1350,12 @@ public class MultiplayerGameCanvas extends Canvas implements Screen, Multiplayer
 		public void collidedWith(Entity other) {
 			// visuals only
 		}
+
+		@Override
+		public java.awt.Rectangle getBounds() {
+			int r = (int) Math.round(radius);
+			return new java.awt.Rectangle((int) Math.round(x) - r, (int) Math.round(y) - r, r * 2, r * 2);
+		}
 	}
 
 	private static class RemoteHeatEffectEntity extends Entity {
@@ -1657,11 +1669,14 @@ public class MultiplayerGameCanvas extends Canvas implements Screen, Multiplayer
 		private boolean isAlienShot;
 		private boolean isSkillDrop;
 		private int skillType;
+		private int skillValue;
 		private boolean hasPiercing;
 		private boolean nearMonsterShot;
+		private String spritePath;
 
 		RemoteShotEntity(EntitySnapshot snapshot, Map<String, String> meta) {
 			super(resolveShotSprite(snapshot), (int) snapshot.x, (int) snapshot.y);
+			this.spritePath = resolveShotSprite(snapshot);
 			apply(meta);
 		}
 
@@ -1675,8 +1690,15 @@ public class MultiplayerGameCanvas extends Canvas implements Screen, Multiplayer
 			isSkillDrop = "1".equals(meta.get("skill"));
 			try { skillType = Integer.parseInt(meta.getOrDefault("skillType", "-1")); }
 			catch (NumberFormatException ignore) { skillType = -1; }
+			try { skillValue = Integer.parseInt(meta.getOrDefault("skillValue", "0")); }
+			catch (NumberFormatException ignore) { skillValue = 0; }
 			hasPiercing = "1".equals(meta.get("pierce"));
 			nearMonsterShot = "1".equals(meta.get("near"));
+			String spriteOverride = meta.get("sprite");
+			if (spriteOverride != null && !spriteOverride.isEmpty()) {
+				spritePath = spriteOverride;
+				changeSkin(spritePath);
+			}
 		}
 
 		@Override
@@ -1702,7 +1724,7 @@ public class MultiplayerGameCanvas extends Canvas implements Screen, Multiplayer
 				g.setColor(Color.YELLOW);
 				g.fillRect((int) x - 2, (int) y - 10, 4, 20);
 			} else if (nearMonsterShot) {
-				drawScaledSprite(g, 50);
+				drawNearMonsterShot(g);
 			} else {
 				super.draw(g);
 			}
@@ -1765,54 +1787,95 @@ public class MultiplayerGameCanvas extends Canvas implements Screen, Multiplayer
 			}
 		}
 
-		private void drawScaledSprite(Graphics g, int size) {
-			if (sprite == null) {
-				super.draw(g);
+		private void drawNearMonsterShot(Graphics g) {
+			Graphics2D g2d = (Graphics2D) g;
+			if ("sprites/Skill/Heat.gif".equals(spritePath)) {
+				int sphereSize = 20;
+				g2d.setColor(Color.GREEN);
+				g2d.fillOval((int) x - sphereSize / 2, (int) y - sphereSize / 2, sphereSize, sphereSize);
+				g2d.setColor(Color.WHITE);
+				g2d.drawOval((int) x - sphereSize / 2, (int) y - sphereSize / 2, sphereSize, sphereSize);
+				g2d.setColor(new Color(0, 255, 0, 100));
+				g2d.fillOval((int) x - sphereSize / 4, (int) y - sphereSize / 4, sphereSize / 2, sphereSize / 2);
 				return;
 			}
-			Graphics2D g2d = (Graphics2D) g;
-			int drawX = (int) Math.round(x) - size / 2;
-			int drawY = (int) Math.round(y) - size / 2;
-			g2d.drawImage(sprite.getImage(), drawX, drawY, drawX + size, drawY + size,
-					0, 0, sprite.getWidth(), sprite.getHeight(), null);
+			if ("sprites/shot.gif".equals(spritePath) || (spritePath != null && spritePath.endsWith("/shot.gif"))) {
+				int sphereSize = 20;
+				g2d.setColor(Color.BLACK);
+				g2d.fillOval((int) x - sphereSize / 2, (int) y - sphereSize / 2, sphereSize, sphereSize);
+				g2d.setColor(Color.DARK_GRAY);
+				g2d.drawOval((int) x - sphereSize / 2, (int) y - sphereSize / 2, sphereSize, sphereSize);
+				return;
+			}
+			if ("sprites/Boss_Attack/2round1.gif".equals(spritePath)) {
+				sprite.draw(g, (int) x - 75, (int) y - 75, 150, 150);
+				return;
+			}
+			if ("sprites/Boss_Attack/ice ball.gif".equals(spritePath)) {
+				sprite.draw(g, (int) x - 50, (int) y - 50, 100, 100);
+				return;
+			}
+			sprite.draw(g, (int) x - 10, (int) y - 10, 20, 20);
 		}
 
 		@Override
 		public java.awt.Rectangle getBounds() {
-			if (nearMonsterShot) {
-				int hitboxSize = 20;
-				return new java.awt.Rectangle((int) x - hitboxSize / 2, (int) y - hitboxSize / 2, hitboxSize, hitboxSize);
+			java.awt.Rectangle base = super.getBounds();
+			if (base == null) {
+				return new java.awt.Rectangle();
 			}
-			return super.getBounds();
+			if (isSkillDrop) {
+				return centeredSquare(24);
+			}
+			if (nearMonsterShot) {
+				java.awt.Rectangle shrunk = shrinkRect(base);
+				int centerX = (int) Math.round(x);
+				int centerY = (int) Math.round(y);
+				return new java.awt.Rectangle(centerX - shrunk.width / 2, centerY - shrunk.height / 2, shrunk.width, shrunk.height);
+			}
+			if (isAlienShot || hasPiercing) {
+				return shrinkRect(base);
+			}
+			return base;
+		}
+
+		private java.awt.Rectangle shrinkRect(java.awt.Rectangle base) {
+			int width = Math.max(4, (int) (base.width * 0.175));
+			int height = Math.max(4, (int) (base.height * 0.175));
+			int centerX = base.x + base.width / 2;
+			int centerY = base.y + base.height / 2;
+			return new java.awt.Rectangle(centerX - width / 2, centerY - height / 2, width, height);
+		}
+
+		private java.awt.Rectangle centeredSquare(int size) {
+			int centerX = (int) Math.round(x);
+			int centerY = (int) Math.round(y);
+			return new java.awt.Rectangle(centerX - size / 2, centerY - size / 2, size, size);
 		}
 	}
 
 	private static class RemoteIceAttack extends Entity {
-		private static final double SCALE = 0.8;
 		private final Image animated;
+		private final int width;
+		private final int height;
 
 		RemoteIceAttack(EntitySnapshot snapshot) {
 			super("sprites/Boss_Attack/ice.gif", (int) Math.round(snapshot.x), (int) Math.round(snapshot.y));
 			this.x = snapshot.x;
 			this.y = snapshot.y;
 			this.animated = loadAnimatedImage("sprites/Boss_Attack/ice.gif");
+			this.width = snapshot.w > 0 ? snapshot.w : 48;
+			this.height = snapshot.h > 0 ? snapshot.h : 48;
 		}
 
 		@Override
-		public void move(long delta) {
-			// remote entities are snapshot-driven
-		}
+		public void move(long delta) {}
 
 		@Override
-		public void collidedWith(Entity other) {
-			// visuals only
-		}
+		public void collidedWith(Entity other) {}
 
 		@Override
 		public java.awt.Rectangle getBounds() {
-			Image image = animated != null ? animated : (sprite != null ? sprite.getImage() : null);
-			int width = image != null ? (int) Math.round(image.getWidth(null) * SCALE) : 48;
-			int height = image != null ? (int) Math.round(image.getHeight(null) * SCALE) : 48;
 			int drawX = (int) Math.round(x) - width / 2;
 			int drawY = (int) Math.round(y) - height / 2;
 			return new java.awt.Rectangle(drawX, drawY, width, height);
@@ -1823,8 +1886,6 @@ public class MultiplayerGameCanvas extends Canvas implements Screen, Multiplayer
 			Graphics2D g2d = (Graphics2D) g;
 			Image image = animated != null ? animated : (sprite != null ? sprite.getImage() : null);
 			if (image != null) {
-				int width = (int) Math.round(image.getWidth(null) * SCALE);
-				int height = (int) Math.round(image.getHeight(null) * SCALE);
 				int drawX = (int) Math.round(x) - width / 2;
 				int drawY = (int) Math.round(y) - height / 2;
 				g2d.drawImage(image, drawX, drawY, width, height, null);
@@ -1838,15 +1899,18 @@ public class MultiplayerGameCanvas extends Canvas implements Screen, Multiplayer
 	}
 
 	private static class RemoteIceBallAttack extends Entity {
-		private static final double SCALE = 0.6;
-		private static final int FALLBACK_RADIUS = 10;
- 		private final Image animated;
+		private final Image animated;
+		private final int width;
+		private final int height;
 
 		RemoteIceBallAttack(EntitySnapshot snapshot) {
 			super("sprites/Boss_Attack/ice ball.gif", (int) Math.round(snapshot.x), (int) Math.round(snapshot.y));
 			this.x = snapshot.x;
 			this.y = snapshot.y;
  			this.animated = loadAnimatedImage("sprites/Boss_Attack/ice ball.gif");
+			int fallback = 20;
+			this.width = snapshot.w > 0 ? snapshot.w : fallback;
+			this.height = snapshot.h > 0 ? snapshot.h : fallback;
 		}
 
 		@Override
@@ -1861,17 +1925,9 @@ public class MultiplayerGameCanvas extends Canvas implements Screen, Multiplayer
 
 		@Override
 		public java.awt.Rectangle getBounds() {
-			Image image = animated != null ? animated : (sprite != null ? sprite.getImage() : null);
-			if (image != null) {
-				int width = (int) Math.round(image.getWidth(null) * SCALE);
-				int height = (int) Math.round(image.getHeight(null) * SCALE);
-				int drawX = (int) Math.round(x) - width / 2;
-				int drawY = (int) Math.round(y) - height / 2;
-				return new java.awt.Rectangle(drawX, drawY, width, height);
-			}
-			int drawX = (int) Math.round(x) - FALLBACK_RADIUS;
-			int drawY = (int) Math.round(y) - FALLBACK_RADIUS;
-			return new java.awt.Rectangle(drawX, drawY, FALLBACK_RADIUS * 2, FALLBACK_RADIUS * 2);
+			int drawX = (int) Math.round(x) - width / 2;
+			int drawY = (int) Math.round(y) - height / 2;
+			return new java.awt.Rectangle(drawX, drawY, width, height);
 		}
 
 		@Override
@@ -1879,20 +1935,18 @@ public class MultiplayerGameCanvas extends Canvas implements Screen, Multiplayer
 			Graphics2D g2d = (Graphics2D) g;
 			Image image = animated != null ? animated : (sprite != null ? sprite.getImage() : null);
 			if (image != null) {
-				int width = (int) Math.round(image.getWidth(null) * SCALE);
-				int height = (int) Math.round(image.getHeight(null) * SCALE);
 				int drawX = (int) Math.round(x) - width / 2;
 				int drawY = (int) Math.round(y) - height / 2;
 				g2d.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR);
 				g2d.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY);
 				g2d.drawImage(image, drawX, drawY, width, height, null);
 			} else {
-				int drawX = (int) Math.round(x) - FALLBACK_RADIUS;
-				int drawY = (int) Math.round(y) - FALLBACK_RADIUS;
+				int drawX = (int) Math.round(x) - width / 2;
+				int drawY = (int) Math.round(y) - height / 2;
 				g2d.setColor(new Color(120, 255, 255, 180));
-				g2d.fillOval(drawX, drawY, FALLBACK_RADIUS * 2, FALLBACK_RADIUS * 2);
+				g2d.fillOval(drawX, drawY, width, height);
 				g2d.setColor(new Color(210, 255, 255, 220));
-				g2d.fillOval(drawX + 3, drawY + 3, (FALLBACK_RADIUS - 3) * 2, (FALLBACK_RADIUS - 3) * 2);
+				g2d.fillOval(drawX + 3, drawY + 3, Math.max(0, width - 6), Math.max(0, height - 6));
 			}
 		}
 	}
@@ -1957,15 +2011,17 @@ public class MultiplayerGameCanvas extends Canvas implements Screen, Multiplayer
 	}
 
 	private static class RemoteRound2Laser extends Entity {
-		private static final double LENGTH = 700;
-		private static final double WIDTH = 300;
 		private final Image animated;
+		private final int width;
+		private final int height;
 
 		RemoteRound2Laser(EntitySnapshot snapshot) {
 			super("sprites/Boss_Attack/2round.gif", (int) Math.round(snapshot.x), (int) Math.round(snapshot.y));
 			this.x = snapshot.x;
 			this.y = snapshot.y;
 			this.animated = loadAnimatedImage("sprites/Boss_Attack/2round.gif");
+			this.width = snapshot.w > 0 ? snapshot.w : 700;
+			this.height = snapshot.h > 0 ? snapshot.h : 300;
 		}
 
 		@Override
@@ -1981,36 +2037,37 @@ public class MultiplayerGameCanvas extends Canvas implements Screen, Multiplayer
 		@Override
 		public java.awt.Rectangle getBounds() {
 			return new java.awt.Rectangle((int) Math.round(x),
-					(int) Math.round(y), (int) LENGTH, (int) WIDTH);
+					(int) Math.round(y), width, height);
 		}
 
 		@Override
 		public void draw(Graphics g) {
 			Graphics2D g2d = (Graphics2D) g;
 			AffineTransform original = g2d.getTransform();
-			g2d.translate(x + LENGTH / 2.0, y + WIDTH / 2.0);
+			g2d.translate(x + width / 2.0, y + height / 2.0);
 			g2d.rotate(Math.PI / 2);
 			Image image = animated != null ? animated : (sprite != null ? sprite.getImage() : null);
 			if (image != null) {
-				g2d.drawImage(image, (int) -(LENGTH / 2), (int) -(WIDTH / 2),
-						(int) LENGTH, (int) WIDTH, null);
+				g2d.drawImage(image, (int) -(width / 2), (int) -(height / 2),
+						width, height, null);
 			} else {
 				g2d.setColor(new Color(120, 200, 255, 180));
-				g2d.fillRect((int) -(LENGTH / 2), (int) -(WIDTH / 2), (int) LENGTH, (int) WIDTH);
+				g2d.fillRect((int) -(width / 2), (int) -(height / 2), width, height);
 			}
 			g2d.setTransform(original);
 		}
 	}
 
 	private static class RemoteRound2Phase1 extends Entity {
-		private static final int SIZE = 80;
 		private final Image animated;
+		private final int size;
 
 		RemoteRound2Phase1(EntitySnapshot snapshot) {
 			super("sprites/Boss_Attack/2round3.gif", (int) Math.round(snapshot.x), (int) Math.round(snapshot.y));
 			this.x = snapshot.x;
 			this.y = snapshot.y;
 			this.animated = loadAnimatedImage("sprites/Boss_Attack/2round3.gif");
+			this.size = snapshot.w > 0 ? snapshot.w : 80;
 		}
 
 		@Override
@@ -2021,31 +2078,32 @@ public class MultiplayerGameCanvas extends Canvas implements Screen, Multiplayer
 
 		@Override
 		public java.awt.Rectangle getBounds() {
-			return new java.awt.Rectangle((int) Math.round(x) - SIZE / 2, (int) Math.round(y) - SIZE / 2, SIZE, SIZE);
+			return new java.awt.Rectangle((int) Math.round(x) - size / 2, (int) Math.round(y) - size / 2, size, size);
 		}
 
 		@Override
 		public void draw(Graphics g) {
 			Image image = animated != null ? animated : (sprite != null ? sprite.getImage() : null);
 			if (image != null) {
-				g.drawImage(image, (int) Math.round(x) - SIZE / 2, (int) Math.round(y) - SIZE / 2,
-						SIZE, SIZE, null);
+				g.drawImage(image, (int) Math.round(x) - size / 2, (int) Math.round(y) - size / 2,
+						size, size, null);
 			} else {
 				g.setColor(new Color(255, 150, 150, 200));
-				g.fillOval((int) Math.round(x) - SIZE / 2, (int) Math.round(y) - SIZE / 2, SIZE, SIZE);
+				g.fillOval((int) Math.round(x) - size / 2, (int) Math.round(y) - size / 2, size, size);
 			}
 		}
 	}
 
 	private static class RemoteRound2Phase2 extends Entity {
-		private static final int SIZE = 50;
 		private final Image animated;
+		private final int size;
 
 		RemoteRound2Phase2(EntitySnapshot snapshot) {
 			super("sprites/Boss_Attack/2round1.gif", (int) Math.round(snapshot.x), (int) Math.round(snapshot.y));
 			this.x = snapshot.x;
 			this.y = snapshot.y;
 			this.animated = loadAnimatedImage("sprites/Boss_Attack/2round1.gif");
+			this.size = snapshot.w > 0 ? snapshot.w : 50;
 		}
 
 		@Override
@@ -2056,32 +2114,34 @@ public class MultiplayerGameCanvas extends Canvas implements Screen, Multiplayer
 
 		@Override
 		public java.awt.Rectangle getBounds() {
-			return new java.awt.Rectangle((int) Math.round(x) - SIZE / 2, (int) Math.round(y) - SIZE / 2, SIZE, SIZE);
+			return new java.awt.Rectangle((int) Math.round(x) - size / 2, (int) Math.round(y) - size / 2, size, size);
 		}
 
 		@Override
 		public void draw(Graphics g) {
 			Image image = animated != null ? animated : (sprite != null ? sprite.getImage() : null);
 			if (image != null) {
-				g.drawImage(image, (int) Math.round(x) - SIZE / 2, (int) Math.round(y) - SIZE / 2,
-						SIZE, SIZE, null);
+				g.drawImage(image, (int) Math.round(x) - size / 2, (int) Math.round(y) - size / 2,
+						size, size, null);
 			} else {
 				g.setColor(new Color(255, 200, 120, 220));
-				g.fillOval((int) Math.round(x) - SIZE / 2, (int) Math.round(y) - SIZE / 2, SIZE, SIZE);
+				g.fillOval((int) Math.round(x) - size / 2, (int) Math.round(y) - size / 2, size, size);
 			}
 		}
 	}
 
 	private static class RemoteRound2Random extends Entity {
-		private static final int WIDTH = 300;
-		private static final int HEIGHT = 400;
 		private final Image animated;
+		private final int width;
+		private final int height;
 
 		RemoteRound2Random(EntitySnapshot snapshot) {
 			super("sprites/Boss_Attack/2round2.gif", (int) Math.round(snapshot.x), 150);
 			this.x = snapshot.x;
 			this.y = 150;
 			this.animated = loadAnimatedImage("sprites/Boss_Attack/2round2.gif");
+			this.width = snapshot.w > 0 ? snapshot.w : 300;
+			this.height = snapshot.h > 0 ? snapshot.h : 400;
 		}
 
 		@Override
@@ -2092,29 +2152,31 @@ public class MultiplayerGameCanvas extends Canvas implements Screen, Multiplayer
 
 		@Override
 		public java.awt.Rectangle getBounds() {
-			return new java.awt.Rectangle((int) Math.round(x) - WIDTH / 2, (int) Math.round(y), WIDTH, HEIGHT);
+			return new java.awt.Rectangle((int) Math.round(x) - width / 2, (int) Math.round(y), width, height);
 		}
 
 		@Override
 		public void draw(Graphics g) {
 			Image image = animated != null ? animated : (sprite != null ? sprite.getImage() : null);
 			if (image != null) {
-				g.drawImage(image, (int) Math.round(x) - WIDTH / 2, 150, WIDTH, HEIGHT, null);
+				g.drawImage(image, (int) Math.round(x) - width / 2, 150, width, height, null);
 			} else {
 				g.setColor(new Color(255, 200, 0, 128));
-				g.fillRect((int) Math.round(x) - WIDTH / 2, 150, WIDTH, HEIGHT);
+				g.fillRect((int) Math.round(x) - width / 2, 150, width, height);
 			}
 		}
 	}
 
 	private static class RemoteRound2Quad extends Entity {
 		private final Image animated;
+		private final int size;
 
 		RemoteRound2Quad(EntitySnapshot snapshot) {
 			super("sprites/Boss_Attack/2round1.gif", (int) Math.round(snapshot.x), (int) Math.round(snapshot.y));
 			this.x = snapshot.x;
 			this.y = snapshot.y;
 			this.animated = loadAnimatedImage("sprites/Boss_Attack/2round1.gif");
+			this.size = snapshot.w > 0 ? snapshot.w : 50;
 		}
 
 		@Override
@@ -2125,30 +2187,31 @@ public class MultiplayerGameCanvas extends Canvas implements Screen, Multiplayer
 
 		@Override
 		public java.awt.Rectangle getBounds() {
-			return new java.awt.Rectangle((int) Math.round(x) - 25, (int) Math.round(y) - 25, 50, 50);
+			return new java.awt.Rectangle((int) Math.round(x) - size / 2, (int) Math.round(y) - size / 2, size, size);
 		}
 
 		@Override
 		public void draw(Graphics g) {
 			Image image = animated != null ? animated : (sprite != null ? sprite.getImage() : null);
 			if (image != null) {
-				g.drawImage(image, (int) Math.round(x) - 25, (int) Math.round(y) - 25, 50, 50, null);
+				g.drawImage(image, (int) Math.round(x) - size / 2, (int) Math.round(y) - size / 2, size, size, null);
 			} else {
 				g.setColor(new Color(255, 180, 120, 200));
-				g.fillOval((int) Math.round(x) - 25, (int) Math.round(y) - 25, 50, 50);
+				g.fillOval((int) Math.round(x) - size / 2, (int) Math.round(y) - size / 2, size, size);
 			}
 		}
 	}
 
 	private static class RemoteRound2MachineGun extends Entity {
-		private static final int SIZE = 30;
 		private final Image animated;
+		private final int size;
 
 		RemoteRound2MachineGun(EntitySnapshot snapshot) {
 			super("sprites/Boss_Attack/2round1.gif", (int) Math.round(snapshot.x), (int) Math.round(snapshot.y));
 			this.x = snapshot.x;
 			this.y = snapshot.y;
 			this.animated = loadAnimatedImage("sprites/Boss_Attack/2round1.gif");
+			this.size = snapshot.w > 0 ? snapshot.w : 30;
 		}
 
 		@Override
@@ -2159,31 +2222,33 @@ public class MultiplayerGameCanvas extends Canvas implements Screen, Multiplayer
 
 		@Override
 		public java.awt.Rectangle getBounds() {
-			return new java.awt.Rectangle((int) Math.round(x) - SIZE / 2, (int) Math.round(y) - SIZE / 2, SIZE, SIZE);
+			return new java.awt.Rectangle((int) Math.round(x) - size / 2, (int) Math.round(y) - size / 2, size, size);
 		}
 
 		@Override
 		public void draw(Graphics g) {
 			Image image = animated != null ? animated : (sprite != null ? sprite.getImage() : null);
 			if (image != null) {
-				g.drawImage(image, (int) Math.round(x) - SIZE / 2, (int) Math.round(y) - SIZE / 2, SIZE, SIZE, null);
+				g.drawImage(image, (int) Math.round(x) - size / 2, (int) Math.round(y) - size / 2, size, size, null);
 			} else {
 				g.setColor(new Color(255, 220, 120, 200));
-				g.fillOval((int) Math.round(x) - SIZE / 2, (int) Math.round(y) - SIZE / 2, SIZE, SIZE);
+				g.fillOval((int) Math.round(x) - size / 2, (int) Math.round(y) - size / 2, size, size);
 			}
 		}
 	}
 
 	private static class RemoteRound3Straight extends Entity {
-		private static final int WIDTH = 600;
-		private static final int HEIGHT = 300;
 		private final Image animated;
+		private final int width;
+		private final int height;
 
 		RemoteRound3Straight(EntitySnapshot snapshot) {
 			super("sprites/Boss_Attack/3round4.gif", (int) Math.round(snapshot.x), (int) Math.round(snapshot.y));
 			this.x = snapshot.x;
 			this.y = snapshot.y;
 			this.animated = loadAnimatedImage("sprites/Boss_Attack/3round4.gif");
+			this.width = snapshot.w > 0 ? snapshot.w : 600;
+			this.height = snapshot.h > 0 ? snapshot.h : 300;
 		}
 
 		@Override
@@ -2194,32 +2259,34 @@ public class MultiplayerGameCanvas extends Canvas implements Screen, Multiplayer
 
 		@Override
 		public java.awt.Rectangle getBounds() {
-			return new java.awt.Rectangle((int) Math.round(x) - WIDTH / 2, (int) Math.round(y) - HEIGHT / 2, WIDTH, HEIGHT);
+			return new java.awt.Rectangle((int) Math.round(x) - width / 2, (int) Math.round(y) - height / 2, width, height);
 		}
 
 		@Override
 		public void draw(Graphics g) {
 			Image image = animated != null ? animated : (sprite != null ? sprite.getImage() : null);
 			if (image != null) {
-				g.drawImage(image, (int) Math.round(x) - WIDTH / 2, (int) Math.round(y) - HEIGHT / 2,
-						WIDTH, HEIGHT, null);
+				g.drawImage(image, (int) Math.round(x) - width / 2, (int) Math.round(y) - height / 2,
+						width, height, null);
 			} else {
 				g.setColor(new Color(200, 30, 30, 140));
-				g.fillRect((int) Math.round(x) - WIDTH / 2, (int) Math.round(y) - HEIGHT / 2, WIDTH, HEIGHT);
+				g.fillRect((int) Math.round(x) - width / 2, (int) Math.round(y) - height / 2, width, height);
 			}
 		}
 	}
 
 	private static class RemoteRound3Random extends Entity {
-		private static final int WIDTH = 400;
-		private static final int HEIGHT = 1400;
 		private final Image animated;
+		private final int width;
+		private final int height;
 
 		RemoteRound3Random(EntitySnapshot snapshot) {
 			super("sprites/Boss_Attack/3round2.gif", (int) Math.round(snapshot.x), (int) Math.round(snapshot.y));
 			this.x = snapshot.x;
 			this.y = snapshot.y;
 			this.animated = loadAnimatedImage("sprites/Boss_Attack/3round2.gif");
+			this.width = snapshot.w > 0 ? snapshot.w : 400;
+			this.height = snapshot.h > 0 ? snapshot.h : 1400;
 		}
 
 		@Override
@@ -2230,32 +2297,34 @@ public class MultiplayerGameCanvas extends Canvas implements Screen, Multiplayer
 
 		@Override
 		public java.awt.Rectangle getBounds() {
-			return new java.awt.Rectangle((int) Math.round(x) - WIDTH / 2, (int) Math.round(y) - HEIGHT / 2, WIDTH, HEIGHT);
+			return new java.awt.Rectangle((int) Math.round(x) - width / 2, (int) Math.round(y) - height / 2, width, height);
 		}
 
 		@Override
 		public void draw(Graphics g) {
 			Image image = animated != null ? animated : (sprite != null ? sprite.getImage() : null);
 			if (image != null) {
-				g.drawImage(image, (int) Math.round(x) - WIDTH / 2, (int) Math.round(y) - HEIGHT / 2,
-						WIDTH, HEIGHT, null);
+				g.drawImage(image, (int) Math.round(x) - width / 2, (int) Math.round(y) - height / 2,
+						width, height, null);
 			} else {
 				g.setColor(new Color(255, 80, 80, 120));
-				g.fillRect((int) Math.round(x) - WIDTH / 2, (int) Math.round(y) - HEIGHT / 2, WIDTH, HEIGHT);
+				g.fillRect((int) Math.round(x) - width / 2, (int) Math.round(y) - height / 2, width, height);
 			}
 		}
 	}
 
 	private static class RemoteRound3Pull extends Entity {
-		private static final int WIDTH = 300;
-		private static final int HEIGHT = 400;
 		private final Image animated;
+		private final int width;
+		private final int height;
 
 		RemoteRound3Pull(EntitySnapshot snapshot) {
 			super("sprites/Boss_Attack/3round3.gif", (int) Math.round(snapshot.x), (int) Math.round(snapshot.y));
 			this.x = snapshot.x;
 			this.y = snapshot.y;
 			this.animated = loadAnimatedImage("sprites/Boss_Attack/3round3.gif");
+			this.width = snapshot.w > 0 ? snapshot.w : 300;
+			this.height = snapshot.h > 0 ? snapshot.h : 400;
 		}
 
 		@Override
@@ -2266,18 +2335,18 @@ public class MultiplayerGameCanvas extends Canvas implements Screen, Multiplayer
 
 		@Override
 		public java.awt.Rectangle getBounds() {
-			return new java.awt.Rectangle((int) Math.round(x) - WIDTH / 2, (int) Math.round(y) - HEIGHT / 2, WIDTH, HEIGHT);
+			return new java.awt.Rectangle((int) Math.round(x) - width / 2, (int) Math.round(y) - height / 2, width, height);
 		}
 
 		@Override
 		public void draw(Graphics g) {
 			Image image = animated != null ? animated : (sprite != null ? sprite.getImage() : null);
 			if (image != null) {
-				g.drawImage(image, (int) Math.round(x) - WIDTH / 2, (int) Math.round(y) - HEIGHT / 2,
-						WIDTH, HEIGHT, null);
+				g.drawImage(image, (int) Math.round(x) - width / 2, (int) Math.round(y) - height / 2,
+						width, height, null);
 			} else {
 				g.setColor(new Color(80, 120, 255, 120));
-				g.fillRect((int) Math.round(x) - WIDTH / 2, (int) Math.round(y) - HEIGHT / 2, WIDTH, HEIGHT);
+				g.fillRect((int) Math.round(x) - width / 2, (int) Math.round(y) - height / 2, width, height);
 			}
 		}
 	}
@@ -2353,15 +2422,18 @@ public class MultiplayerGameCanvas extends Canvas implements Screen, Multiplayer
 	}
 
 	private static class RemoteRound4GreenSphere extends Entity {
-		private static final double SCALE = 0.6;
-		private static final int FALLBACK_SIZE = 24;
 		private final Image animated;
+		private final int width;
+		private final int height;
 
 		RemoteRound4GreenSphere(EntitySnapshot snapshot, Map<String, String> meta) {
 			super("sprites/Boss_Attack/5round1.gif", (int) Math.round(snapshot.x), (int) Math.round(snapshot.y));
 			this.x = snapshot.x;
 			this.y = snapshot.y;
 			this.animated = loadAnimatedImage("sprites/Boss_Attack/5round1.gif");
+			int fallback = 24;
+			this.width = snapshot.w > 0 ? snapshot.w : fallback;
+			this.height = snapshot.h > 0 ? snapshot.h : fallback;
 		}
 
 		@Override
@@ -2372,16 +2444,9 @@ public class MultiplayerGameCanvas extends Canvas implements Screen, Multiplayer
 
 		@Override
 		public java.awt.Rectangle getBounds() {
-			Image image = animated != null ? animated : (sprite != null ? sprite.getImage() : null);
-			if (image != null) {
-				int width = (int) Math.round(image.getWidth(null) * SCALE);
-				int height = (int) Math.round(image.getHeight(null) * SCALE);
-				int drawX = (int) Math.round(x) - width / 2;
-				int drawY = (int) Math.round(y) - height / 2;
-				return new java.awt.Rectangle(drawX, drawY, width, height);
-			}
-			return new java.awt.Rectangle((int) Math.round(x) - FALLBACK_SIZE / 2,
-					(int) Math.round(y) - FALLBACK_SIZE / 2, FALLBACK_SIZE, FALLBACK_SIZE);
+			int drawX = (int) Math.round(x) - width / 2;
+			int drawY = (int) Math.round(y) - height / 2;
+			return new java.awt.Rectangle(drawX, drawY, width, height);
 		}
 
 		@Override
@@ -2389,21 +2454,20 @@ public class MultiplayerGameCanvas extends Canvas implements Screen, Multiplayer
 			Graphics2D g2d = (Graphics2D) g;
 			Image image = animated != null ? animated : (sprite != null ? sprite.getImage() : null);
 			if (image != null) {
-				int width = (int) Math.round(image.getWidth(null) * SCALE);
-				int height = (int) Math.round(image.getHeight(null) * SCALE);
 				int drawX = (int) Math.round(x) - width / 2;
 				int drawY = (int) Math.round(y) - height / 2;
 				g2d.drawImage(image, drawX, drawY, width, height, null);
 			} else {
-				int drawX = (int) Math.round(x) - FALLBACK_SIZE / 2;
-				int drawY = (int) Math.round(y) - FALLBACK_SIZE / 2;
+				int drawX = (int) Math.round(x) - width / 2;
+				int drawY = (int) Math.round(y) - height / 2;
 				g2d.setColor(new Color(120, 255, 120, 220));
-				g2d.fillOval(drawX, drawY, FALLBACK_SIZE, FALLBACK_SIZE);
+				g2d.fillOval(drawX, drawY, width, height);
 				g2d.setColor(new Color(200, 255, 200, 160));
-				g2d.fillOval(drawX + 2, drawY + 2, FALLBACK_SIZE - 4, FALLBACK_SIZE - 4);
+				g2d.drawOval(drawX, drawY, width, height);
 			}
 		}
 	}
+
 
 	private static class RemoteRound4PlayerLine extends Entity {
 		private static final int SIZE = 160;
@@ -2530,6 +2594,9 @@ public class MultiplayerGameCanvas extends Canvas implements Screen, Multiplayer
 		uiRenderer.drawMessage(g, gameStateManager.getMessage());
 	}
 	if (gameStateManager.isShowingSkillMenu()) { drawSkillMenu(g); }
+	if (gameStateManager.isDebugDrawHitboxes()) {
+		drawHitboxOverlay(g);
+	}
 	}
 	
 	private void drawRemoteCoinPopups(Graphics2D g) {
@@ -2539,6 +2606,34 @@ public class MultiplayerGameCanvas extends Canvas implements Screen, Multiplayer
 		for (CoinDisplayEntity popup : remoteCoinPopups) {
 			popup.draw(g);
 		}
+	}
+	
+	private void drawHitboxOverlay(Graphics2D g) {
+		java.awt.Stroke previous = g.getStroke();
+		g.setStroke(new BasicStroke(1f));
+		ArrayList<Entity> entities = gameStateManager.getEntities();
+		for (Entity entity : entities) {
+			if (entity == null) {
+				continue;
+			}
+			java.awt.Rectangle rect = entity.getBounds();
+			if (rect == null) {
+				continue;
+			}
+			if (entity instanceof ShipEntity) {
+				g.setColor(new Color(0, 200, 0, 160));
+			} else if (entity instanceof ShotEntity) {
+				ShotEntity shot = (ShotEntity) entity;
+				g.setColor(shot.isAlienShot() ? new Color(255, 0, 0, 160) : new Color(0, 200, 255, 160));
+			} else if (entity instanceof RemoteShotEntity) {
+				RemoteShotEntity shot = (RemoteShotEntity) entity;
+				g.setColor(shot.isAlienShot ? new Color(255, 0, 0, 160) : new Color(0, 200, 255, 160));
+			} else {
+				g.setColor(new Color(255, 255, 0, 120));
+			}
+			g.drawRect(rect.x, rect.y, rect.width, rect.height);
+		}
+		g.setStroke(previous);
 	}
 
 	

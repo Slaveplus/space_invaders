@@ -101,6 +101,12 @@ public class MultiplayerInputManager {
 			if ((gameStateManager.isWaitingForKeyPress() || intermissionVisible) && !allowSkillMenu && !keyOpensSkillMenu) {
 				return;
 			}
+            if (keyCode == KeyEvent.VK_F4) {
+                gameStateManager.toggleDebugDrawHitboxes();
+                boolean enabled = gameStateManager.isDebugDrawHitboxes();
+                System.out.println("Hitbox debug overlay (multiplayer): " + (enabled ? "ON" : "OFF"));
+                return;
+            }
             
             // Handle ESC key for pause menu (only during gameplay)
 			if (keyCode == KeyEvent.VK_ESCAPE) {

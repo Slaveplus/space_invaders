@@ -75,9 +75,19 @@ public class GameStateManager {
     private long gameStartTime = 0; // 게임 시작 시간
     private long pausedTime = 0; // 일시정지된 시간 (누적)
     private long pauseStartTime = 0; // 현재 일시정지 시작 시간
+    // 디버그 오버레이 플래그
+    private boolean debugDrawHitboxes = false;
     
     public GameStateManager() {
         System.out.println("GameStateManager 초기화 완료");
+    }
+
+    public boolean isDebugDrawHitboxes() {
+        return debugDrawHitboxes;
+    }
+
+    public void toggleDebugDrawHitboxes() {
+        debugDrawHitboxes = !debugDrawHitboxes;
     }
     
     

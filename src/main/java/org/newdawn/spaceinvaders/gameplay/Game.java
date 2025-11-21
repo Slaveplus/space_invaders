@@ -1,24 +1,35 @@
 package org.newdawn.spaceinvaders.gameplay;
 
+import java.awt.BasicStroke;
 import java.awt.Canvas;
+import java.awt.Color;
 import java.awt.Graphics2D;
+import java.awt.Stroke;
+import java.awt.geom.AffineTransform;
 // 여기서는 직접적인 AWT 리스너를 사용하지 않음; InputManager를 통해 처리
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.IntUnaryOperator;
 import org.newdawn.spaceinvaders.common.GameContext;
-import org.newdawn.spaceinvaders.gameplay.entity.AlienEntity;
-import org.newdawn.spaceinvaders.gameplay.entity.BossEntity;
-import org.newdawn.spaceinvaders.gameplay.entity.CoinDisplayEntity;
 import org.newdawn.spaceinvaders.common.entity.Entity;
-import org.newdawn.spaceinvaders.gameplay.entity.NearEntity;
+import org.newdawn.spaceinvaders.common.entity.alien.AlienEntity;
+import org.newdawn.spaceinvaders.common.entity.attack.IceAttack;
+import org.newdawn.spaceinvaders.common.entity.boss.BossEntity;
+import org.newdawn.spaceinvaders.common.entity.boss.BossEnvironment;
 import org.newdawn.spaceinvaders.common.entity.effect.ExplosionEntity;
 import org.newdawn.spaceinvaders.common.entity.effect.HeatEffectEntity;
-import org.newdawn.spaceinvaders.gameplay.entity.entity_attack.IceAttack;
-import org.newdawn.spaceinvaders.gameplay.entity.MissileEntity;
+import org.newdawn.spaceinvaders.common.entity.near.NearEntity;
+import org.newdawn.spaceinvaders.common.entity.near.NearEnvironment;
+import org.newdawn.spaceinvaders.common.entity.projectile.BaseBossShotEntity;
+import org.newdawn.spaceinvaders.common.entity.projectile.MissileEntity;
 import org.newdawn.spaceinvaders.common.entity.ShipEntity;
 import org.newdawn.spaceinvaders.common.entity.ShotEntity;
+import org.newdawn.spaceinvaders.common.entity.ui.CoinDisplayEntity;
 import org.newdawn.spaceinvaders.gameplay.core.GameplayContext;
 import org.newdawn.spaceinvaders.gameplay.core.SharedGameplayCoordinator;
+import org.newdawn.spaceinvaders.gameplay.entity.BossShotEntity;
+import org.newdawn.spaceinvaders.gameplay.entity.GameplayAlienEnvironment;
+import org.newdawn.spaceinvaders.gameplay.entity.GameplayMissileEnvironment;
 import org.newdawn.spaceinvaders.database.LeaderboardRecord;
 import org.newdawn.spaceinvaders.database.LeaderboardRepository;
 import org.newdawn.spaceinvaders.login.UserManager;
@@ -41,7 +52,7 @@ import org.newdawn.spaceinvaders.gameplay.net.LocalLoopbackNetworkAdapter;
  * 
  * @author Kevin Glass
  */
-public class Game extends Canvas implements Screen, GameplayContext, GameContext
+public class Game extends Canvas implements Screen, GameplayContext, GameContext, BossEnvironment, NearEnvironment
 {
 	/** 가속 페이지 플리핑을 사용할 수 있게 해주는 전략 */
 	// BufferStrategy는 상위 App에서 관리
@@ -78,6 +89,9 @@ public class Game extends Canvas implements Screen, GameplayContext, GameContext
 	private BackgroundRenderer backgroundRenderer;
 	/** 공유 게임플레이 조정자 */
 	private final SharedGameplayCoordinator gameplayCoordinator;
+	/** Alien 엔티티 환경 */
+	private final GameplayAlienEnvironment alienEnvironment;
+	private final IntUnaryOperator alienHpResolver;
 	// gameplay는 mainmenu 패키지에 의존하지 않도록, 오버레이는 UIRenderer에서 처리
 	
 	/** 메인메뉴 전환 요청 플래그 */
@@ -107,6 +121,8 @@ public class Game extends Canvas implements Screen, GameplayContext, GameContext
 	// 스킬 관리자 초기화
 	skillManager = new SkillManager(this);
 	gameplayCoordinator = new SharedGameplayCoordinator(this);
+	alienEnvironment = new GameplayAlienEnvironment(this);
+	alienHpResolver = GameplayAlienEnvironment.hpResolver();
 
 	// UI 렌더러 초기화
 		uiRenderer = new UIRenderer(this);
@@ -489,8 +505,13 @@ public class Game extends Canvas implements Screen, GameplayContext, GameContext
 	public void fireMissile(String playerId, double targetX, double targetY) {
 		try {
 			// Fire missile from player position
-			MissileEntity missile = new MissileEntity(this, "sprites/Skill/Missile.png", 
-					(int)ship.getX() + 15, (int)ship.getY(), targetX, targetY);
+			MissileEntity missile = new MissileEntity(
+					new GameplayMissileEnvironment(this),
+					"sprites/Skill/Missile.png",
+					(int) ship.getX() + 15,
+					(int) ship.getY(),
+					targetX,
+					targetY);
 			gameStateManager.getEntities().add(missile);
 		} catch (Exception e) {
 			System.err.println("Error firing missile: " + e.getMessage());
@@ -585,7 +606,7 @@ public class Game extends Canvas implements Screen, GameplayContext, GameContext
 
 	@Override
 	public Entity createAlienEntity(int x, int y) {
-		return new AlienEntity(this, x, y);
+		return new AlienEntity(alienEnvironment, x, y, alienHpResolver);
 	}
 
 	@Override
@@ -616,6 +637,11 @@ public class Game extends Canvas implements Screen, GameplayContext, GameContext
 
 	@Override
 	public void addEarnedCoins(String playerId, int amount) {
+		addEarnedCoins(amount);
+	}
+
+	@Override
+	public void addCoins(String playerId, int amount) {
 		addEarnedCoins(amount);
 	}
 
@@ -841,36 +867,69 @@ public class Game extends Canvas implements Screen, GameplayContext, GameContext
 	}
 
 	public void render(Graphics2D g) {
-		// 해상도 스케일링 적용
+		AffineTransform original = g.getTransform();
 		if (resolutionManager != null) {
-			double scaleX = resolutionManager.getScaleX();
-			double scaleY = resolutionManager.getScaleY();
-			g.scale(scaleX, scaleY);
+			double offsetX = resolutionManager.getOffsetX();
+			double offsetY = resolutionManager.getOffsetY();
+			double scale = resolutionManager.getUniformScale();
+			g.translate(offsetX, offsetY);
+			g.scale(scale, scale);
 		}
 		
 		// 배경 (cached)
 		backgroundRenderer.draw(g);
-		// entities
 		ArrayList<Entity> entities = gameStateManager.getEntities();
 		for (Entity entity : entities) entity.draw(g);
-		// UI & overlays
-		uiRenderer.drawGameUI(g, gameStateManager, skillManager);
-		if (gameStateManager.isShowingPauseMenu()) { drawPauseMenu(g); }
-		if (gameStateManager.isShowingSkillMenu()) { drawSkillMenu(g); }
-		if (gameStateManager.isShowingRoundInfo()) { drawRoundInfoOverlay(g, gameStateManager); }
-		if (gameStateManager.isShowingQuitConfirm()) { drawQuitConfirmOverlay(g, gameStateManager); }
-		if (gameStateManager.isWaitingForKeyPress()) {
-			uiRenderer.drawMessage(g, gameStateManager.getMessage());
-		}
-	}
+        // UI & overlays
+        uiRenderer.drawGameUI(g, gameStateManager, skillManager);
+        if (gameStateManager.isShowingPauseMenu()) { drawPauseMenu(g); }
+        if (gameStateManager.isShowingSkillMenu()) { drawSkillMenu(g); }
+        if (gameStateManager.isShowingRoundInfo()) { drawRoundInfoOverlay(g, gameStateManager); }
+        if (gameStateManager.isShowingQuitConfirm()) { drawQuitConfirmOverlay(g, gameStateManager); }
+        if (gameStateManager.isWaitingForKeyPress()) {
+            uiRenderer.drawMessage(g, gameStateManager.getMessage());
+        }
+        if (gameStateManager.isDebugDrawHitboxes()) {
+            drawHitboxOverlay(g);
+        }
+
+        if (resolutionManager != null) {
+            g.setTransform(original);
+        }
+    }
 	
 	
 	/**
 	 * Getter methods for InputManager
 	 */
-	public Entity getShip() {
+	public ShipEntity getShip() {
 		return ship;
-	}
+    }
+
+    private void drawHitboxOverlay(Graphics2D g) {
+        Stroke previous = g.getStroke();
+        g.setStroke(new BasicStroke(1f));
+        ArrayList<Entity> entities = gameStateManager.getEntities();
+        for (Entity entity : entities) {
+            if (entity == null) {
+                continue;
+            }
+            java.awt.Rectangle rect = entity.getBounds();
+            if (rect == null) {
+                continue;
+            }
+            if (entity instanceof ShipEntity) {
+                g.setColor(new Color(0, 200, 0, 160));
+            } else if (entity instanceof ShotEntity) {
+                ShotEntity shot = (ShotEntity) entity;
+                g.setColor(shot.isAlienShot() ? new Color(255, 0, 0, 160) : new Color(0, 200, 255, 160));
+            } else {
+                g.setColor(new Color(255, 255, 0, 120));
+            }
+            g.drawRect(rect.x, rect.y, rect.width, rect.height);
+        }
+        g.setStroke(previous);
+    }
 	
 	public int getShipX() {
 		return ship != null ? (int)ship.getX() : 370;
@@ -1030,6 +1089,11 @@ public class Game extends Canvas implements Screen, GameplayContext, GameContext
 	public void addScore(int points) {
 		// 점수 추가
 	}
+
+	@Override
+	public void addScore(String playerId, int points) {
+		addScore(points);
+	}
 	
 	/**
 	 * Add skill points
@@ -1042,59 +1106,9 @@ public class Game extends Canvas implements Screen, GameplayContext, GameContext
 		System.out.println("Skill points added: " + points + " (Total: " + (currentPoints + points) + ")");
 	}
 
-	/**
-	 * Drop random skill at specified location
-	 */
-	public void dropRandomSkill(int x, int y) {
-		try {
-			System.out.println("🎁 dropRandomSkill called at (" + x + ", " + y + ")");
-			
-			// Random skill type (0: Invincible, 1: Triple Shot, 2: Missile) - 관통 스킬 제거
-			double random = Math.random();
-			int skillType;
-			int skillValue;
-			
-			if (random < 0.33) {
-				skillType = 0; // Invincible (무적)
-				skillValue = 5; // 5 seconds
-				System.out.println("🎁 Dropping Invincible skill");
-			} else if (random < 0.66) {
-				skillType = 2; // Triple Shot (3연발)
-				skillValue = 8; // 8 seconds
-				System.out.println("🎁 Dropping Triple Shot skill");
-			} else {
-				skillType = 3; // Missile (미사일)
-				skillValue = 1; // 1 missile
-				System.out.println("🎁 Dropping Missile skill");
-			}
-			
-			// Create skill drop entity
-			createSkillDrop(x, y, skillType, skillValue);
-			System.out.println("🎁 Skill drop created successfully");
-			
-		} catch (Exception e) {
-			System.err.println("Error dropping random skill: " + e.getMessage());
-			e.printStackTrace();
-		}
-	}
-
-	/**
-	 * Drop random skill points at specified location
-	 */
-	public void dropRandomSkillPoints(int x, int y) {
-		try {
-			// Random skill points amount (1-5)
-			int skillPoints = 1 + (int)(Math.random() * 5);
-			
-			// Add skill points directly
-			addSkillPoints(skillPoints);
-			
-			System.out.println("Skill points dropped: " + skillPoints);
-			
-		} catch (Exception e) {
-			System.err.println("Error dropping skill points: " + e.getMessage());
-			e.printStackTrace();
-		}
+	@Override
+	public void addSkillPoints(String playerId, int points) {
+		addSkillPoints(points);
 	}
 
 	/**
@@ -1134,11 +1148,37 @@ public class Game extends Canvas implements Screen, GameplayContext, GameContext
 		gameplayCoordinator.handleRoundClear(playerId);
 	}
 
+	@Override
+	public void notifyBossDefeated(String playerId) {
+		notifyBossDefeated();
+	}
+
 	/**
 	 * Check if all near monsters are defeated and advance to boss round
 	 */
 	public void checkAllNearMonstersDefeated() {
 		gameplayCoordinator.handleNearMonstersCleared(gameStateManager.getLocalPlayerId());
+	}
+
+	@Override
+	public void onNearMonsterDestroyed(NearEntity nearEntity, String killerPlayerId, double killX, double killY) {
+		int bossRound = Math.max(1, (nearEntity.getRound() + 1) / 2);
+		addScore(100 * bossRound);
+		addSkillPoints(2 + bossRound);
+
+		double dropChance = Math.random();
+		int currentRound = gameStateManager.getCurrentRound();
+		if (dropChance < skillManager.getSkillDropChance(currentRound)) {
+			skillManager.dropSkill(currentRound, killX, killY);
+		} else if (dropChance < 0.4) {
+			int bonusPoints = skillManager.getRandomSkillPoints(currentRound);
+			if (bonusPoints > 0) {
+				addSkillPoints(bonusPoints);
+			}
+		}
+
+		showCoinEarned((int) killX, (int) killY, 5 + bossRound);
+		checkAllNearMonstersDefeated();
 	}
 
 	/**
@@ -1155,6 +1195,12 @@ public class Game extends Canvas implements Screen, GameplayContext, GameContext
 			System.err.println("Error adding boss shot: " + e.getMessage());
 			e.printStackTrace();
 		}
+	}
+	
+	@Override
+	public BaseBossShotEntity createBossShot(int x, int y, double directionX, double directionY, double speed,
+			int radius, boolean canSplit, double splitY, int splitCount) {
+		return new BossShotEntity(this, x, y, directionX, directionY, speed, radius, canSplit, splitY, splitCount);
 	}
 	
 	/**

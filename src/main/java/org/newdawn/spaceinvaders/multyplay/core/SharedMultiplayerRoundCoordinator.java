@@ -2,10 +2,10 @@ package org.newdawn.spaceinvaders.multyplay.core;
 
 import java.util.Iterator;
 import java.util.Random;
-import org.newdawn.spaceinvaders.multyplay.entity.AlienEntity;
-import org.newdawn.spaceinvaders.multyplay.entity.BossEntity;
+import org.newdawn.spaceinvaders.common.entity.alien.AlienEntity;
+import org.newdawn.spaceinvaders.common.entity.boss.BossEntity;
 import org.newdawn.spaceinvaders.common.entity.Entity;
-import org.newdawn.spaceinvaders.multyplay.entity.NearEntity;
+import org.newdawn.spaceinvaders.common.entity.near.NearEntity;
 import org.newdawn.spaceinvaders.multyplay.core.MultiplayerSkillManager;
 import org.newdawn.spaceinvaders.multyplay.state.MultiplayerGameStateManager;
 

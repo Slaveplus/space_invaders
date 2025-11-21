@@ -8,8 +8,9 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 import org.junit.Test;
+import org.newdawn.spaceinvaders.common.entity.alien.AlienEntity;
 import org.newdawn.spaceinvaders.multyplay.core.MultiplayerGameContext;
-import org.newdawn.spaceinvaders.multyplay.entity.AlienEntity;
+import org.newdawn.spaceinvaders.multyplay.entity.MultiplayerAlienEnvironment;
 import org.newdawn.spaceinvaders.common.entity.ShipEntity;
 import org.newdawn.spaceinvaders.multyplay.state.MultiplayerGameStateManager;
 import org.newdawn.spaceinvaders.multyplay.state.PlayerState;
@@ -109,7 +110,7 @@ public class ServerMultiplayerGameTest {
 
     private static class TestAlienEntity extends AlienEntity {
         TestAlienEntity(MultiplayerGameContext game, int x, int y) {
-            super(game, x, y);
+            super(new MultiplayerAlienEnvironment(game), x, y, MultiplayerAlienEnvironment.hpResolver());
         }
 
         int getSpriteWidth() {

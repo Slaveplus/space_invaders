@@ -94,6 +94,13 @@ public class InputManager {
             if (gameStateManager.isWaitingForKeyPress() && !gameStateManager.isShowingSkillMenu()) {
                 return;
             }
+
+            if (e.getKeyCode() == KeyEvent.VK_F4) {
+                gameStateManager.toggleDebugDrawHitboxes();
+                boolean enabled = gameStateManager.isDebugDrawHitboxes();
+                System.out.println("Hitbox debug overlay: " + (enabled ? "ON" : "OFF"));
+                return;
+            }
             
             // Handle ESC key for pause menu (only during gameplay)
             if (e.getKeyCode() == KeyEvent.VK_ESCAPE) {

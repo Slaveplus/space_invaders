@@ -15,6 +15,8 @@ public class ResolutionManager {
     
     // 균등 스케일 팩터 (가로/세로 중 작은 값 사용)
     private double uniformScale = 1.0;
+    private double offsetX = 0;
+    private double offsetY = 0;
     
     /**
      * 해상도를 설정하고 균등 스케일 팩터를 계산합니다.
@@ -30,6 +32,11 @@ public class ResolutionManager {
         double scaleX = (double) width / BASE_WIDTH;
         double scaleY = (double) height / BASE_HEIGHT;
         this.uniformScale = Math.min(scaleX, scaleY);
+
+        double scaledWidth = BASE_WIDTH * uniformScale;
+        double scaledHeight = BASE_HEIGHT * uniformScale;
+        this.offsetX = (currentWidth - scaledWidth) / 2.0;
+        this.offsetY = (currentHeight - scaledHeight) / 2.0;
     }
     
     // Getter 메서드들
@@ -43,6 +50,14 @@ public class ResolutionManager {
     
     public double getUniformScale() { 
         return uniformScale; 
+    }
+
+    public double getOffsetX() {
+        return offsetX;
+    }
+
+    public double getOffsetY() {
+        return offsetY;
     }
     
     public int getCurrentWidth() { 

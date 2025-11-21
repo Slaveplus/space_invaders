@@ -16,13 +16,14 @@ import java.util.Queue;
 import java.util.Random;
 import org.newdawn.spaceinvaders.multyplay.core.MultiplayerGameContext;
 import org.newdawn.spaceinvaders.multyplay.state.MultiplayerGameStateManager;
-import org.newdawn.spaceinvaders.multyplay.entity.AlienEntity;
-import org.newdawn.spaceinvaders.multyplay.entity.BossEntity;
+import org.newdawn.spaceinvaders.common.entity.alien.AlienEntity;
+import org.newdawn.spaceinvaders.common.entity.boss.BossEntity;
 import org.newdawn.spaceinvaders.common.entity.Entity;
 import org.newdawn.spaceinvaders.common.entity.EntitySnapshot;
 import org.newdawn.spaceinvaders.common.entity.effect.ExplosionEntity;
-import org.newdawn.spaceinvaders.multyplay.entity.MissileEntity;
-import org.newdawn.spaceinvaders.multyplay.entity.NearEntity;
+import org.newdawn.spaceinvaders.common.entity.projectile.MissileEntity;
+import org.newdawn.spaceinvaders.multyplay.entity.MultiplayerMissileEnvironment;
+import org.newdawn.spaceinvaders.common.entity.near.NearEntity;
 import org.newdawn.spaceinvaders.common.entity.ShipEntity;
 import org.newdawn.spaceinvaders.common.entity.ShotEntity;
 import org.newdawn.spaceinvaders.multyplay.net.GameEvent;
@@ -728,8 +729,13 @@ public class ServerMultiplayerGame implements MultiplayerGameContext {
         if (source == null) {
             return;
         }
-        MissileEntity missile = new MissileEntity(this, "sprites/Skill/Missile.png",
-                (int) source.getX() + 15, (int) source.getY(), targetX, targetY);
+        MissileEntity missile = new MissileEntity(
+                new MultiplayerMissileEnvironment(this),
+                "sprites/Skill/Missile.png",
+                (int) source.getX() + 15,
+                (int) source.getY(),
+                targetX,
+                targetY);
         if (playerId != null) {
             missile.setOwnerId(playerId);
         }

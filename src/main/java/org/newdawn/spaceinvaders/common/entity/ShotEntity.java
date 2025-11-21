@@ -7,9 +7,13 @@ import java.awt.Graphics;
 import java.awt.Graphics2D;
 import java.awt.Rectangle;
 import java.awt.image.BufferedImage;
+import java.util.LinkedHashMap;
+import java.util.Map;
 import java.util.Objects;
 
 import org.newdawn.spaceinvaders.common.GameContext;
+import org.newdawn.spaceinvaders.common.entity.alien.BaseAlienEntity;
+import org.newdawn.spaceinvaders.multyplay.net.protocol.MetadataCodec;
 
 /**
  * 싱글/멀티 공용 탄환 엔티티.
@@ -62,7 +66,7 @@ public class ShotEntity extends Entity {
     public void setNearMonsterShot(boolean nearMonsterShot, int round, String spritePath) {
         this.nearMonsterShot = nearMonsterShot;
         this.nearMonsterRound = round;
-        this.spritePath = spritePath;
+        setSpritePath(spritePath);
     }
 
     @Override
@@ -215,18 +219,15 @@ public class ShotEntity extends Entity {
             return;
         }
 
-        if (other instanceof org.newdawn.spaceinvaders.gameplay.entity.AlienEntity
-                || other instanceof org.newdawn.spaceinvaders.multyplay.entity.AlienEntity) {
+        if (other instanceof BaseAlienEntity) {
             handleAlienHit(other);
             return;
         }
-        if (other instanceof org.newdawn.spaceinvaders.gameplay.entity.NearEntity
-                || other instanceof org.newdawn.spaceinvaders.multyplay.entity.NearEntity) {
+        if (other instanceof org.newdawn.spaceinvaders.common.entity.near.NearEntity) {
             handleNearHit(other);
             return;
         }
-        if (other instanceof org.newdawn.spaceinvaders.gameplay.entity.BossEntity
-                || other instanceof org.newdawn.spaceinvaders.multyplay.entity.BossEntity) {
+        if (other instanceof org.newdawn.spaceinvaders.common.entity.boss.BossEntity) {
             handleBossHit(other);
         }
     }
@@ -284,10 +285,22 @@ public class ShotEntity extends Entity {
     }
 
     protected void tryInvokeTakeDamage(Entity entity, int damage) {
+        if (entity == null) {
+            return;
+        }
+        Class<?> type = entity.getClass();
         try {
-            java.lang.reflect.Method takeDamage = entity.getClass().getMethod("takeDamage", int.class);
-            takeDamage.invoke(entity, damage);
+            java.lang.reflect.Method method = type.getMethod("takeDamage", int.class, String.class);
+            method.invoke(entity, damage, getOwnerId());
+            return;
         } catch (Exception ignored) {
+            // fall through to single-arg version
+        }
+        try {
+            java.lang.reflect.Method method = type.getMethod("takeDamage", int.class);
+            method.invoke(entity, damage);
+        } catch (Exception ignored) {
+            // no-op
         }
     }
 
@@ -307,6 +320,105 @@ public class ShotEntity extends Entity {
 
     public void setSpritePath(String spritePath) {
         this.spritePath = spritePath;
+        if (spritePath != null && !spritePath.isEmpty()) {
+            changeSkin(spritePath);
+        }
+    }
+
+    @Override
+    protected String snapshotMetadata() {
+        Map<String, String> map = new LinkedHashMap<>();
+        if (alienShot) {
+            map.put("alien", "1");
+        }
+        if (skillDrop) {
+            map.put("skill", "1");
+            map.put("skillType", Integer.toString(skillType));
+            map.put("skillValue", Integer.toString(skillValue));
+        }
+        if (piercingShot) {
+            map.put("pierce", "1");
+        }
+        if (nearMonsterShot) {
+            map.put("near", "1");
+            if (nearMonsterRound >= 0) {
+                map.put("nearRound", Integer.toString(nearMonsterRound));
+            }
+        }
+        if (spritePath != null && !spritePath.isEmpty()) {
+            map.put("sprite", spritePath);
+        }
+        return MetadataCodec.encode(map);
+    }
+
+    @Override
+    protected void applySnapshotMetadata(String metadata) {
+        Map<String, String> map = MetadataCodec.decode(metadata);
+        if (map.isEmpty()) {
+            return;
+        }
+        alienShot = "1".equals(map.get("alien"));
+        skillDrop = "1".equals(map.get("skill"));
+        if (skillDrop) {
+            skillType = parseInt(map.get("skillType"), skillType);
+            skillValue = parseInt(map.get("skillValue"), skillValue);
+        }
+        piercingShot = "1".equals(map.get("pierce"));
+        nearMonsterShot = "1".equals(map.get("near"));
+        if (nearMonsterShot) {
+            nearMonsterRound = parseInt(map.get("nearRound"), nearMonsterRound);
+        }
+        String spriteOverride = map.get("sprite");
+        if (spriteOverride != null && !spriteOverride.isEmpty()) {
+            changeSkin(spriteOverride);
+        }
+    }
+
+    private int parseInt(String value, int defaultValue) {
+        if (value == null) {
+            return defaultValue;
+        }
+        try {
+            return Integer.parseInt(value);
+        } catch (NumberFormatException ignored) {
+            return defaultValue;
+        }
+    }
+
+    @Override
+    public Rectangle getBounds() {
+        Rectangle base = super.getBounds();
+        if (skillDrop) {
+            return centeredSquare(24);
+        }
+        if (nearMonsterShot) {
+            return computeCenteredBounds(base);
+        }
+        if (alienShot) {
+            return shrinkRect(base);
+        }
+        return base;
+    }
+
+    private Rectangle centeredSquare(int size) {
+        int centerX = (int) Math.round(x);
+        int centerY = (int) Math.round(y);
+        return new Rectangle(centerX - size / 2, centerY - size / 2, size, size);
+    }
+
+    private Rectangle computeCenteredBounds(Rectangle base) {
+        Rectangle shrunk = shrinkRect(base);
+        int centerX = (int) Math.round(x);
+        int centerY = (int) Math.round(y);
+        return new Rectangle(centerX - shrunk.width / 2, centerY - shrunk.height / 2, shrunk.width, shrunk.height);
+    }
+
+    private Rectangle shrinkRect(Rectangle base) {
+        int width = Math.max(4, (int) (base.width * 0.175));
+        int height = Math.max(4, (int) (base.height * 0.175));
+        int centerX = base.x + base.width / 2;
+        int centerY = base.y + base.height / 2;
+        return new Rectangle(centerX - width / 2, centerY - height / 2, width, height);
     }
 
 }
