@@ -39,6 +39,7 @@ import org.newdawn.spaceinvaders.common.entity.effect.HeatEffectEntity;
 import org.newdawn.spaceinvaders.common.entity.near.NearEntity;
 import org.newdawn.spaceinvaders.common.entity.projectile.MissileEntity;
 import org.newdawn.spaceinvaders.common.entity.ui.CoinDisplayEntity;
+import org.newdawn.spaceinvaders.common.sprite.SpriteConstants;
 import org.newdawn.spaceinvaders.multyplay.entity.MultiplayerMissileEnvironment;
 import org.newdawn.spaceinvaders.login.UserManager;
 import org.newdawn.spaceinvaders.database.GameRecord;
@@ -73,6 +74,11 @@ import org.newdawn.spaceinvaders.multyplay.net.client.RoomGameNetworkAdapter;
  */
 public class MultiplayerGameCanvas extends Canvas implements Screen, MultiplayerGameContext
 {
+	private static final String REMOTE_PLAYER_LABEL = "클라이언트: 원격 플레이어 ";
+	private static final String FONT_ARIAL = "Arial";
+	private static final String RADIUS_KEY = "radius";
+	private static final String GAME_COMPLETED_MESSAGE = "🏆 GAME COMPLETED! 🏆 Congratulations!";
+
 	/** 가속 페이지 플리핑을 사용할 수 있게 해주는 전략 */
 	// BufferStrategy는 상위 App에서 관리
 	// entities and removeList are now managed by MultiplayerGameStateManager
@@ -86,9 +92,9 @@ public class MultiplayerGameCanvas extends Canvas implements Screen, Multiplayer
 	private ResolutionManager resolutionManager;
 	// lastFire and firingInterval are now managed by MultiplayerGameStateManager
 	/** 현재 장착된 우주선 스킨 경로 */
-	private String currentSpaceshipSkin = "sprites/ship.gif";
+	private String currentSpaceshipSkin = SpriteConstants.SHIP_GIF;
 	/** 현재 장착된 무기 스킨 경로 */
-	private String currentWeaponSkin = "sprites/shot.gif";
+	private String currentWeaponSkin = SpriteConstants.SHOT_GIF;
 	
 	// 플레이어별 스킨 정보 저장 (클라이언트)
 	private final Map<String, String> remotePlayerSkins = new HashMap<>();
@@ -323,7 +329,7 @@ public class MultiplayerGameCanvas extends Canvas implements Screen, Multiplayer
 		initEntities();
 		
 		// ship 생성 후 다시 한번 스킨 적용 (확실하게 하기 위해)
-		if (ship != null && currentSpaceshipSkin != null && !currentSpaceshipSkin.equals("sprites/ship.gif")) {
+		if (ship != null && currentSpaceshipSkin != null && !currentSpaceshipSkin.equals(SpriteConstants.SHIP_GIF)) {
 			ship.changeSkin(currentSpaceshipSkin);
 			System.out.println("멀티플레이어 startGame에서 최종 스킨 적용: " + currentSpaceshipSkin);
 		}
@@ -358,7 +364,7 @@ public class MultiplayerGameCanvas extends Canvas implements Screen, Multiplayer
 			entities.add(ship);
 			
 			// ship 생성 후 스킨 적용
-			if (currentSpaceshipSkin != null && !currentSpaceshipSkin.equals("sprites/ship.gif")) {
+			if (currentSpaceshipSkin != null && !currentSpaceshipSkin.equals(SpriteConstants.SHIP_GIF)) {
 				ship.changeSkin(currentSpaceshipSkin);
 				System.out.println("멀티플레이어 initEntities에서 스킨 적용: " + currentSpaceshipSkin);
 			}
@@ -453,7 +459,7 @@ public class MultiplayerGameCanvas extends Canvas implements Screen, Multiplayer
 		if (roundAdvanced) {
 			SharedMultiplayerRoundCoordinator.setupRound(this, gameStateManager.getCurrentRound());
 		} else {
-			gameStateManager.setMessage("🏆 GAME COMPLETED! 🏆 Congratulations!");
+			gameStateManager.setMessage(GAME_COMPLETED_MESSAGE);
 			gameStateManager.setWaitingForKeyPress(true);
 			persistMultiplayerResults(true);
 		}
@@ -557,7 +563,7 @@ public class MultiplayerGameCanvas extends Canvas implements Screen, Multiplayer
 	 * @param y The y location of the shot
 	 */
 	public void addAlienShot(int x, int y) {
-		ShotEntity shot = new ShotEntity(this, "sprites/shot.gif", x, y, true);
+		ShotEntity shot = new ShotEntity(this, SpriteConstants.SHOT_GIF, x, y, true);
 		gameStateManager.getEntities().add(shot);
 	}
 
@@ -588,7 +594,7 @@ public class MultiplayerGameCanvas extends Canvas implements Screen, Multiplayer
 		int aimOffset = (int)((playerX - alienX) * 0.15); // 15% of distance towards player
 		aimOffset = Math.max(-15, Math.min(15, aimOffset)); // Clamp to player-sized range
 		
-		ShotEntity shot = new ShotEntity(this, "sprites/shot.gif", x + aimOffset, y, true);
+		ShotEntity shot = new ShotEntity(this, SpriteConstants.SHOT_GIF, x + aimOffset, y, true);
 		gameStateManager.getEntities().add(shot);
 	}
 	
@@ -603,7 +609,7 @@ public class MultiplayerGameCanvas extends Canvas implements Screen, Multiplayer
 	@Override
 	public void createSkillDrop(int x, int y, int skillType, int skillValue) {
 		// Create skill drop using ShotEntity with skill drop functionality
-		ShotEntity skillDrop = new ShotEntity(this, "sprites/shot.gif", x, y, skillType, skillValue);
+		ShotEntity skillDrop = new ShotEntity(this, SpriteConstants.SHOT_GIF, x, y, skillType, skillValue);
 		gameStateManager.getEntities().add(skillDrop);
 	}
 
@@ -1256,7 +1262,7 @@ public class MultiplayerGameCanvas extends Canvas implements Screen, Multiplayer
 		private int splitCount;
 
 		RemoteBossShotEntity(EntitySnapshot snapshot, Map<String, String> meta) {
-			super(snapshot.sprite != null && !snapshot.sprite.isEmpty() ? snapshot.sprite : "sprites/shot.gif",
+			super(snapshot.sprite != null && !snapshot.sprite.isEmpty() ? snapshot.sprite : SpriteConstants.SHOT_GIF,
 				(int) Math.round(snapshot.x), (int) Math.round(snapshot.y));
 			this.x = snapshot.x;
 			this.y = snapshot.y;
@@ -1283,7 +1289,7 @@ public class MultiplayerGameCanvas extends Canvas implements Screen, Multiplayer
 				// keep previous value
 			}
 			try {
-				radius = Integer.parseInt(meta.getOrDefault("radius", Integer.toString(radius)));
+				radius = Integer.parseInt(meta.getOrDefault(RADIUS_KEY, Integer.toString(radius)));
 			} catch (NumberFormatException ignore) {
 				// keep previous value
 			}
@@ -1364,7 +1370,7 @@ public class MultiplayerGameCanvas extends Canvas implements Screen, Multiplayer
 		private final long duration = 800;
 
 		RemoteHeatEffectEntity(double x, double y) {
-			super("sprites/Skill/Heat.gif", (int) Math.round(x), (int) Math.round(y));
+			super(SpriteConstants.HEAT_GIF, (int) Math.round(x), (int) Math.round(y));
 			this.x = x;
 			this.y = y;
 			ensureHeatImage();
@@ -1374,7 +1380,7 @@ public class MultiplayerGameCanvas extends Canvas implements Screen, Multiplayer
 			if (cachedHeat != null) {
 				return;
 			}
-			try (java.io.InputStream is = MultiplayerGameCanvas.class.getClassLoader().getResourceAsStream("sprites/Skill/Heat.gif")) {
+			try (java.io.InputStream is = MultiplayerGameCanvas.class.getClassLoader().getResourceAsStream(SpriteConstants.HEAT_GIF)) {
 				if (is != null) {
 					cachedHeat = ImageIO.read(is);
 				}
@@ -1460,7 +1466,7 @@ public class MultiplayerGameCanvas extends Canvas implements Screen, Multiplayer
 								// 스킨 정보 저장
 								remotePlayerSkins.put(playerId, skinPath);
 								updateRemotePlayerSkin(playerId, skinPath);
-								System.out.println("클라이언트: 원격 플레이어 " + playerId + " 스킨 변경됨: " + skinPath);
+								System.out.println(REMOTE_PLAYER_LABEL + playerId + " 스킨 변경됨: " + skinPath);
 							}
 						} else if (event.fromPlayerId != null && event.fromPlayerId.equals(localPlayerId)) {
 							gameStateManager.setMessage(message);
@@ -1679,7 +1685,7 @@ public class MultiplayerGameCanvas extends Canvas implements Screen, Multiplayer
 		}
 
 		private static String resolveShotSprite(EntitySnapshot snapshot) {
-			return snapshot.sprite != null && !snapshot.sprite.isEmpty() ? snapshot.sprite : "sprites/shot.gif";
+			return snapshot.sprite != null && !snapshot.sprite.isEmpty() ? snapshot.sprite : SpriteConstants.SHOT_GIF;
 		}
 
 		private void apply(Map<String, String> meta) {
@@ -1771,7 +1777,7 @@ public class MultiplayerGameCanvas extends Canvas implements Screen, Multiplayer
 				g2d.setColor(new Color(0, 0, 0, 180));
 				g2d.fillOval(circleX - radius, circleY - radius, radius * 2, radius * 2);
 				g2d.setColor(Color.YELLOW);
-				g2d.setFont(new Font("Arial", Font.BOLD, 8));
+				g2d.setFont(new Font(FONT_ARIAL, Font.BOLD, 8));
 				String text = "1";
 				int textWidth = g2d.getFontMetrics().stringWidth(text);
 				int textHeight = g2d.getFontMetrics().getHeight();
@@ -1786,7 +1792,7 @@ public class MultiplayerGameCanvas extends Canvas implements Screen, Multiplayer
 
 		private void drawNearMonsterShot(Graphics g) {
 			Graphics2D g2d = (Graphics2D) g;
-			if ("sprites/Skill/Heat.gif".equals(spritePath)) {
+			if (SpriteConstants.HEAT_GIF.equals(spritePath)) {
 				int sphereSize = 20;
 				g2d.setColor(Color.GREEN);
 				g2d.fillOval((int) x - sphereSize / 2, (int) y - sphereSize / 2, sphereSize, sphereSize);
@@ -1796,7 +1802,7 @@ public class MultiplayerGameCanvas extends Canvas implements Screen, Multiplayer
 				g2d.fillOval((int) x - sphereSize / 4, (int) y - sphereSize / 4, sphereSize / 2, sphereSize / 2);
 				return;
 			}
-			if ("sprites/shot.gif".equals(spritePath) || (spritePath != null && spritePath.endsWith("/shot.gif"))) {
+			if (SpriteConstants.SHOT_GIF.equals(spritePath) || (spritePath != null && spritePath.endsWith("/shot.gif"))) {
 				int sphereSize = 20;
 				g2d.setColor(Color.BLACK);
 				g2d.fillOval((int) x - sphereSize / 2, (int) y - sphereSize / 2, sphereSize, sphereSize);
@@ -1804,11 +1810,11 @@ public class MultiplayerGameCanvas extends Canvas implements Screen, Multiplayer
 				g2d.drawOval((int) x - sphereSize / 2, (int) y - sphereSize / 2, sphereSize, sphereSize);
 				return;
 			}
-			if ("sprites/Boss_Attack/2round1.gif".equals(spritePath)) {
+			if (SpriteConstants.ROUND_2_ATTACK_1_GIF.equals(spritePath)) {
 				sprite.draw(g, (int) x - 75, (int) y - 75, 150, 150);
 				return;
 			}
-			if ("sprites/Boss_Attack/ice ball.gif".equals(spritePath)) {
+			if (SpriteConstants.ICE_BALL_GIF.equals(spritePath)) {
 				sprite.draw(g, (int) x - 50, (int) y - 50, 100, 100);
 				return;
 			}
@@ -1905,10 +1911,10 @@ public class MultiplayerGameCanvas extends Canvas implements Screen, Multiplayer
 		private final int height;
 
 		RemoteIceBallAttack(EntitySnapshot snapshot) {
-			super("sprites/Boss_Attack/ice ball.gif", (int) Math.round(snapshot.x), (int) Math.round(snapshot.y));
+			super(SpriteConstants.ICE_BALL_GIF, (int) Math.round(snapshot.x), (int) Math.round(snapshot.y));
 			this.x = snapshot.x;
 			this.y = snapshot.y;
- 			this.animated = loadAnimatedImage("sprites/Boss_Attack/ice ball.gif");
+ 			this.animated = loadAnimatedImage(SpriteConstants.ICE_BALL_GIF);
 			int fallback = 20;
 			this.width = snapshot.w > 0 ? snapshot.w : fallback;
 			this.height = snapshot.h > 0 ? snapshot.h : fallback;
@@ -1957,10 +1963,10 @@ public class MultiplayerGameCanvas extends Canvas implements Screen, Multiplayer
 		private final double strength;
 
 		RemoteMagneticField(EntitySnapshot snapshot, Map<String, String> meta) {
-			super("sprites/shot.gif", (int) Math.round(snapshot.x), (int) Math.round(snapshot.y));
+			super(SpriteConstants.SHOT_GIF, (int) Math.round(snapshot.x), (int) Math.round(snapshot.y));
 			this.x = snapshot.x;
 			this.y = snapshot.y;
-			this.radius = parseDouble(meta, "radius", 220.0);
+			this.radius = parseDouble(meta, RADIUS_KEY, 220.0);
 			this.strength = parseDouble(meta, "strength", 0.8);
 		}
 
@@ -2104,10 +2110,10 @@ public class MultiplayerGameCanvas extends Canvas implements Screen, Multiplayer
 		private final int size;
 
 		RemoteRound2Phase2(EntitySnapshot snapshot) {
-			super("sprites/Boss_Attack/2round1.gif", (int) Math.round(snapshot.x), (int) Math.round(snapshot.y));
+			super(SpriteConstants.ROUND_2_ATTACK_1_GIF, (int) Math.round(snapshot.x), (int) Math.round(snapshot.y));
 			this.x = snapshot.x;
 			this.y = snapshot.y;
-			this.animated = loadAnimatedImage("sprites/Boss_Attack/2round1.gif");
+			this.animated = loadAnimatedImage(SpriteConstants.ROUND_2_ATTACK_1_GIF);
 			this.size = snapshot.w > 0 ? snapshot.w : 50;
 		}
 
@@ -2185,10 +2191,10 @@ public class MultiplayerGameCanvas extends Canvas implements Screen, Multiplayer
 		private final int size;
 
 		RemoteRound2Quad(EntitySnapshot snapshot) {
-			super("sprites/Boss_Attack/2round1.gif", (int) Math.round(snapshot.x), (int) Math.round(snapshot.y));
+			super(SpriteConstants.ROUND_2_ATTACK_1_GIF, (int) Math.round(snapshot.x), (int) Math.round(snapshot.y));
 			this.x = snapshot.x;
 			this.y = snapshot.y;
-			this.animated = loadAnimatedImage("sprites/Boss_Attack/2round1.gif");
+			this.animated = loadAnimatedImage(SpriteConstants.ROUND_2_ATTACK_1_GIF);
 			this.size = snapshot.w > 0 ? snapshot.w : 50;
 		}
 
@@ -2224,10 +2230,10 @@ public class MultiplayerGameCanvas extends Canvas implements Screen, Multiplayer
 		private final int size;
 
 		RemoteRound2MachineGun(EntitySnapshot snapshot) {
-			super("sprites/Boss_Attack/2round1.gif", (int) Math.round(snapshot.x), (int) Math.round(snapshot.y));
+			super(SpriteConstants.ROUND_2_ATTACK_1_GIF, (int) Math.round(snapshot.x), (int) Math.round(snapshot.y));
 			this.x = snapshot.x;
 			this.y = snapshot.y;
-			this.animated = loadAnimatedImage("sprites/Boss_Attack/2round1.gif");
+			this.animated = loadAnimatedImage(SpriteConstants.ROUND_2_ATTACK_1_GIF);
 			this.size = snapshot.w > 0 ? snapshot.w : 30;
 		}
 
@@ -2558,14 +2564,14 @@ public class MultiplayerGameCanvas extends Canvas implements Screen, Multiplayer
 		private double currentRadius;
 
 		RemoteExplosionEntity(EntitySnapshot snapshot, Map<String, String> meta) {
-			super(snapshot.sprite != null && !snapshot.sprite.isEmpty() ? snapshot.sprite : "sprites/Skill/Explosion.png", (int) snapshot.x, (int) snapshot.y);
+			super(snapshot.sprite != null && !snapshot.sprite.isEmpty() ? snapshot.sprite : SpriteConstants.EXPLOSION_PNG, (int) snapshot.x, (int) snapshot.y);
 			loadImage();
 			apply(meta);
 		}
 
 		private void apply(Map<String, String> meta) {
 			if (meta == null) return;
-			try { currentRadius = Double.parseDouble(meta.getOrDefault("radius", "0")); }
+			try { currentRadius = Double.parseDouble(meta.getOrDefault(RADIUS_KEY, "0")); }
 			catch (NumberFormatException ignore) { currentRadius = 0; }
 		}
 
@@ -2608,7 +2614,7 @@ public class MultiplayerGameCanvas extends Canvas implements Screen, Multiplayer
 
 		private void loadImage() {
 			if (cachedImage != null) return;
-			try (java.io.InputStream is = MultiplayerGameCanvas.class.getClassLoader().getResourceAsStream("sprites/Skill/Explosion.png")) {
+			try (java.io.InputStream is = MultiplayerGameCanvas.class.getClassLoader().getResourceAsStream(SpriteConstants.EXPLOSION_PNG)) {
 				if (is != null) {
 					cachedImage = ImageIO.read(is);
 				}
@@ -2737,11 +2743,11 @@ public class MultiplayerGameCanvas extends Canvas implements Screen, Multiplayer
 		g.setColor(new Color(255, 255, 255, 90));
 		g.drawRoundRect(panelX, panelY, panelWidth, panelHeight, 16, 16);
 
-		g.setFont(new Font("Arial", Font.BOLD, 22));
+		g.setFont(new Font(FONT_ARIAL, Font.BOLD, 22));
 		g.setColor(Color.WHITE);
 		g.drawString("관전 모드", panelX + 24, panelY + 36);
 
-		g.setFont(new Font("Arial", Font.PLAIN, 14));
+		g.setFont(new Font(FONT_ARIAL, Font.PLAIN, 14));
 		g.setColor(new Color(225, 225, 225));
 		g.drawString("당신의 함선이 파괴되었습니다.", panelX + 24, panelY + 64);
 		g.drawString("라운드 종료까지 관전을 계속합니다.", panelX + 24, panelY + 82);
@@ -2768,11 +2774,11 @@ public class MultiplayerGameCanvas extends Canvas implements Screen, Multiplayer
 		}
 
 		int listY = panelY + 110;
-		g.setFont(new Font("Arial", Font.BOLD, 14));
+		g.setFont(new Font(FONT_ARIAL, Font.BOLD, 14));
 		g.setColor(new Color(120, 255, 160));
 		g.drawString("생존 플레이어", panelX + 24, listY);
 		listY += 18;
-		g.setFont(new Font("Arial", Font.PLAIN, 13));
+		g.setFont(new Font(FONT_ARIAL, Font.PLAIN, 13));
 		if (alive.isEmpty()) {
 			g.setColor(new Color(200, 200, 200));
 			g.drawString("• 없음", panelX + 24, listY);
@@ -2786,11 +2792,11 @@ public class MultiplayerGameCanvas extends Canvas implements Screen, Multiplayer
 		}
 
 		listY += 4;
-		g.setFont(new Font("Arial", Font.BOLD, 14));
+		g.setFont(new Font(FONT_ARIAL, Font.BOLD, 14));
 		g.setColor(new Color(255, 200, 160));
 		g.drawString("전투 불능", panelX + 24, listY);
 		listY += 18;
-		g.setFont(new Font("Arial", Font.PLAIN, 13));
+		g.setFont(new Font(FONT_ARIAL, Font.PLAIN, 13));
 		if (defeated.isEmpty()) {
 			g.setColor(new Color(200, 200, 200));
 			g.drawString("• 없음", panelX + 24, listY);
@@ -2803,7 +2809,7 @@ public class MultiplayerGameCanvas extends Canvas implements Screen, Multiplayer
 			}
 		}
 
-		g.setFont(new Font("Arial", Font.PLAIN, 12));
+		g.setFont(new Font(FONT_ARIAL, Font.PLAIN, 12));
 		g.setColor(new Color(200, 200, 200));
 		g.drawString("Enter: 채팅  ESC: 로비로 돌아가기", panelX + 24, panelY + panelHeight - 28);
 	}
@@ -2831,20 +2837,20 @@ public class MultiplayerGameCanvas extends Canvas implements Screen, Multiplayer
 		g.drawRoundRect(panelX, panelY, panelWidth, panelHeight, 18, 18);
 
 		String title = remotePhase == GameSnapshot.Phase.COMPLETED ? "게임 종료" : "라운드 준비";
-		Font titleFont = new Font("Arial", Font.BOLD, 24);
+		Font titleFont = new Font(FONT_ARIAL, Font.BOLD, 24);
 		g.setFont(titleFont);
 		g.setColor(Color.WHITE);
 		g.drawString(title, panelX + 24, panelY + 40);
 
 		if (intermissionMessage != null && !intermissionMessage.isEmpty()) {
-			g.setFont(new Font("Arial", Font.PLAIN, 16));
+			g.setFont(new Font(FONT_ARIAL, Font.PLAIN, 16));
 			g.setColor(new Color(220, 220, 220));
 			g.drawString(intermissionMessage, panelX + 24, panelY + 70);
 		}
 
 		int listX = panelX + 24;
 		int listY = panelY + 100;
-		g.setFont(new Font("Arial", Font.BOLD, 16));
+		g.setFont(new Font(FONT_ARIAL, Font.BOLD, 16));
 		int lineHeight = 24;
 		Map<String, String> displayMap = new LinkedHashMap<>(playerDisplayNames);
 		for (String id : remoteReadyStates.keySet()) {
@@ -2898,7 +2904,7 @@ public class MultiplayerGameCanvas extends Canvas implements Screen, Multiplayer
 		g.setColor(Color.WHITE);
 		g.drawString(inputDisplay, chatX + 12, inputY + 21);
 
-		g.setFont(new Font("Arial", Font.PLAIN, 13));
+		g.setFont(new Font(FONT_ARIAL, Font.PLAIN, 13));
 		g.setColor(new Color(200, 200, 200));
 		int infoY = panelY + panelHeight - 40;
 		if (remotePhase == GameSnapshot.Phase.INTERMISSION) {
@@ -2988,7 +2994,7 @@ public class MultiplayerGameCanvas extends Canvas implements Screen, Multiplayer
 	@Override
 	public void createExplosion(int x, int y, double radius) {
 		try {
-			ExplosionEntity explosion = new ExplosionEntity(this, "sprites/Skill/Explosion.png", x, y, radius);
+			ExplosionEntity explosion = new ExplosionEntity(this, SpriteConstants.EXPLOSION_PNG, x, y, radius);
 			explosion.setOwnerId(localPlayerId);
 			gameStateManager.getEntities().add(explosion);
 		} catch (Exception e) {
@@ -3098,7 +3104,7 @@ public class MultiplayerGameCanvas extends Canvas implements Screen, Multiplayer
 			SharedMultiplayerRoundCoordinator.setupRound(this, gameStateManager.getCurrentRound());
 			gameStateManager.setWaitingForKeyPress(false);
 		} else {
-			gameStateManager.setMessage("🏆 GAME COMPLETED! 🏆 Congratulations!");
+			gameStateManager.setMessage(GAME_COMPLETED_MESSAGE);
 			gameStateManager.setWaitingForKeyPress(true);
 			persistMultiplayerResults(true);
 		}
@@ -3118,7 +3124,7 @@ public class MultiplayerGameCanvas extends Canvas implements Screen, Multiplayer
 		if (roundAdvanced) {
 			SharedMultiplayerRoundCoordinator.setupRound(this, gameStateManager.getCurrentRound());
 		} else {
-			gameStateManager.setMessage("🏆 GAME COMPLETED! 🏆 Congratulations!");
+			gameStateManager.setMessage(GAME_COMPLETED_MESSAGE);
 			gameStateManager.setWaitingForKeyPress(true);
 			persistMultiplayerResults(true);
 		}
@@ -3225,7 +3231,7 @@ public class MultiplayerGameCanvas extends Canvas implements Screen, Multiplayer
 	 */
 	public void addBossShot(int x, int y) {
 		try {
-			ShotEntity shot = new ShotEntity(this, "sprites/shot.gif", x, y, true); // true = alien shot
+			ShotEntity shot = new ShotEntity(this, SpriteConstants.SHOT_GIF, x, y, true); // true = alien shot
 			gameStateManager.getEntities().add(shot);
 		} catch (Exception e) {
 			System.err.println("Error adding boss shot: " + e.getMessage());
@@ -3298,7 +3304,7 @@ public class MultiplayerGameCanvas extends Canvas implements Screen, Multiplayer
 			}
 		} else {
 			// 장착된 스킨이 없으면 기본 스킨 사용
-			currentSpaceshipSkin = "sprites/ship.gif";
+			currentSpaceshipSkin = SpriteConstants.SHIP_GIF;
 			System.out.println("멀티플레이어 기본 스킨 사용: " + currentSpaceshipSkin);
 		}
 	}
@@ -3368,7 +3374,7 @@ public class MultiplayerGameCanvas extends Canvas implements Screen, Multiplayer
 			// 원격 플레이어의 스킨을 추정하여 적용
 			// 실제로는 서버에서 스킨 정보를 받아야 하지만, 
 			// 현재는 기본 스킨을 사용하거나 플레이어 ID 기반으로 추정
-			String remoteSkin = "sprites/ship.gif"; // 기본값
+			String remoteSkin = SpriteConstants.SHIP_GIF; // 기본값
 			
 			// 플레이어 ID 기반으로 스킨 추정 (임시 로직)
 			if (playerId.contains("player1") || playerId.contains("1")) {
@@ -3381,7 +3387,7 @@ public class MultiplayerGameCanvas extends Canvas implements Screen, Multiplayer
 			
 			System.out.println("  - 추정된 스킨: " + remoteSkin);
 			shipEntity.changeSkin(remoteSkin);
-			System.out.println("클라이언트: 원격 플레이어 " + playerId + " 스킨 적용: " + remoteSkin);
+			System.out.println(REMOTE_PLAYER_LABEL + playerId + " 스킨 적용: " + remoteSkin);
 		}
 	}
 	
@@ -3402,7 +3408,7 @@ public class MultiplayerGameCanvas extends Canvas implements Screen, Multiplayer
 						foundEntities++;
 						System.out.println("  - 매칭되는 플레이어 배 발견! 스킨 변경 시도...");
 						shipEntity.changeSkin(skinPath);
-						System.out.println("클라이언트: 원격 플레이어 " + playerId + " 스킨 업데이트: " + skinPath);
+						System.out.println(REMOTE_PLAYER_LABEL + playerId + " 스킨 업데이트: " + skinPath);
 					}
 				}
 			}
