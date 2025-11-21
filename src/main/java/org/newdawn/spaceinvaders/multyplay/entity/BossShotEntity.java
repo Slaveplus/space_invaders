@@ -18,6 +18,7 @@ public class BossShotEntity extends BaseBossShotEntity {
         this(game, x, y, directionX, directionY, speed, 8, false, 0, 0);
     }
 
+
     public BossShotEntity(MultiplayerGameContext game,
                           int x,
                           int y,
