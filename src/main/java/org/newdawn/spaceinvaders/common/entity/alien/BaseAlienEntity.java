@@ -3,10 +3,10 @@ package org.newdawn.spaceinvaders.common.entity.alien;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
 import java.awt.Rectangle;
-
-import org.newdawn.spaceinvaders.common.entity.Entity;
-import org.newdawn.spaceinvaders.common.sprite.Sprite;
-
+import java.util.function.IntUnaryOperator;
+ 
+ import org.newdawn.spaceinvaders.common.entity.Entity;
+ import org.newdawn.spaceinvaders.common.sprite.Sprite;
 /**
  * 싱글/멀티 공통 Alien 구현.
  */
@@ -30,9 +30,15 @@ public abstract class BaseAlienEntity extends Entity {
     protected long lastCollisionTime = 0;
     protected static final long COLLISION_COOLDOWN = 500;
 
-    protected BaseAlienEntity(AlienEnvironment environment, String spriteRef, int x, int y) {
+    protected BaseAlienEntity(AlienEnvironment environment, String spriteRef, int x, int y, IntUnaryOperator hpResolver) {
         super(spriteRef, x, y);
         this.environment = environment;
+
+        // Initialize HP using the resolver first
+        this.maxHP = Math.max(1, hpResolver.applyAsInt(environment.getCurrentRound()));
+        this.currentHP = this.maxHP;
+
+        // Then initialize the rest
         initialize(environment.getCurrentRound());
     }
 
@@ -41,8 +47,6 @@ public abstract class BaseAlienEntity extends Entity {
         frames[1] = sprite;
         frames[2] = sprite;
         frames[3] = sprite;
-        maxHP = Math.max(1, resolveMaxHp(round));
-        currentHP = maxHP;
         moveSpeed = resolveBaseMoveSpeed(round);
         horizontalSpeed = moveSpeed * (0.8 + (Math.random() * 0.4));
         firingInterval = resolveFiringInterval(round);
@@ -73,8 +77,6 @@ public abstract class BaseAlienEntity extends Entity {
         double randomFactor = 0.8 + (Math.random() * 0.4);
         return (long) (interval * randomFactor);
     }
-
-    protected abstract int resolveMaxHp(int round);
 
     protected double getScaleForRound(int round) {
         return round == 1 ? 0.18 : 0.75;
