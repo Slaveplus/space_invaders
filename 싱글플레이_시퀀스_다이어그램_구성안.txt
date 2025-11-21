@@ -1,0 +1,560 @@
+================================================================================
+싱글플레이 게임 시퀀스 다이어그램 구성안 (6개 시퀀스로 분리)
+================================================================================
+
+① 게임 시작(스킨 로딩 + 플레이어 생성) 시퀀스
+────────────────────────────────────────────────────────────────────────────
+
+Actors:
+    • ScreenNavigator
+    • Game
+    • UserManager
+    • ShopManager
+    • EquipmentManager
+    • FirebaseDB
+    • SharedGameplayCoordinator
+    • ShipEntity
+
+핵심 메시지 흐름:
+    startNewGame → loadInventory → loadEquipment → applyEquippedItems → createPlayerShip → initializeRound
+
+상세 시퀀스:
+    ScreenNavigator.startNewGame()
+        → Game 생성
+        → Game.startGame()
+            → [인벤토리 로드]
+            → UserManager.getShopManager()
+            → ShopManager.loadInventoryFromDB()
+                → EquipmentManager.loadInventoryFromDB()
+                    → FirebaseDB.loadInventory()
+                        → Firebase Realtime Database 쿼리 (/users/{uid}/inventory)
+            
+            → [장착 아이템 로드]
+            → ShopManager.loadEquipmentFromDB()
+                → EquipmentManager.loadEquipmentFromDB()
+                    → FirebaseDB.loadEquipment()
+                        → Firebase Realtime Database 쿼리 (/users/{uid}/equipment)
+                    → EquipmentManager.equippedItems 업데이트
+            
+            → [스킨 적용]
+            → Game.applyEquippedItems()
+                → ShopManager.getEquippedItem(ShopCategory.SPACESHIPS)
+                    → EquipmentManager.getEquippedItem(ShopCategory.SPACESHIPS)
+                        → EquipmentManager.equippedItems에서 SPACESHIPS 검색
+                        → ShopItem 반환 (장착된 우주선)
+                → Game.mapItemIdToSkinFile(equippedSpaceship.getId())
+                    → 아이템 ID를 스킨 파일명으로 매핑
+                → Game.currentSpaceshipSkin = "sprites/ships/{skinFileName}"
+                
+                → ShopManager.getEquippedItem(ShopCategory.WEAPONS)
+                    → EquipmentManager.getEquippedItem(ShopCategory.WEAPONS)
+                        → EquipmentManager.equippedItems에서 WEAPONS 검색
+                        → ShopItem 반환 (장착된 무기)
+                → Game.currentWeaponSkin = "sprites/weapons/{weaponId}.png"
+            
+            → [게임 상태 초기화]
+            → GameStateManager.startNewGame()
+                → GameStateManager.players.clear()
+                → PlayerState.resetForNewGame()
+                → GameStateManager.currentRound = 1
+                → GameStateManager.entities.clear()
+                → GameStateManager.earnedCoins = 0
+                → GameStateManager.gameStartTime = System.currentTimeMillis()
+            
+            → [라운드 초기화]
+            → SharedGameplayCoordinator.startNewGame("local")
+                → SharedGameplayCoordinator.initializeRound("local")
+                    → Game.createPlayerShip("local")
+                        → ShipEntity 생성
+                            → ShipEntity(spritePath=currentSpaceshipSkin, x=370, y=550)
+                            → ShipEntity.changeSkin(currentSpaceshipSkin) [스킨 적용]
+                        → Game.addEntity(ship)
+                    
+                    → SharedGameplayCoordinator.spawnNearMonsters(1)
+                        → Game.createNearEntity(1, index) [6마리 생성]
+                        → Game.addEntity(near)
+                        → GameStateManager.setAlienCount(6)
+                    
+                    → Game.onRoundBackgroundChanged(1)
+                        → Game.updateBackgroundForRound(1)
+                            → BackgroundRenderer.setResourcePath("sprites/stage_background/1.png")
+            
+            → Game.gameStartTime = System.currentTimeMillis()
+
+반드시 포함할 장면:
+    • 스킨 적용 흐름 (Firebase DB → EquipmentManager → Game → ShipEntity)
+    • ShipEntity 생성 시 currentSpaceshipSkin 적용
+
+
+② 게임 루프(update) 시퀀스 (매 프레임)
+────────────────────────────────────────────────────────────────────────────
+
+Actors:
+    • SpaceInvadersApp
+    • Game
+    • GameStateManager
+    • Entity (loop)
+    • InputManager
+    • SkillManager
+
+핵심 메시지 흐름:
+    update → move loop → tryAlienFire → InputManager → tryToFire → collision loop → remove → doLogic → render
+
+상세 시퀀스:
+    SpaceInvadersApp → Game.update(delta)
+        → NetworkAdapter.tick() [싱글플레이: LocalLoopbackNetworkAdapter]
+        → GameStateManager.shouldAutoCloseRoundInfo() [라운드 정보 창 자동 닫기]
+        → GameStateManager.isPaused() [일시정지 상태 확인]
+        → SkillManager.updateSkillEffects() [스킬 효과 업데이트]
+        
+        → [엔티티 이동 - Loop 프레임]
+        loop [for each Entity in entities]
+            → Entity.move(delta)
+        
+        → Game.tryAlienFire() [적 공격 시도]
+            → GameStateManager.getLastAlienFire() [공격 간격 확인]
+            → AlienEntity 리스트 수집
+            → 랜덤 AlienEntity 선택
+            → AlienEntity.fire() 또는 addAlienShot()
+        
+        → [플레이어 입력 처리]
+        → InputManager.updateGameplayInput()
+            → Game.getShip()
+            → ShipEntity.setHorizontalMovement()
+            → Game.tryToFire() [발사 시도]
+                → GameStateManager.getLastFire() [발사 간격 확인]
+                → SkillManager.hasTripleShot() [3연발 확인]
+                → ShotEntity 생성 (1개 또는 3개)
+                    → Game.currentWeaponSkin 사용 [장착된 무기 스킨]
+                → GameStateManager.getEntities().add(shot)
+        
+        → [충돌 감지 - Nested Loop 프레임]
+        loop [for each Entity e1 in entities]
+            loop [for each Entity e2 in entities (after e1)]
+                → Entity.collidesWith() [충돌 확인]
+                → Entity.collidedWith() [충돌 처리]
+                    → [충돌 처리 상세는 ④번 시퀀스 참조]
+        
+        → [엔티티 제거]
+        → GameStateManager.getEntities().removeAll(removeList)
+        → GameStateManager.getRemoveList().clear()
+        
+        → [엔티티 로직]
+        → if (GameStateManager.isLogicRequiredThisLoop())
+            loop [for each Entity in entities]
+                → Entity.doLogic()
+            → GameStateManager.setLogicRequiredThisLoop(false)
+        
+        → [렌더링]
+        → SpaceInvadersApp → Game.render(Graphics2D)
+            → ResolutionManager.getScaleX/Y() [해상도 스케일링]
+            → BackgroundRenderer.draw() [배경]
+            → loop [for each Entity: Entity.draw()]
+                → ShipEntity.draw() [장착된 우주선 스킨으로 렌더링]
+                → ShotEntity.draw() [장착된 무기 스킨으로 렌더링]
+            → UIRenderer.drawGameUI() [UI]
+            → Game.drawPauseMenu() [일시정지 메뉴]
+            → Game.drawSkillMenu() [스킬 메뉴]
+            → Game.drawRoundInfoOverlay() [라운드 정보]
+            → Game.drawQuitConfirmOverlay() [종료 확인]
+
+특징:
+    • 반드시 "loop 프레임" 사용 (draw.io: Loop frame)
+    • Collision은 "nested loop"로 표현
+    • 매 프레임 반복되는 구조
+
+
+③ 입력 처리 시퀀스
+────────────────────────────────────────────────────────────────────────────
+
+Actors:
+    • KeyEvent
+    • InputManager
+    • GameStateManager
+    • Game
+    • SkillManager
+
+핵심 메시지 흐름:
+    keyPressed → handleGameplayKeyPressed → ESC / Q / movement / fire
+    keyReleased
+    keyTyped → restart / skillmenu
+
+상세 시퀀스:
+    [키 눌림]
+    KeyEvent → InputManager.KeyInputHandler.keyPressed()
+        → InputManager.handleGameplayKeyPressed()
+            → [ESC 키]
+            → if (keyCode == VK_ESCAPE)
+                → GameStateManager.showPauseMenu() / hidePauseMenu()
+            
+            → [Q 키]
+            → if (keyCode == VK_Q)
+                → GameStateManager.showSkillMenu() / hideSkillMenu()
+            
+            → [LEFT/RIGHT 키]
+            → if (keyCode == VK_LEFT)
+                → InputManager.leftPressed = true
+            → if (keyCode == VK_RIGHT)
+                → InputManager.rightPressed = true
+            
+            → [SPACE 키]
+            → if (keyCode == VK_SPACE)
+                → InputManager.firePressed = true
+            
+            → [1/2/3 키 - 스킬 활성화]
+            → if (keyCode == VK_1)
+                → SkillManager.extendSkill(0, 5) [무적 5초]
+            → if (keyCode == VK_2)
+                → SkillManager.extendSkill(2, 8) [3연발 8초]
+            → if (keyCode == VK_3)
+                → SkillManager.activateSkill(3, 1) [미사일]
+    
+    [키 떼어짐]
+    KeyEvent → InputManager.KeyInputHandler.keyReleased()
+        → InputManager.handleGameplayKeyReleased()
+            → if (keyCode == VK_LEFT)
+                → InputManager.leftPressed = false
+            → if (keyCode == VK_RIGHT)
+                → InputManager.rightPressed = false
+            → if (keyCode == VK_SPACE)
+                → InputManager.firePressed = false
+    
+    [키 타이핑]
+    KeyEvent → InputManager.KeyInputHandler.keyTyped()
+        → [게임 오버 후 재시작]
+        → if (GameStateManager.isWaitingForKeyPress())
+            → Game.startGame()
+        
+        → [스킬 메뉴]
+        → if (GameStateManager.isShowingSkillMenu())
+            → InputManager.handleSkillMenuInput()
+                → [LEFT/RIGHT] GameStateManager.setSelectedSkill()
+                → [ENTER/SPACE] InputManager.handleSkillSelection()
+                    → SkillManager.getAttackPowerCost() 등
+                    → GameStateManager.setAttackPower() 등
+                    → GameStateManager.setSkillPoints()
+                    → GameStateManager.setMessage()
+                    → GameStateManager.setWaitingForKeyPress(true)
+
+특징:
+    • 키보드 입력 흐름만 별도 다이어그램으로 구성
+    • keyPressed, keyReleased, keyTyped 각각의 흐름 명확히 구분
+
+
+④ 충돌 처리 + 스킬 드롭 획득 시퀀스
+────────────────────────────────────────────────────────────────────────────
+
+Actors:
+    • ShotEntity
+    • AlienEntity / NearEntity / BossEntity
+    • ShipEntity
+    • Game
+    • SharedGameplayCoordinator
+    • SkillManager
+
+핵심 메시지 흐름:
+    collidesWith → collidedWith → takeDamage → remove → dropSkill → createSkillDrop → addEntity
+
+상세 시퀀스:
+    [플레이어 공격 → 적]
+    ShotEntity.collidesWith(AlienEntity/NearEntity/BossEntity)
+        → Entity.collidesWith() [충돌 확인]
+        → ShotEntity.collidedWith(alien)
+            → AlienEntity.takeDamage(damage)
+                → AlienEntity.currentHP -= damage
+                → if (AlienEntity.currentHP <= 0)
+                    → Game.removeEntity(alien)
+                    → Game.notifyAlienKilled(x, y)
+                        → SharedGameplayCoordinator.handleAlienKilled("local", x, y)
+                            → SkillManager.getRandomSkillPoints()
+                            → GameStateManager.addSkillPoints()
+                            → SkillManager.getSkillDropChance()
+                            → if (Math.random() < dropChance)
+                                → SkillManager.dropSkill(currentRound, x, y)
+                                    → SkillDropTable.rollDrop()
+                                    → Game.createSkillDrop(x, y, skillType, skillValue)
+                                        → ShotEntity 생성 (isSkillDrop=true)
+                                        → Game.addEntity(skillDrop)
+                            → [남은 적 확인]
+                            → SharedGameplayCoordinator.handleRoundClear() [보스 클리어 시]
+                                → [라운드 클리어 시퀀스는 ⑤번 참조]
+    
+    [적 공격 → 플레이어]
+    ShotEntity.collidesWith(ShipEntity)
+        → Entity.collidesWith() [충돌 확인]
+        → ShotEntity.collidedWith(ship)
+            → ShipEntity.collidedWith(shot)
+                → Game.notifyDeath()
+                    → SkillManager.isInvincible() [무적 확인]
+                    → if (!isInvincible)
+                        → GameStateManager.takeDamage()
+                        → if (GameStateManager.getCurrentHP() <= 0)
+                            → GameStateManager.setMessage("게임 오버")
+                            → GameStateManager.setWaitingForKeyPress(true)
+    
+    [미사일 → 적]
+    MissileEntity.collidesWith(AlienEntity/BossEntity)
+        → Entity.collidesWith() [충돌 확인]
+        → MissileEntity.collidedWith(alien)
+            → Game.removeEntity(missile)
+            → Game.removeEntity(alien)
+            → Game.notifyAlienKilled(x, y)
+                → [위와 동일한 스킬 드롭 처리]
+    
+    [스킬 드롭 → 플레이어 - Alt 프레임]
+    alt [스킬 드롭 충돌]
+        ShotEntity (isSkillDrop=true).collidesWith(ShipEntity)
+            → Entity.collidesWith() [충돌 확인]
+            → ShotEntity.collidedWith(ship)
+                → ShipEntity.collidedWith(skillDrop)
+                    → Game.addSkillToInventory()
+                        → SkillManager.addSkillToInventory(skillType, skillValue)
+                            → SkillManager.skills 리스트에 추가
+                    → Game.removeEntity(skillDrop)
+
+특징:
+    • "스킬 드롭 → 플레이어 충돌"은 별도 alt frame으로 표현
+    • 충돌 종류별로 명확히 구분 (플레이어 공격, 적 공격, 미사일, 스킬 드롭)
+
+
+⑤ 라운드 클리어 시퀀스 (Near/보스 공통)
+────────────────────────────────────────────────────────────────────────────
+
+Actors:
+    • SharedGameplayCoordinator
+    • GameStateManager
+    • Game
+    • BackgroundRenderer
+
+핵심 메시지 흐름:
+    handleNearMonstersCleared → addCoins → advanceRound → resetEntities → initializeRound → spawnBoss
+    handleRoundClear → addCoins → advanceRound → resetEntities → initializeRound → spawnNearMonsters
+
+상세 시퀀스:
+    [Near 몬스터 클리어]
+    SharedGameplayCoordinator.handleNearMonstersCleared("local")
+        → [코인 보상]
+        → int reward = GameStateManager.getCurrentRound() * 8
+        → Game.addEarnedCoins(reward)
+            → GameStateManager.addEarnedCoins(reward)
+        
+        → [라운드 진행]
+        → GameStateManager.advanceRound()
+            → if (currentRound < MAX_ROUND)
+                → GameStateManager.currentRound++
+                → GameStateManager.setRoundTransition(true)
+                → GameStateManager.setMessage("라운드 " + currentRound + " 시작!")
+                → GameStateManager.setWaitingForKeyPress(true)
+                → GameStateManager.showingRoundInfo = true
+                → GameStateManager.roundInfoStartTime = System.currentTimeMillis()
+                → GameStateManager.alienFiringInterval 업데이트
+        
+        → [엔티티 초기화]
+        → SharedGameplayCoordinator.resetEntities()
+            → Game.getActiveEntities().clear()
+            → Game.getPendingRemovals().clear()
+        
+        → [다음 라운드 초기화]
+        → SharedGameplayCoordinator.initializeRound("local")
+            → Game.createPlayerShip("local")
+                → ShipEntity 생성 (스킨 적용)
+            → SharedGameplayCoordinator.spawnBoss(round)
+                → Game.createBossEntity(bossRound)
+                → Game.addEntity(boss)
+                → GameStateManager.setAlienCount(1)
+            → Game.onRoundBackgroundChanged(round)
+                → Game.updateBackgroundForRound(round)
+                    → BackgroundRenderer.setResourcePath("sprites/stage_background/{round}.png")
+        
+        → GameStateManager.setMessage("라운드 클리어")
+        → GameStateManager.setWaitingForKeyPress(false)
+    
+    [보스 클리어]
+    SharedGameplayCoordinator.handleRoundClear("local")
+        → [코인 보상]
+        → int bossReward = GameStateManager.getCurrentRound() * 15
+        → Game.addEarnedCoins(bossReward)
+            → GameStateManager.addEarnedCoins(bossReward)
+        
+        → [라운드 진행]
+        → GameStateManager.advanceRound()
+            → [위와 동일]
+        
+        → [엔티티 초기화]
+        → SharedGameplayCoordinator.resetEntities()
+            → [위와 동일]
+        
+        → [다음 라운드 초기화]
+        → SharedGameplayCoordinator.initializeRound("local")
+            → Game.createPlayerShip("local")
+            → SharedGameplayCoordinator.spawnNearMonsters(round)
+                → Game.createNearEntity(round, index) [6마리]
+                → Game.addEntity(near)
+                → GameStateManager.setAlienCount(6)
+            → Game.onRoundBackgroundChanged(round)
+                → [위와 동일]
+        
+        → GameStateManager.setMessage("")
+        → GameStateManager.setWaitingForKeyPress(false)
+    
+    [게임 클리어]
+    GameStateManager.advanceRound() == false [MAX_ROUND 초과]
+        → SharedGameplayCoordinator.notifyGameCompleted()
+            → Game.onGameCompleted(message)
+                → Game.saveCoinsAndPlayTime() [⑥번 시퀀스 참조]
+                → GameStateManager.setMessage(message)
+                → GameStateManager.setWaitingForKeyPress(true)
+                → GameStateManager.setGameCompleted(true)
+
+특징:
+    • Near 몬스터 클리어와 보스 클리어를 단일 시퀀스로 묶을 수 있음
+    • 공통 패턴: 코인 보상 → 라운드 진행 → 엔티티 초기화 → 다음 라운드 초기화
+
+
+⑥ 게임 종료 & 데이터 저장(코인/리더보드) 시퀀스
+────────────────────────────────────────────────────────────────────────────
+
+Actors:
+    • InputManager
+    • Game
+    • UserManager
+    • FirebaseDB
+    • LeaderboardRepository
+
+핵심 메시지 흐름:
+    pauseMenu → quitConfirm → saveCoinsAndPlayTime → saveUserData → saveGameRecord → saveLeaderboardRecord → goToMainMenu
+
+상세 시퀀스:
+    [일시정지 메뉴에서 종료]
+    InputManager.handlePauseMenuSelection()
+        → [그만두기 선택]
+        → GameStateManager.showQuitConfirm()
+        → InputManager.handleQuitConfirmSelection()
+            → [예 선택]
+            → Game.saveCoinsAndPlayTime()
+                
+                → [코인 저장]
+                → UserManager.getCurrentUser()
+                → User.addCoins(earnedCoins)
+                    → User.coins += GameStateManager.getEarnedCoins()
+                → UserManager.saveUserDataToDB()
+                    → FirebaseDB.saveUserData()
+                        → Firebase Realtime Database 업데이트
+                            → /users/{uid}/profile (UserProfile: coins 포함)
+                            → /users/{uid}/stats (UserStats)
+                
+                → [플레이 기록 저장]
+                → GameRecord 생성
+                    → uid: UserManager.getCurrentUser().getUid()
+                    → username: UserManager.getCurrentUser().getUsername()
+                    → playTime: GameStateManager.getPlayTimeMs()
+                    → earnedCoins: GameStateManager.getEarnedCoins()
+                    → completed: GameStateManager.isGameCompleted()
+                    → finalRound: GameStateManager.getCurrentRound()
+                    → mode: GameMode.SINGLE
+                → Game.saveGameRecordToDB(gameRecord)
+                    → FirebaseDB.saveGameRecord()
+                        → Firebase Realtime Database 저장
+                            → /users/{uid}/gameRecords/{recordId} (GameRecord)
+                
+                → [리더보드 저장]
+                → LeaderboardRecord 생성
+                    → uid: UserManager.getCurrentUser().getUid()
+                    → username: UserManager.getCurrentUser().getUsername()
+                    → score: GameStateManager.getEarnedCoins() [획득한 코인을 점수로 사용]
+                    → playTime: GameStateManager.getPlayTimeMs()
+                    → mode: LeaderboardRecord.Mode.SINGLE
+                    → timestamp: System.currentTimeMillis()
+                → LeaderboardRepository.saveRecord()
+                    → FirebaseDB.saveLeaderboardRecord()
+                        → Firebase Realtime Database 저장
+                            → /leaderboard/{recordId} (LeaderboardRecord)
+            
+            → Game.goToMainMenu()
+                → GameStateManager.resetGame()
+                → ScreenNavigator.showMainMenu()
+    
+    [게임 클리어 후 메인메뉴 복귀]
+    GameStateManager.isGameCompleted() == true
+        → InputManager.keyTyped()
+            → Game.returnToMainMenu()
+                → Game.saveCoinsAndPlayTime() [위와 동일한 저장 과정]
+                → GameStateManager.resetGame()
+                → ScreenNavigator.showMainMenu()
+
+FirebaseDB 저장 경로 (압축 표현):
+    • /users/{uid}/profile (UserProfile: coins 포함)
+    • /users/{uid}/stats (UserStats)
+    • /users/{uid}/gameRecords/{recordId} (GameRecord)
+    • /leaderboard/{recordId} (LeaderboardRecord)
+
+특징:
+    • FirebaseDB로 저장되는 모든 경로는 하나로 압축 표현
+    • 코인 저장 → 플레이 기록 저장 → 리더보드 저장 순서로 진행
+    • 저장 완료 후 메인메뉴로 복귀
+
+
+================================================================================
+시퀀스 다이어그램 그리기 가이드
+================================================================================
+
+1. 수직 라인으로 각 Actor 표현
+   예: ScreenNavigator | Game | UserManager | ShopManager | EquipmentManager | FirebaseDB
+
+2. 수평 화살표로 메시지 호출 표현
+   예: startNewGame() → loadEquipmentFromDB() → applyEquippedItems()
+
+3. Loop 프레임 사용
+   - ②번 시퀀스: 엔티티 이동, 충돌 감지 (nested loop)
+   - draw.io에서 "Loop" 프레임 사용
+
+4. Alt 프레임 사용
+   - ④번 시퀀스: 스킬 드롭 충돌은 alt frame으로 표현
+   - draw.io에서 "Alternative" 프레임 사용
+
+5. 활성화 박스로 객체 생명주기 표현
+   예: ShipEntity 생성 → 활성화 → 제거
+
+6. Firebase 연동은 별도 액터로 표현
+   예: UserManager → FirebaseDB → Firebase Realtime Database
+
+7. 각 시퀀스는 독립적으로 그릴 수 있도록 구성
+   - ①번: 게임 시작
+   - ②번: 게임 루프 (매 프레임)
+   - ③번: 입력 처리
+   - ④번: 충돌 처리
+   - ⑤번: 라운드 클리어
+   - ⑥번: 게임 종료 및 저장
+
+================================================================================
+주요 데이터 흐름 요약
+================================================================================
+
+1. 스킨 데이터 흐름 (①번 시퀀스)
+   Firebase Realtime Database (/users/{uid}/equipment)
+       → FirebaseDB.loadEquipment()
+       → EquipmentManager.equippedItems
+       → ShopManager.getEquippedItem()
+       → Game.applyEquippedItems()
+       → Game.currentSpaceshipSkin / currentWeaponSkin
+       → ShipEntity / ShotEntity 생성 시 사용
+
+2. 코인 데이터 흐름 (⑥번 시퀀스)
+   게임 플레이 중
+       → GameStateManager.earnedCoins (누적)
+   게임 종료 시
+       → User.addCoins(earnedCoins)
+       → FirebaseDB.saveUserData()
+       → Firebase Realtime Database (/users/{uid}/profile)
+   상점에서 사용
+       → UserManager.getCurrentUser().getCoins()
+       → ShopManager.purchaseItem() (코인 차감)
+
+3. 리더보드 데이터 흐름 (⑥번 시퀀스)
+   게임 종료 시
+       → LeaderboardRecord 생성
+       → LeaderboardRepository.saveRecord()
+       → FirebaseDB.saveLeaderboardRecord()
+       → Firebase Realtime Database (/leaderboard/{recordId})
+
+================================================================================
