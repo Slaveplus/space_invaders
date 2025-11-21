@@ -1048,7 +1048,7 @@ public class MultiplayerGameCanvas extends Canvas implements Screen, Multiplayer
 			case "Round4HealAttack":
 				return new RemoteRound4Heal(snapshot);
 			case "Round4GreenSphereAttack":
-				return new RemoteRound4GreenSphere(snapshot, meta);
+				return new RemoteRound4GreenSphere(snapshot);
 			case "Round4PlayerLineAttack":
 				return new RemoteRound4PlayerLine(snapshot);
 		case "BossEntity":
@@ -1866,10 +1866,14 @@ public class MultiplayerGameCanvas extends Canvas implements Screen, Multiplayer
 		}
 
 		@Override
-		public void move(long delta) {}
+		public void move(long delta) {
+			// Method is intentionally empty.
+		}
 
 		@Override
-		public void collidedWith(Entity other) {}
+		public void collidedWith(Entity other) {
+			// Method is intentionally empty.
+		}
 
 		@Override
 		public java.awt.Rectangle getBounds() {
@@ -1912,12 +1916,12 @@ public class MultiplayerGameCanvas extends Canvas implements Screen, Multiplayer
 
 		@Override
 		public void move(long delta) {
-			// snapshot-driven visuals only
+			// Method is intentionally empty.
 		}
 
 		@Override
 		public void collidedWith(Entity other) {
-			// visuals only
+			// Method is intentionally empty.
 		}
 
 		@Override
@@ -1973,12 +1977,12 @@ public class MultiplayerGameCanvas extends Canvas implements Screen, Multiplayer
 
 		@Override
 		public void move(long delta) {
-			// visuals only
+			// Method is intentionally empty.
 		}
 
 		@Override
 		public void collidedWith(Entity other) {
-			// visuals only
+			// Method is intentionally empty.
 		}
 
 		@Override
@@ -2023,12 +2027,12 @@ public class MultiplayerGameCanvas extends Canvas implements Screen, Multiplayer
 
 		@Override
 		public void move(long delta) {
-			// visuals only
+			// Method is intentionally empty.
 		}
 
 		@Override
 		public void collidedWith(Entity other) {
-			// visuals only
+			// Method is intentionally empty.
 		}
 
 		@Override
@@ -2068,10 +2072,14 @@ public class MultiplayerGameCanvas extends Canvas implements Screen, Multiplayer
 		}
 
 		@Override
-		public void move(long delta) {}
+		public void move(long delta) {
+			// Method is intentionally empty.
+		}
 
 		@Override
-		public void collidedWith(Entity other) {}
+		public void collidedWith(Entity other) {
+			// Method is intentionally empty.
+		}
 
 		@Override
 		public java.awt.Rectangle getBounds() {
@@ -2104,10 +2112,14 @@ public class MultiplayerGameCanvas extends Canvas implements Screen, Multiplayer
 		}
 
 		@Override
-		public void move(long delta) {}
+		public void move(long delta) {
+			// Method is intentionally empty.
+		}
 
 		@Override
-		public void collidedWith(Entity other) {}
+		public void collidedWith(Entity other) {
+			// Method is intentionally empty.
+		}
 
 		@Override
 		public java.awt.Rectangle getBounds() {
@@ -2142,10 +2154,14 @@ public class MultiplayerGameCanvas extends Canvas implements Screen, Multiplayer
 		}
 
 		@Override
-		public void move(long delta) {}
+		public void move(long delta) {
+			// Method is intentionally empty.
+		}
 
 		@Override
-		public void collidedWith(Entity other) {}
+		public void collidedWith(Entity other) {
+			// Method is intentionally empty.
+		}
 
 		@Override
 		public java.awt.Rectangle getBounds() {
@@ -2177,10 +2193,14 @@ public class MultiplayerGameCanvas extends Canvas implements Screen, Multiplayer
 		}
 
 		@Override
-		public void move(long delta) {}
+		public void move(long delta) {
+			// Method is intentionally empty.
+		}
 
 		@Override
-		public void collidedWith(Entity other) {}
+		public void collidedWith(Entity other) {
+			// Method is intentionally empty.
+		}
 
 		@Override
 		public java.awt.Rectangle getBounds() {
@@ -2212,10 +2232,14 @@ public class MultiplayerGameCanvas extends Canvas implements Screen, Multiplayer
 		}
 
 		@Override
-		public void move(long delta) {}
+		public void move(long delta) {
+			// Method is intentionally empty.
+		}
 
 		@Override
-		public void collidedWith(Entity other) {}
+		public void collidedWith(Entity other) {
+			// Method is intentionally empty.
+		}
 
 		@Override
 		public java.awt.Rectangle getBounds() {
@@ -2249,10 +2273,14 @@ public class MultiplayerGameCanvas extends Canvas implements Screen, Multiplayer
 		}
 
 		@Override
-		public void move(long delta) {}
+		public void move(long delta) {
+			// Method is intentionally empty.
+		}
 
 		@Override
-		public void collidedWith(Entity other) {}
+		public void collidedWith(Entity other) {
+			// Method is intentionally empty.
+		}
 
 		@Override
 		public java.awt.Rectangle getBounds() {
@@ -2287,10 +2315,14 @@ public class MultiplayerGameCanvas extends Canvas implements Screen, Multiplayer
 		}
 
 		@Override
-		public void move(long delta) {}
+		public void move(long delta) {
+			// Method is intentionally empty.
+		}
 
 		@Override
-		public void collidedWith(Entity other) {}
+		public void collidedWith(Entity other) {
+			// Method is intentionally empty.
+		}
 
 		@Override
 		public java.awt.Rectangle getBounds() {
@@ -2325,10 +2357,14 @@ public class MultiplayerGameCanvas extends Canvas implements Screen, Multiplayer
 		}
 
 		@Override
-		public void move(long delta) {}
+		public void move(long delta) {
+			// Method is intentionally empty.
+		}
 
 		@Override
-		public void collidedWith(Entity other) {}
+		public void collidedWith(Entity other) {
+			// Method is intentionally empty.
+		}
 
 		@Override
 		public java.awt.Rectangle getBounds() {
@@ -2360,10 +2396,14 @@ public class MultiplayerGameCanvas extends Canvas implements Screen, Multiplayer
 		}
 
 		@Override
-		public void move(long delta) {}
+		public void move(long delta) {
+			// Method is intentionally empty.
+		}
 
 		@Override
-		public void collidedWith(Entity other) {}
+		public void collidedWith(Entity other) {
+			// Method is intentionally empty.
+		}
 
 		@Override
 		public java.awt.Rectangle getBounds() {
@@ -2395,10 +2435,14 @@ public class MultiplayerGameCanvas extends Canvas implements Screen, Multiplayer
 		}
 
 		@Override
-		public void move(long delta) {}
+		public void move(long delta) {
+			// Method is intentionally empty.
+		}
 
 		@Override
-		public void collidedWith(Entity other) {}
+		public void collidedWith(Entity other) {
+			// Method is intentionally empty.
+		}
 
 		@Override
 		public java.awt.Rectangle getBounds() {
@@ -2423,7 +2467,7 @@ public class MultiplayerGameCanvas extends Canvas implements Screen, Multiplayer
 		private final int width;
 		private final int height;
 
-		RemoteRound4GreenSphere(EntitySnapshot snapshot, Map<String, String> meta) {
+		RemoteRound4GreenSphere(EntitySnapshot snapshot) {
 			super("sprites/Boss_Attack/5round1.gif", (int) Math.round(snapshot.x), (int) Math.round(snapshot.y));
 			this.x = snapshot.x;
 			this.y = snapshot.y;
@@ -2434,10 +2478,14 @@ public class MultiplayerGameCanvas extends Canvas implements Screen, Multiplayer
 		}
 
 		@Override
-		public void move(long delta) {}
+		public void move(long delta) {
+			// Method is intentionally empty.
+		}
 
 		@Override
-		public void collidedWith(Entity other) {}
+		public void collidedWith(Entity other) {
+			// Method is intentionally empty.
+		}
 
 		@Override
 		public java.awt.Rectangle getBounds() {
@@ -2478,10 +2526,14 @@ public class MultiplayerGameCanvas extends Canvas implements Screen, Multiplayer
 		}
 
 		@Override
-		public void move(long delta) {}
+		public void move(long delta) {
+			// Method is intentionally empty.
+		}
 
 		@Override
-		public void collidedWith(Entity other) {}
+		public void collidedWith(Entity other) {
+			// Method is intentionally empty.
+		}
 
 		@Override
 		public java.awt.Rectangle getBounds() {
@@ -2524,12 +2576,12 @@ public class MultiplayerGameCanvas extends Canvas implements Screen, Multiplayer
 
 		@Override
 		public void move(long delta) {
-			// no-op
+			// Method is intentionally empty.
 		}
 
 		@Override
 		public void collidedWith(Entity other) {
-			// no-op
+			// Method is intentionally empty.
 		}
 
 		@Override
@@ -2962,7 +3014,7 @@ public class MultiplayerGameCanvas extends Canvas implements Screen, Multiplayer
 	 */
 	@Override
 	public void addScore(String playerId, int points) {
-		// 점수 추가
+		// Method is intentionally empty.
 	}
 	
 	/**
