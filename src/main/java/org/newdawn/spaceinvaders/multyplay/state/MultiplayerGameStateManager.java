@@ -64,6 +64,7 @@ public class MultiplayerGameStateManager {
     
     // 라운드 전환 상태 구분
     private boolean isRoundTransition = false;
+    private boolean debugDrawHitboxes = false;
     
     public MultiplayerGameStateManager() {
         System.out.println("MultiplayerGameStateManager 초기화 완료");
@@ -134,6 +135,9 @@ public class MultiplayerGameStateManager {
     
     public int getAlienCount() { return alienCount; }
     public void setAlienCount(int alienCount) { this.alienCount = alienCount; }
+    
+    public boolean isDebugDrawHitboxes() { return debugDrawHitboxes; }
+    public void toggleDebugDrawHitboxes() { debugDrawHitboxes = !debugDrawHitboxes; }
     
     // ---- 레거시 단일 플레이어 getter/setter (점진 제거 예정) ----
     public int getAttackPower() { return getLocalPlayerState().getAttackPower(); }

@@ -7,6 +7,7 @@ import java.awt.Rectangle;
 import java.util.List;
 
 import org.newdawn.spaceinvaders.common.GameContext;
+import org.newdawn.spaceinvaders.common.entity.alien.BaseAlienEntity;
 
 /**
  * 싱글/멀티 공용 플레이어 우주선 엔티티.
@@ -122,8 +123,7 @@ public class ShipEntity extends Entity {
     }
 
     private boolean isAlien(Entity other) {
-        return other instanceof org.newdawn.spaceinvaders.gameplay.entity.AlienEntity
-                || other instanceof org.newdawn.spaceinvaders.multyplay.entity.AlienEntity;
+        return other instanceof BaseAlienEntity;
     }
 
     @Override

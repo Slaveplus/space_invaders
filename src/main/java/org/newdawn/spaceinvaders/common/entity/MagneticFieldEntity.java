@@ -143,6 +143,14 @@ public class MagneticFieldEntity extends Entity {
         // no-op
     }
 
+    @Override
+    public java.awt.Rectangle getBounds() {
+        int radius = (int) Math.round(currentRadius);
+        int centerX = (int) Math.round(x);
+        int centerY = (int) Math.round(y);
+        return new java.awt.Rectangle(centerX - radius, centerY - radius, radius * 2, radius * 2);
+    }
+
     public boolean isActive() {
         return active;
     }

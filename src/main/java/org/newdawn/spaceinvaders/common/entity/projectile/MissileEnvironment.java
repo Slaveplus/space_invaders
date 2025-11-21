@@ -11,4 +11,8 @@ public interface MissileEnvironment extends GameContext {
      * 목표 지점에서 폭발을 생성한다.
      */
     Entity createExplosion(double targetX, double targetY);
+
+    void onAlienHit(BaseMissileEntity missile, Entity alien);
+
+    void onBossHit(BaseMissileEntity missile, Entity boss);
 }

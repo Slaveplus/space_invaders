@@ -1,6 +1,7 @@
 package org.newdawn.spaceinvaders.gameplay.entity;
 
 import org.newdawn.spaceinvaders.common.entity.Entity;
+import org.newdawn.spaceinvaders.common.entity.attack.IceAttack;
 import org.newdawn.spaceinvaders.common.entity.effect.ExplosionEntity;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
@@ -104,8 +105,8 @@ public class SideMonster extends Entity {
 	private void checkBossCollision() {
 		// Find boss entity
 		for (Entity entity : game.getEntities()) {
-		if (entity.getClass().getSimpleName().equals("BossEntity")) {
-			org.newdawn.spaceinvaders.gameplay.entity.BossEntity boss = (org.newdawn.spaceinvaders.gameplay.entity.BossEntity) entity;
+		if (entity instanceof org.newdawn.spaceinvaders.common.entity.boss.BossEntity) {
+			org.newdawn.spaceinvaders.common.entity.boss.BossEntity boss = (org.newdawn.spaceinvaders.common.entity.boss.BossEntity) entity;
 				
 				// Check if we're close to boss (within 150 pixels)
 				double distanceToBoss = Math.sqrt(Math.pow(x - boss.getX(), 2) + Math.pow(y - boss.getY(), 2));
@@ -233,7 +234,7 @@ public class SideMonster extends Entity {
 			}
 			
 			// Create new ice attack using ice.gif (from side monster position)
-			org.newdawn.spaceinvaders.gameplay.entity.entity_attack.IceAttack iceAttack = new org.newdawn.spaceinvaders.gameplay.entity.entity_attack.IceAttack(game, (int) x, (int) y + 80);
+			IceAttack iceAttack = new IceAttack(game, (int) x, (int) y + 80);
 			
 			// Add to game entities
 			game.addEntity(iceAttack);
