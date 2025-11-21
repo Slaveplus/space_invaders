@@ -90,3 +90,47 @@ RemoteRound4GreenSphere(EntitySnapshot snapshot) {
 case "Round4GreenSphereAttack":
     return new RemoteRound4GreenSphere(snapshot);
 ```
+---
+### **상수화 (MultiplayerGameCanvas.java)**
+
+#### **냄새**: **중복 코드 (Duplicated Code)**
+
+`MultiplayerGameCanvas.java` 파일 내에서 이미지 경로, UI 텍스트, 설정 키 등의 문자열 리터럴이 여러 곳에서 중복 사용되고 있었음. 이로 인해 유지보수 및 변경 시 오류 발생 가능성이 높았음.
+
+#### **대상**:
+*   "sprites/Boss_Attack/ice ball.gif"
+*   "sprites/Skill/Heat.gif"
+*   "sprites/ship.gif"
+*   "sprites/Boss_Attack/2round1.gif"
+*   "sprites/shot.gif"
+*   "sprites/Skill/Explosion.png"
+*   "클라이언트: 원격 플레이어 "
+*   "Arial"
+*   "radius"
+*   "🏆 GAME COMPLETED! 🏆 Congratulations!"
+
+#### **적용 기법**:
+*   **클래스 내부 상수화**: `MultiplayerGameCanvas` 내에서만 사용되는 UI 텍스트 및 설정 키 ("클라이언트: 원격 플레이어 ", "Arial", "radius", "🏆 GAME COMPLETED! 🏆 Congratulations!")는 `private static final String` 상수로 정의하여 클래스 내에서 관리되도록 함.
+*   **외부 상수 클래스 분리**: 이미지 파일 경로는 재사용 가능성이 높고 특정 도메인(스프라이트)에 속하므로, `org.newdawn.spaceinvaders.common.sprite.SpriteConstants`라는 새로운 상수 클래스를 생성하고 `public static final String` 상수로 정의하여 관리되도록 함. 이를 통해 이미지 경로의 중앙 집중식 관리가 가능해지고 가독성이 향상됨.
+
+#### **변경 내용**:
+*   `MultiplayerGameCanvas.java` 파일 상단에 `SpriteConstants` import 문 추가.
+*   `MultiplayerGameCanvas.java` 클래스 내부에 `REMOTE_PLAYER_LABEL`, `FONT_ARIAL`, `RADIUS_KEY`, `GAME_COMPLETED_MESSAGE` 상수를 선언하고 중복된 문자열 리터럴을 해당 상수로 대체.
+*   `org.newdawn.spaceinvaders.common.sprite.SpriteConstants.java` 파일을 생성하고 `ICE_BALL_GIF`, `HEAT_GIF`, `SHIP_GIF`, `ROUND_2_ATTACK_1_GIF`, `SHOT_GIF`, `EXPLOSION_PNG` 상수를 선언하고 `MultiplayerGameCanvas.java` 내의 중복된 이미지 경로 문자열 리터럴을 해당 상수로 대체.
+---
+### **상수화 (MultiplayerInputManager.java)**
+
+#### **냄새**: **중복 코드 (Duplicated Code)**
+
+`MultiplayerInputManager.java` 파일 내에서 스킬 메시지 관련 문자열 리터럴이 여러 곳에서 중복 사용되고 있었음. 이로 인해 유지보수 및 변경 시 오류 발생 가능성이 높았음.
+
+#### **대상**:
+*   "스킬 포인트가 부족합니다! (필요: "
+*   ", 레벨: "
+*   ", 보유: "
+
+#### **적용 기법**:
+*   **클래스 내부 상수화**: `MultiplayerInputManager` 내에서만 사용되는 스킬 메시지 관련 텍스트는 `private static final String` 상수로 정의하여 클래스 내에서 관리되도록 함.
+
+#### **변경 내용**:
+*   `MultiplayerInputManager.java` 클래스 내부에 `SKILL_POINT_LACK_PREFIX`, `SKILL_LEVEL_SUFFIX`, `SKILL_POINT_HOLD_SUFFIX` 상수를 선언하고 중복된 문자열 리터럴을 해당 상수로 대체.

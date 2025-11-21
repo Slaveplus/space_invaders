@@ -13,6 +13,10 @@ import org.newdawn.spaceinvaders.multyplay.state.MultiplayerGameStateManager;
  * 키보드와 마우스 입력을 통합 관리합니다
  */
 public class MultiplayerInputManager {
+    private static final String SKILL_POINT_LACK_PREFIX = "스킬 포인트가 부족합니다! (필요: ";
+    private static final String SKILL_LEVEL_SUFFIX = ", 레벨: ";
+    private static final String SKILL_POINT_HOLD_SUFFIX = ", 보유: ";
+
     private final MultiplayerGameStateManager gameStateManager;
     private final MultiplayerGameCanvas game;
     private final MultiplayerSkillManager skillManager;
@@ -334,10 +338,10 @@ public class MultiplayerInputManager {
                     gameStateManager.setAttackPower(gameStateManager.getAttackPower() + 1);
                     gameStateManager.setSkillPoints(skillPoints - skillManager.getAttackPowerCost());
                     skillManager.increaseAttackPowerLevel(); // 강화 레벨 증가
-                    result = "공격력이 증가했습니다! (현재: " + gameStateManager.getAttackPower() + ", 레벨: " + skillManager.getAttackPowerLevel() + ")";
+                    result = "공격력이 증가했습니다! (현재: " + gameStateManager.getAttackPower() + SKILL_LEVEL_SUFFIX + skillManager.getAttackPowerLevel() + ")";
                     success = true;
                 } else {
-                    result = "스킬 포인트가 부족합니다! (필요: " + skillManager.getAttackPowerCost() + ", 보유: " + skillPoints + ")";
+                    result = SKILL_POINT_LACK_PREFIX + skillManager.getAttackPowerCost() + SKILL_POINT_HOLD_SUFFIX + skillPoints + ")";
                 }
                 break;
                 
@@ -346,10 +350,10 @@ public class MultiplayerInputManager {
                     gameStateManager.setAttackSpeed(gameStateManager.getAttackSpeed() + 0.2);
                     gameStateManager.setSkillPoints(skillPoints - skillManager.getAttackSpeedCost());
                     skillManager.increaseAttackSpeedLevel(); // 강화 레벨 증가
-                    result = "공격 속도가 증가했습니다! (현재: " + String.format("%.1f", gameStateManager.getAttackSpeed()) + ", 레벨: " + skillManager.getAttackSpeedLevel() + ")";
+                    result = "공격 속도가 증가했습니다! (현재: " + String.format("%.1f", gameStateManager.getAttackSpeed()) + SKILL_LEVEL_SUFFIX + skillManager.getAttackSpeedLevel() + ")";
                     success = true;
                 } else {
-                    result = "스킬 포인트가 부족합니다! (필요: " + skillManager.getAttackSpeedCost() + ", 보유: " + skillPoints + ")";
+                    result = SKILL_POINT_LACK_PREFIX + skillManager.getAttackSpeedCost() + SKILL_POINT_HOLD_SUFFIX + skillPoints + ")";
                 }
                 break;
                 
@@ -359,10 +363,10 @@ public class MultiplayerInputManager {
                     gameStateManager.setCurrentHP(gameStateManager.getMaxHP()); // Also heal to full
                     gameStateManager.setSkillPoints(skillPoints - skillManager.getHpUpCost());
                     skillManager.increaseHpUpLevel(); // 강화 레벨 증가
-                    result = "최대 체력이 증가하고 체력이 회복되었습니다! (현재: " + gameStateManager.getMaxHP() + ", 레벨: " + skillManager.getHpUpLevel() + ")";
+                    result = "최대 체력이 증가하고 체력이 회복되었습니다! (현재: " + gameStateManager.getMaxHP() + SKILL_LEVEL_SUFFIX + skillManager.getHpUpLevel() + ")";
                     success = true;
                 } else {
-                    result = "스킬 포인트가 부족합니다! (필요: " + skillManager.getHpUpCost() + ", 보유: " + skillPoints + ")";
+                    result = SKILL_POINT_LACK_PREFIX + skillManager.getHpUpCost() + SKILL_POINT_HOLD_SUFFIX + skillPoints + ")";
                 }
                 break;
         }
