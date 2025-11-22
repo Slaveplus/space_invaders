@@ -35,13 +35,19 @@ public class UIRenderer {
             if (fontStream != null) {
                 KOSTAR_FONT = Font.createFont(Font.TRUETYPE_FONT, fontStream);
                 fontStream.close();
-                System.out.println("✅ Kostar 폰트 로드 성공");
+                org.newdawn.spaceinvaders.common.util.Logger logger = 
+                    org.newdawn.spaceinvaders.common.util.LoggerFactory.getLogger(UIRenderer.class);
+                logger.info("Kostar 폰트 로드 성공");
             } else {
-                System.err.println("❌ Kostar 폰트 파일을 찾을 수 없습니다");
+                org.newdawn.spaceinvaders.common.util.Logger logger = 
+                    org.newdawn.spaceinvaders.common.util.LoggerFactory.getLogger(UIRenderer.class);
+                logger.warn("Kostar 폰트 파일을 찾을 수 없습니다");
                 KOSTAR_FONT = new Font("Arial", Font.PLAIN, 12); // 폴백
             }
         } catch (Exception e) {
-            System.err.println("❌ Kostar 폰트 로드 실패: " + e.getMessage());
+            org.newdawn.spaceinvaders.common.util.Logger logger = 
+                org.newdawn.spaceinvaders.common.util.LoggerFactory.getLogger(UIRenderer.class);
+            logger.error("Kostar 폰트 로드 실패: " + e.getMessage(), e);
             KOSTAR_FONT = new Font("Arial", Font.PLAIN, 12); // 폴백
         }
     }

@@ -93,7 +93,9 @@ public class ExplosionEntity extends Entity {
                 explosionImage = ImageIO.read(is);
             }
         } catch (IOException e) {
-            System.err.println("Failed to load explosion image: " + e.getMessage());
+            org.newdawn.spaceinvaders.common.util.Logger logger = 
+                org.newdawn.spaceinvaders.common.util.LoggerFactory.getLogger(ExplosionEntity.class);
+            logger.error("Failed to load explosion image: " + e.getMessage(), e);
         }
     }
 

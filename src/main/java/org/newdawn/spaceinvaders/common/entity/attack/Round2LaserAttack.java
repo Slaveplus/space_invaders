@@ -27,21 +27,12 @@ public class Round2LaserAttack extends BaseAttackEntity {
     }
 
     private void loadLaserImage() {
-        try {
-            java.net.URL imageURL = getClass().getClassLoader().getResource("sprites/Boss_Attack/2round.gif");
-            if (imageURL != null) {
-                laserImage = Toolkit.getDefaultToolkit().createImage(imageURL);
-            }
-        } catch (Exception e) {
-            laserImage = null;
-        }
+        laserImage = loadImageFromToolkit("sprites/Boss_Attack/2round.gif");
     }
 
     @Override
     public void move(long delta) {
-        if (System.currentTimeMillis() - startTime > 3000) {
-            game.removeEntity(this);
-        }
+        checkAndRemoveIfExpired(startTime, 3000);
     }
 
     @Override
@@ -69,10 +60,7 @@ public class Round2LaserAttack extends BaseAttackEntity {
 
     @Override
     public void collidedWith(Entity other) {
-        if (other instanceof ShipEntity) {
-            damageShip((ShipEntity) other, damage);
-            game.removeEntity(this);
-        }
+        handleShipCollision(other, damage);
     }
 
     @Override

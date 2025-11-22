@@ -26,32 +26,16 @@ public class Round3StraightAttack extends BaseAttackEntity {
     }
 
     private void loadAttackImage() {
-        try {
-            java.net.URL imageUrl = getClass().getClassLoader().getResource("sprites/Boss_Attack/3round4.gif");
-            if (imageUrl != null) {
-                attackImage = java.awt.Toolkit.getDefaultToolkit().createImage(imageUrl);
-                MediaTracker tracker = new MediaTracker(new java.awt.Canvas());
-                tracker.addImage(attackImage, 0);
-                tracker.waitForAll();
-                if (tracker.isErrorAny()) {
-                    attackImage = null;
-                }
-            }
-        } catch (Exception e) {
-            attackImage = null;
-        }
+        attackImage = loadImageWithMediaTracker("sprites/Boss_Attack/3round4.gif");
     }
 
     @Override
     public void move(long delta) {
         super.move(delta);
-        if (System.currentTimeMillis() - startTime > attackDuration) {
-            game.removeEntity(this);
+        if (checkAndRemoveIfExpired(startTime, attackDuration)) {
             return;
         }
-        if (x < -attackWidth || x > 800 + attackWidth || y < -attackHeight || y > 600 + attackHeight) {
-            game.removeEntity(this);
-        }
+        checkAndRemoveIfOutOfBounds(-attackWidth, 800 + attackWidth, -attackHeight, 600 + attackHeight);
     }
 
     @Override
@@ -70,19 +54,8 @@ public class Round3StraightAttack extends BaseAttackEntity {
 
     @Override
     public void collidedWith(Entity other) {
-        if (other instanceof ShipEntity) {
-            ShipEntity ship = (ShipEntity) other;
-            if (isInvincible(ship)) {
-                game.removeEntity(this);
-                return;
-            }
-            double distance = Math.hypot(this.x - other.getX(), this.y - other.getY());
-            double collisionRadius = Math.min(attackWidth, attackHeight) / 2.0;
-            if (distance <= collisionRadius) {
-                damageShip(ship, damage);
-                game.removeEntity(this);
-            }
-        }
+        double collisionRadius = Math.min(attackWidth, attackHeight) / 2.0;
+        handleShipCollisionWithRadius(other, damage, collisionRadius);
     }
 
     @Override

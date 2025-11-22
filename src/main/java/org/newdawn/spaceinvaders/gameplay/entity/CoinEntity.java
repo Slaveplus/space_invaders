@@ -1,6 +1,8 @@
 package org.newdawn.spaceinvaders.gameplay.entity;
 
 import org.newdawn.spaceinvaders.common.entity.Entity;
+import org.newdawn.spaceinvaders.common.util.Logger;
+import org.newdawn.spaceinvaders.common.util.LoggerFactory;
 import java.awt.Graphics2D;
 import java.awt.image.BufferedImage;
 import javax.imageio.ImageIO;
@@ -23,6 +25,9 @@ public class CoinEntity extends Entity {
     /** 떨어지는 속도 */
     private static final double FALL_SPEED = 150.0;
     
+    /** 로거 */
+    private static final Logger logger = LoggerFactory.getLogger(CoinEntity.class);
+    
     /**
      * 코인 엔티티 생성자
      * 
@@ -43,7 +48,7 @@ public class CoinEntity extends Entity {
         setVerticalMovement(FALL_SPEED);
         setHorizontalMovement(0);
         
-        System.out.println("💰 CoinEntity created at (" + x + ", " + y + ") with value: " + coinValue);
+        logger.debug("CoinEntity created at (" + x + ", " + y + ") with value: " + coinValue);
     }
     
     /**
@@ -56,10 +61,10 @@ public class CoinEntity extends Entity {
                 coinImage = ImageIO.read(is);
                 is.close();
             } else {
-                System.err.println("Failed to load coin image: sprites/star coin normal.png");
+                logger.error("Failed to load coin image: sprites/star coin normal.png");
             }
         } catch (Exception e) {
-            System.err.println("Error loading coin image: " + e.getMessage());
+            logger.error("Error loading coin image: " + e.getMessage(), e);
         }
     }
     
@@ -75,7 +80,7 @@ public class CoinEntity extends Entity {
         // 화면 밖으로 나가면 제거
         if (y > 600) {
             game.removeEntity(this);
-            System.out.println("💰 Coin fell off screen and removed");
+            logger.debug("Coin fell off screen and removed");
         }
     }
     
@@ -105,7 +110,7 @@ public class CoinEntity extends Entity {
     public void collidedWith(Entity other) {
         // 플레이어와 충돌 시 코인 획득
         if (other.getClass().getSimpleName().equals("ShipEntity")) {
-            System.out.println("💰 Player collected coin worth: " + coinValue);
+            logger.debug("Player collected coin worth: " + coinValue);
             
             // 게임에 코인 획득 알림
             game.addEarnedCoins(coinValue);

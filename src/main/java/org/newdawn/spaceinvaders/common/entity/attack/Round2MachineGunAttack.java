@@ -25,28 +25,17 @@ public class Round2MachineGunAttack extends BaseAttackEntity {
     }
 
     private void loadAttackImage() {
-        try {
-            java.net.URL imageUrl = getClass().getClassLoader().getResource("sprites/Boss_Attack/2round1.gif");
-            if (imageUrl != null) {
-                attackImage = java.awt.Toolkit.getDefaultToolkit().createImage(imageUrl);
-                MediaTracker tracker = new MediaTracker(new java.awt.Canvas());
-                tracker.addImage(attackImage, 0);
-                tracker.waitForAll();
-                if (tracker.isErrorAny()) {
-                    attackImage = null;
-                }
-            }
-        } catch (Exception e) {
-            attackImage = null;
-        }
+        attackImage = loadImageWithMediaTracker("sprites/Boss_Attack/2round1.gif");
     }
 
     @Override
     public void move(long delta) {
         super.move(delta);
-        if (y >= targetY || x < -50 || x > 850) {
+        if (y >= targetY) {
             game.removeEntity(this);
+            return;
         }
+        checkAndRemoveIfOutOfBounds(-50, 850, -50, 650);
     }
 
     @Override
@@ -63,10 +52,7 @@ public class Round2MachineGunAttack extends BaseAttackEntity {
 
     @Override
     public void collidedWith(Entity other) {
-        if (other instanceof ShipEntity) {
-            damageShip((ShipEntity) other, damage);
-            game.removeEntity(this);
-        }
+        handleShipCollision(other, damage);
     }
 
     @Override
