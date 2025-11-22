@@ -18,14 +18,15 @@ import java.io.IOException;
 
 /** 단순 방 로비 화면: 참가자 목록, 준비, 채팅 */
 public class RoomLobbyCanvas extends Canvas implements Screen, GameClientListener {
-    private final ScreenNavigator navigator;
-    private final GameClient client;
+    private transient final ScreenNavigator navigator;
+    private transient final GameClient client;
     private final String roomId; // 표시용 (client 내 상태와 동일)
-    private Font titleFont = new Font("Arial", Font.BOLD, 32);
-    private Font listFont = new Font("Arial", Font.BOLD, 18);
+    private static final String FONT_NAME = "Arial";
+    private Font titleFont = new Font(FONT_NAME, Font.BOLD, 32);
+    private Font listFont = new Font(FONT_NAME, Font.BOLD, 18);
     private Font chatFont = new Font("Monospaced", Font.PLAIN, 14);
 
-    private List<PlayerInfo> players = new ArrayList<>();
+    private transient List<PlayerInfo> players = new ArrayList<>();
     private boolean isHost = false; // hostId는 isHost 계산에 직접 필요없어 제거
 
     // 채팅
@@ -37,7 +38,7 @@ public class RoomLobbyCanvas extends Canvas implements Screen, GameClientListene
     private long statePollAccumulator = 0; // ms 누적
     private boolean launchedMultiplayerGame = false;
 
-    private BufferedImage backgroundImage;
+    private transient BufferedImage backgroundImage;
     private String lastChatComposite = null; // 중복 방지 키(from+msg)
 
     public RoomLobbyCanvas(ScreenNavigator navigator, GameClient client, String roomId) {
@@ -90,8 +91,7 @@ public class RoomLobbyCanvas extends Canvas implements Screen, GameClientListene
         }
     }
 
-    @Override
-    public void render(Graphics2D g) {
+    private void drawBackground(Graphics2D g) {
         if (backgroundImage != null) {
             g.drawImage(backgroundImage, 0, 0, getWidth(), getHeight(), null);
             g.setColor(new Color(0,0,0,140));
@@ -99,6 +99,9 @@ public class RoomLobbyCanvas extends Canvas implements Screen, GameClientListene
         } else {
             g.setColor(Color.BLACK); g.fillRect(0,0,getWidth(),getHeight());
         }
+    }
+
+    private void drawTitle(Graphics2D g) {
         g.setColor(Color.WHITE);
         g.setFont(titleFont);
         String title = "방 로비";
@@ -107,29 +110,88 @@ public class RoomLobbyCanvas extends Canvas implements Screen, GameClientListene
         g.setFont(listFont);
         String rid = "Room ID: "+roomId;
         g.drawString(rid, 40, 100);
+    }
 
-        // 싱글 방이면 최소 UI: 중앙 Start (호스트=자신) 버튼만 표시
-        if (client != null && client.isCurrentRoomSingle()) {
-            String btn = "게임 시작 (Enter)";
-            g.setFont(listFont.deriveFont(24f));
-            FontMetrics fm = g.getFontMetrics();
-            int w = fm.stringWidth(btn)+40;
-            int h = 60;
-            int x = (getWidth()-w)/2;
-            int y = (getHeight()-h)/2;
-            g.setColor(new Color(0,0,0,160));
-            g.fillRoundRect(x, y, w, h, 20,20);
-            g.setColor(Color.YELLOW);
-            g.drawRoundRect(x, y, w, h, 20,20);
-            g.drawString(btn, x + (w - fm.stringWidth(btn))/2, y + (h + fm.getAscent())/2 - 8);
-            if (infoMessage!=null && !infoMessage.isEmpty()) {
-                g.setColor(Color.ORANGE);
-                g.drawString(infoMessage, 40, getHeight()-40);
-            }
-            return; // 나머지 UI 미표시
+    private void drawSinglePlayerUI(Graphics2D g) {
+        String btn = "게임 시작 (Enter)";
+        g.setFont(listFont.deriveFont(24f));
+        FontMetrics fm = g.getFontMetrics();
+        int w = fm.stringWidth(btn)+40;
+        int h = 60;
+        int x = (getWidth()-w)/2;
+        int y = (getHeight()-h)/2;
+        g.setColor(new Color(0,0,0,160));
+        g.fillRoundRect(x, y, w, h, 20,20);
+        g.setColor(Color.YELLOW);
+        g.drawRoundRect(x, y, w, h, 20,20);
+        g.drawString(btn, x + (w - fm.stringWidth(btn))/2, y + (h + fm.getAscent())/2 - 8);
+        if (infoMessage!=null && !infoMessage.isEmpty()) {
+            g.setColor(Color.ORANGE);
+            g.drawString(infoMessage, 40, getHeight()-40);
+        }
+    }
+
+    private void drawPlayerList(Graphics2D g, int x, int y, int w, int h) {
+        g.setColor(new Color(0,0,0,160));
+        g.fillRoundRect(x, y, w, h, 16,16);
+        g.setColor(Color.DARK_GRAY);
+        g.drawRoundRect(x, y, w, h, 16,16);
+        g.setColor(Color.WHITE);
+        // 플레이어 목록
+        int listY = y + 40; int line=30;
+        g.drawString("플레이어 목록", x + 20, y + 25);
+        String mySid = client != null ? client.getSessionId() : null;
+        for (int i=0;i<players.size();i++) {
+            PlayerInfo p = players.get(i);
+            String mark = p.host?"[HOST] ":"";
+            String ready = p.ready?"(READY)":"(.....)";
+            // 세션ID가 내 것과 같으면 * 표시
+            String self = (mySid != null && p.id.equals(mySid)) ? " ← You" : "";
+            g.setColor(p.ready?Color.GREEN:Color.LIGHT_GRAY);
+            g.drawString(mark+p.username+" "+ready+self, x + 30, listY + i*line);
+            g.setColor(new Color(255,255,255,24));
+            g.drawLine(x + 25, listY + i*line + 6, x + w - 30, listY + i*line + 6);
+        }
+    }
+
+    private void drawHelp(Graphics2D g) {
+        g.setColor(Color.YELLOW);
+        g.setFont(new Font(FONT_NAME, Font.PLAIN, 13));
+        int helpY = getHeight()-110;
+        g.drawString("Enter/T: 채팅 포커스/전송  R: 준비 토글  S: 시작(호스트)", 40, helpY);
+        g.drawString("ESC: 나가기  메시지 입력시 ESC로 취소", 40, helpY + 18);
+    }
+
+    private void drawChat(Graphics2D g, int x, int y, int w, int h) {
+        // 채팅 영역
+    g.setColor(new Color(30,30,30,180));
+    g.fillRoundRect(x, y, w, h, 16,16);
+    g.setColor(Color.DARK_GRAY);
+    g.drawRoundRect(x, y, w, h, 16,16);
+        g.setFont(chatFont);
+        int lineH = 18;
+        int maxLines = (h-20)/lineH;
+        Object[] arr = chatLines.toArray();
+        int start = Math.max(0, arr.length - maxLines);
+        for (int i=start;i<arr.length;i++) {
+            String lineText = (String)arr[i];
+            g.setColor(lineText.startsWith("* ")?Color.CYAN:Color.WHITE);
+            g.drawString(lineText, x+10, y+20 + (i-start)*lineH);
         }
 
-    // 패널 레이아웃 (반응형)
+        // 채팅 입력 박스
+    int inputY = y + h + 20;
+    g.setColor(new Color(0,0,0,180));
+    g.fillRoundRect(x, inputY, w, 34, 12,12);
+    g.setColor(chatFocus?Color.YELLOW:Color.GRAY);
+    g.drawRoundRect(x, inputY, w, 34, 12,12);
+        g.setColor(Color.WHITE);
+        String disp = chatInput.isEmpty() && chatFocus ? "메시지 입력..." : chatInput;
+        g.drawString(disp, x+10, inputY+20);
+    }
+
+    private void drawMultiplayerUI(Graphics2D g) {
+        // 패널 레이아웃 (반응형)
     int margin = 30;
     int availableW = getWidth() - margin*2;
     int leftPanelW = (int)(availableW * 0.52); // 목록 패널 52%
@@ -141,69 +203,28 @@ public class RoomLobbyCanvas extends Canvas implements Screen, GameClientListene
     int rightPanelY = 110;
     int leftPanelH = getHeight() - 260;
     int rightPanelH = Math.min(getHeight() - 260, 420);
-        // Left panel
-        g.setColor(new Color(0,0,0,160));
-        g.fillRoundRect(leftPanelX, leftPanelY, leftPanelW, leftPanelH, 16,16);
-        g.setColor(Color.DARK_GRAY);
-        g.drawRoundRect(leftPanelX, leftPanelY, leftPanelW, leftPanelH, 16,16);
-        g.setColor(Color.WHITE);
-        // 플레이어 목록
-        int listY = leftPanelY + 40; int line=30;
-        g.drawString("플레이어 목록", leftPanelX + 20, leftPanelY + 25);
-        String mySid = client != null ? client.getSessionId() : null;
-        for (int i=0;i<players.size();i++) {
-            PlayerInfo p = players.get(i);
-            String mark = p.host?"[HOST] ":"";
-            String ready = p.ready?"(READY)":"(.....)";
-            // 세션ID가 내 것과 같으면 * 표시
-            String self = (mySid != null && p.id.equals(mySid)) ? " ← You" : "";
-            g.setColor(p.ready?Color.GREEN:Color.LIGHT_GRAY);
-            g.drawString(mark+p.username+" "+ready+self, leftPanelX + 30, listY + i*line);
-            g.setColor(new Color(255,255,255,24));
-            g.drawLine(leftPanelX + 25, listY + i*line + 6, leftPanelX + leftPanelW - 30, listY + i*line + 6);
-        }
-
-    // 조작 안내 (두줄 분리)
-    g.setColor(Color.YELLOW);
-    g.setFont(new Font("Arial", Font.PLAIN, 13));
-    int helpY = getHeight()-110;
-    g.drawString("Enter/T: 채팅 포커스/전송  R: 준비 토글  S: 시작(호스트)", 40, helpY);
-    g.drawString("ESC: 나가기  메시지 입력시 ESC로 취소", 40, helpY + 18);
-
-        // 채팅 영역
-    int chatBoxX = rightPanelX;
-    int chatBoxY = rightPanelY;
-    int chatBoxW = rightPanelW;
-    int chatBoxH = rightPanelH;
-    g.setColor(new Color(30,30,30,180));
-    g.fillRoundRect(chatBoxX, chatBoxY, chatBoxW, chatBoxH, 16,16);
-    g.setColor(Color.DARK_GRAY);
-    g.drawRoundRect(chatBoxX, chatBoxY, chatBoxW, chatBoxH, 16,16);
-        g.setFont(chatFont);
-        int lineH = 18;
-        int maxLines = (chatBoxH-20)/lineH;
-        Object[] arr = chatLines.toArray();
-        int start = Math.max(0, arr.length - maxLines);
-        for (int i=start;i<arr.length;i++) {
-            String lineText = (String)arr[i];
-            g.setColor(lineText.startsWith("* ")?Color.CYAN:Color.WHITE);
-            g.drawString(lineText, chatBoxX+10, chatBoxY+20 + (i-start)*lineH);
-        }
-
-        // 채팅 입력 박스
-    int inputY = chatBoxY + chatBoxH + 20;
-    g.setColor(new Color(0,0,0,180));
-    g.fillRoundRect(chatBoxX, inputY, chatBoxW, 34, 12,12);
-    g.setColor(chatFocus?Color.YELLOW:Color.GRAY);
-    g.drawRoundRect(chatBoxX, inputY, chatBoxW, 34, 12,12);
-        g.setColor(Color.WHITE);
-        String disp = chatInput.isEmpty() && chatFocus ? "메시지 입력..." : chatInput;
-        g.drawString(disp, chatBoxX+10, inputY+20);
+        
+        drawPlayerList(g, leftPanelX, leftPanelY, leftPanelW, leftPanelH);
+        drawHelp(g);
+        drawChat(g, rightPanelX, rightPanelY, rightPanelW, rightPanelH);
 
         if (infoMessage!=null && !infoMessage.isEmpty()) {
             g.setColor(Color.ORANGE);
             g.drawString(infoMessage, 40, getHeight()-40);
         }
+    }
+
+    @Override
+    public void render(Graphics2D g) {
+        drawBackground(g);
+        drawTitle(g);
+
+        if (client != null && client.isCurrentRoomSingle()) {
+            drawSinglePlayerUI(g);
+            return;
+        }
+
+        drawMultiplayerUI(g);
     }
 
     private String getSelfName() { return client==null?"":client.getSelfId()==null?"":players.stream().filter(p->p.id.equals(client.getSelfId())).map(p->p.username).findFirst().orElse(""); }
@@ -230,7 +251,7 @@ public class RoomLobbyCanvas extends Canvas implements Screen, GameClientListene
     private void toggleReady() { if (client!=null) client.toggleReady(); }
     private void startGame() { if (client!=null && isHost) client.startGame(); }
 
-    private final KeyAdapter keyAdapter = new KeyAdapter() {
+    private transient final KeyAdapter keyAdapter = new KeyAdapter() {
         @Override public void keyPressed(KeyEvent e) {
             // 싱글방 최소 UI 모드
             if (client != null && client.isCurrentRoomSingle()) {
@@ -241,6 +262,8 @@ public class RoomLobbyCanvas extends Canvas implements Screen, GameClientListene
                         break;
                     case KeyEvent.VK_ESCAPE:
                         leaveRoom();
+                        break;
+                    default: // do nothing
                         break;
                 }
                 return;
@@ -261,6 +284,8 @@ public class RoomLobbyCanvas extends Canvas implements Screen, GameClientListene
                 case KeyEvent.VK_R: toggleReady(); break;
                 case KeyEvent.VK_S: if (isHost) startGame(); break;
                 case KeyEvent.VK_ESCAPE: leaveRoom(); break;
+                default: // do nothing
+                    break;
             }
         }
     };
