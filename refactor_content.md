@@ -319,3 +319,92 @@ case "Round4GreenSphereAttack":
 
 #### **변경 내용**:
 *   위에서 설명된 모든 메서드들이 추출되거나, 새로운 클래스/내부 클래스가 도입되어 코드의 모듈성과 재사용성이 크게 향상되었습니다. 이를 통해 각 컴포넌트의 역할이 명확해지고, 향후 기능 추가 및 유지보수가 용이해졌습니다.
+
+---
+
+### **필드 섀도잉 리팩토링 (ShotEntity)**
+
+#### **냄새**: **부모 필드 가리기 (Field Shadowing)**
+
+`ShotEntity` 클래스의 `spritePath` 필드가 부모 클래스 `Entity`의 필드를 가리고 있어 코드 이해를 방해하고 잠재적 오류를 유발했습니다. (java:S2387)
+
+#### **대상**: `ShotEntity.java`
+
+#### **적용 기법**: `ShotEntity`의 중복 `spritePath` 필드를 제거하고 부모 클래스의 필드를 사용하도록 상속 구조를 활용했습니다. 이로 인해 불필요한 초기화 및 중복된 스킨 변경 로직(`setSpritePath`)을 정리하여 코드를 단순화했습니다.
+
+```java
+// ShotEntity.java (Before)
+public class ShotEntity extends Entity {
+    // ...
+    protected String spritePath; // Shadowing field
+
+    public ShotEntity(GameContext game, String sprite, int x, int y) {
+        super(sprite, x, y);
+        // ...
+        this.spritePath = sprite; // Redundant assignment
+    }
+
+    public void setSpritePath(String spritePath) { // Redundant method
+        this.spritePath = spritePath;
+        if (spritePath != null && !spritePath.isEmpty()) {
+            changeSkin(spritePath);
+        }
+    }
+    // ...
+}
+
+// ShotEntity.java (After)
+public class ShotEntity extends Entity {
+    // ...
+    // Removed spritePath field
+
+    public ShotEntity(GameContext game, String sprite, int x, int y) {
+        super(sprite, x, y);
+        // ...
+        // Removed redundant assignment
+    }
+
+    // Removed setSpritePath method
+
+    public void setNearMonsterShot(boolean nearMonsterShot, int round, String spritePath) {
+        this.nearMonsterShot = nearMonsterShot;
+        this.nearMonsterRound = round;
+        changeSkin(spritePath); // Used parent's method
+    }
+    // ...
+}
+```
+---
+
+### **메서드 복잡도 감소 (Cognitive Complexity)**
+
+#### **냄새**: **높은 인지 복잡도 (High Cognitive Complexity)**
+
+`BaseAlienEntity`, `BaseSkillManager`, `NearEntity` 클래스의 일부 메서드들이 너무 많은 `if-else` 분기문과 중첩된 로직을 가지고 있어 인지 복잡도가 높았습니다(java:S3776). 이로 인해 코드의 가독성과 유지보수성이 저하되었습니다.
+
+#### **대상**:
+*   `BaseAlienEntity.java`의 `move()` 메서드
+*   `BaseSkillManager.java`의 `getRandomSkillPoints()` 메서드
+*   `NearEntity.java`의 `move()` 메서드
+
+#### **적용 기법**: **메서드 추출 (Extract Method)**
+
+각 메서드의 복잡한 로직을 역할에 따라 여러 개의 작은 private 메서드로 분리하여 복잡도를 낮추고 가독성을 향상시켰습니다.
+
+- **`BaseAlienEntity.move()`**:
+    -   `updateFrame(long delta)`: 프레임 애니메이션 로직
+    -   `updateDirection(long currentTime)`: 방향 전환 로직
+    -   `handleHorizontalMovement(double deltaSeconds, long currentTime)`: 수평 이동 및 경계 처리 로직
+        -   `onHorizontalBoundaryCollision(long currentTime)`: 수평 경계 충돌 시 처리 로직
+    -   `handleVerticalMovement(long delta)`: 수직 이동 로직
+    -   `clampYPosition()`: Y 좌표 범위 제한 로직
+- **`BaseSkillManager.getRandomSkillPoints()`**:
+    -   라운드 범위에 따라 `getRandomSkillPointsForRound1to2(double random)`, `getRandomSkillPointsForRound3to4(double random)`, `getRandomSkillPointsForRound5plus(double random)` 메서드로 분리하여 각기 다른 확률 계산 로직을 캡슐화했습니다.
+- **`NearEntity.move()`**:
+    -   `updateTargetVelocity()`: 목표 속도 업데이트 로직
+    -   `updateVelocity(double deltaSeconds)`: 현재 속도 업데이트 로직
+    -   `updatePosition(double deltaSeconds)`: 위치 업데이트 로직
+    -   `clampPosition()`: 좌표 범위 제한 로직
+
+#### **변경 내용**:
+*   위의 대상 메서드들이 여러 개의 작고 명확한 책임을 가진 메서드들로 분리되어 코드의 구조가 개선되고 이해하기 쉬워졌습니다.

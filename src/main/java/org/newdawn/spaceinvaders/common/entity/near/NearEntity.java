@@ -136,11 +136,7 @@ public class NearEntity extends Entity {
         }
     }
 
-    @Override
-    public void move(long delta) {
-        double deltaSeconds = delta / 1000.0;
-        double acceleration = 200.0;
-
+    private void updateTargetVelocity() {
         if (movingRight) {
             if (x >= 700) {
                 movingRight = false;
@@ -168,7 +164,10 @@ public class NearEntity extends Entity {
             }
             targetVelocityY = -moveSpeed * 0.6;
         }
+    }
 
+    private void updateVelocity(double deltaSeconds) {
+        double acceleration = 200.0;
         double maxVelocityChange = acceleration * deltaSeconds;
         if (currentVelocityX < targetVelocityX) {
             currentVelocityX = Math.min(targetVelocityX, currentVelocityX + maxVelocityChange);
@@ -181,12 +180,26 @@ public class NearEntity extends Entity {
         } else if (currentVelocityY > targetVelocityY) {
             currentVelocityY = Math.max(targetVelocityY, currentVelocityY - maxVelocityChange);
         }
+    }
 
+    private void updatePosition(double deltaSeconds) {
         x += currentVelocityX * deltaSeconds;
         y += currentVelocityY * deltaSeconds;
+    }
 
+    private void clampPosition() {
         x = Math.max(100, Math.min(700, x));
         y = Math.max(60, Math.min(300, y));
+    }
+
+    @Override
+    public void move(long delta) {
+        double deltaSeconds = delta / 1000.0;
+
+        updateTargetVelocity();
+        updateVelocity(deltaSeconds);
+        updatePosition(deltaSeconds);
+        clampPosition();
 
         preventOverlap();
         tryShoot();
