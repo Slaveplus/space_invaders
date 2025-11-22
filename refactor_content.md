@@ -1,183 +1,29 @@
-# **필드 섀도잉 리팩토링**
+### **서버 측 중복 리터럴 및 복잡도 리팩토링**
 
-## **냄새 : 부모 필드 가리기 (Field Shadowing)**
-`RemoteShotEntity` 클래스의 `spritePath` 필드가 부모 클래스 `Entity`의 필드를 가리고 있어 코드 이해를 방해하고 잠재적 오류를 유발했습니다.
+#### **냄새**: **중복 코드 (Duplicated Code) 및 높은 인지 복잡도 (High Cognitive Complexity)**
 
-## **대상** : `MultiplayerGameCanvas`의 내부 클래스 `RemoteShotEntity`
-
-## **적용기법** : `RemoteShotEntity`의 중복 `spritePath` 필드를 제거하고 부모 클래스의 필드를 사용하도록 상속 구조를 활용했습니다. 이로 인해 불필요한 초기화 및 중복된 스킨 변경 로직을 정리하여 코드를 단순화했습니다.
-
-```java
-// MultiplayerGameCanvas.java
-
-// ...
-
-	private static class RemoteShotEntity extends Entity {
-		private static final Map<Integer, BufferedImage> SKILL_ICON_CACHE = new HashMap<>();
-		private boolean isAlienShot;
-		private boolean isSkillDrop;
-		private int skillType;
-		private int skillValue;
-		private boolean hasPiercing;
-		private boolean nearMonsterShot;
-
-		RemoteShotEntity(EntitySnapshot snapshot, Map<String, String> meta) {
-			super(resolveShotSprite(snapshot), (int) snapshot.x, (int) snapshot.y);
-			apply(meta);
-		}
-
-		private static String resolveShotSprite(EntitySnapshot snapshot) {
-			return snapshot.sprite != null && !snapshot.sprite.isEmpty() ? snapshot.sprite : "sprites/shot.gif";
-		}
-
-		private void apply(Map<String, String> meta) {
-			if (meta == null) return;
-			isAlienShot = "1".equals(meta.get("alien"));
-			isSkillDrop = "1".equals(meta.get("skill"));
-			try { skillType = Integer.parseInt(meta.getOrDefault("skillType", "-1")); }
-			catch (NumberFormatException ignore) { skillType = -1; }
-			try { skillValue = Integer.parseInt(meta.getOrDefault("skillValue", "0")); }
-			catch (NumberFormatException ignore) { skillValue = 0; }
-			hasPiercing = "1".equals(meta.get("pierce"));
-			nearMonsterShot = "1".equals(meta.get("near"));
-			String spriteOverride = meta.get("sprite");
-			if (spriteOverride != null && !spriteOverride.isEmpty()) {
-				changeSkin(spriteOverride);
-			}
-		}
-// ...
-```
----
-
-### **정적 분석 경고 수정 (SonarLint)**
-
-#### **냄새** : **빈 메서드 (Empty Methods) & 사용되지 않는 파라미터 (Unused Parameter)**
-
-`MultiplayerGameCanvas.java` 파일 내 다수의 내부 클래스에서 `java:S1186` (메서드는 비어 있어서는 안 됩니다)와 `java:S1172` (사용되지 않는 메서드 매개변수 제거) 경고가 발생했습니다.
-- `Remote*` 시리즈 내부 클래스들의 `move()`, `collidedWith()` 메서드가 비어 있었습니다. 이 메서드들은 원격 엔티티의 시각적 표현만을 담당하므로, 로컬에서 로직을 처리할 필요가 없어 의도적으로 비워둔 것입니다。
-- `addScore()` 메서드가 내용 없이 주석만 있었습니다.
-- `RemoteRound4GreenSphere` 생성자가 사용되지 않는 `meta` 파라미터를 가지고 있었습니다.
-
-#### **대상** : `MultiplayerGameCanvas.java` 내의 여러 내부 클래스
-
-- `RemoteIceAttack`, `RemoteIceBallAttack`, `RemoteMagneticField`, `RemoteRound2Laser`, `RemoteRound2Phase1`, `RemoteRound2Phase2`, `RemoteRound2Random`, `RemoteRound2Quad`, `RemoteRound2MachineGun`, `RemoteRound3Straight`, `RemoteRound3Random`, `RemoteRound3Pull`, `RemoteRound3BlackHole`, `RemoteRound4Heal`, `RemoteRound4GreenSphere`, `RemoteRound4PlayerLine`, `RemoteExplosionEntity`
-- `addScore(String playerId, int points)`
-- `RemoteRound4GreenSphere` 생성자 및 호출부
-
-#### **적용 기법 :**
-- **주석 추가**: SonarLint 경고를 해결하기 위해, 의도적으로 비워둔 모든 `move()` 및 `collidedWith()`, `addScore()` 메서드에 `// Method is intentionally empty.` 주석을 추가하여 코드의 의도를 명확히 했습니다.
-- **파라미터 제거**: `RemoteRound4GreenSphere` 생성자에서 사용되지 않는 `meta` 파라미터를 제거하고, `createRemoteEntity` 메서드 내의 해당 생성자 호출 코드도 함께 수정하여 불필요한 코드를 정리했습니다.
-
-```java
-// RemoteIceAttack.java
-@Override
-public void move(long delta) {
-    // Method is intentionally empty.
-}
-
-@Override
-public void collidedWith(Entity other) {
-    // Method is intentionally empty.
-}
-
-// RemoteRound4GreenSphere.java
-RemoteRound4GreenSphere(EntitySnapshot snapshot) {
-    super("sprites/Boss_Attack/5round1.gif", (int) Math.round(snapshot.x), (int) Math.round(snapshot.y));
-    // ...
-}
-
-// createRemoteEntity
-case "Round4GreenSphereAttack":
-    return new RemoteRound4GreenSphere(snapshot);
-```
----
-### **중복 코드 (Duplicated Code)**
-
-#### **냄새**: **중복 코드 (Duplicated Code)**
-
-`GameClient.java`, `RoomListCanvas.java`, `RoomLobbyCanvas.java` 파일 내에서 `"roomId"`, `"single"`, `"Arial"`과 같은 문자열 리터럴이 여러 곳에서 중복 사용되고 있었습니다(java:S1192).
+`ClientConnection`, `GameServer`, `ServerGameSession`, `ServerMultiplayerGame` 클래스에서 여러 중복된 문자열 리터럴과 복잡한 메서드가 발견되었습니다. 이로 인해 코드의 가독성이 저하되고 유지보수가 어려워졌습니다.
 
 #### **대상**:
-*   `GameClient.java`
-*   `RoomListCanvas.java`
-*   `RoomLobbyCanvas.java`
+*   `ClientConnection.java`: `handleGameReady`, `handleGameInput`, `handleStateAck`, `handleStateRequest`, `handleGameAction`, `handleCreate`, `handleJoin`, `leaveRoomInternal`, `startGame`, `broadcastRoomState`, `sendRoomList`
+*   `GameServer.java`: `startMaintenance`
+*   `ServerGameSession.java`: `handleAction`, `persistLeaderboardIfNeeded`
+*   `ServerMultiplayerGame.java`: `setupPlayerShips`, `update`, `createSnapshot`, `addAimedAlienShot`, `createSkillDrop`, `handleSkillUpgrade`, `notifyAlienKilled`, `mapPlayerStatesToSnapshot`
 
 #### **적용 기법**:
-*   **상수화**: 중복된 문자열 리터럴을 `private static final` 상수로 추출하여 코드의 일관성과 유지보수성을 높였습니다.
+*   **상수 추출 (Extract Constant)**: `ClientConnection`과 `ServerMultiplayerGame`에서 반복적으로 사용되는 문자열 리터럴(프로토콜 키, 파일 경로, 메시지)을 상수로 추출하여 코드의 일관성과 가독성을 높였습니다.
+*   **메서드 추출 (Extract Method)**: `GameServer`, `ServerGameSession`, `ServerMultiplayerGame`의 복잡한 메서드들을 더 작고 명확한 책임을 가진 여러 개의 private 메서드로 분리하여 인지 복잡도를 낮추고 코드 구조를 개선했습니다.
 
 #### **변경 내용**:
-*   **`GameClient.java`**: `KEY_ROOM_ID` ("roomId"), `ROOM_TYPE_SINGLE` ("single") 상수를 추가하고 관련 코드를 수정했습니다.
-*   **`RoomListCanvas.java`**: `FONT_NAME` ("Arial") 상수를 추가하고 관련 코드를 수정했습니다.
-*   **`RoomLobbyCanvas.java`**: `FONT_NAME` ("Arial") 상수를 추가하고 관련 코드를 수정했습니다.
-
----
-
-### **메서드 복잡도 감소 (Cognitive Complexity)**
-
-#### **냄새**: **높은 인지 복잡도 (High Cognitive Complexity)**
-
-`GameClient.java`, `RoomListCanvas.java`, `RoomLobbyCanvas.java`, `BaseAlienEntity.java`, `BaseSkillManager.java`, `NearEntity.java` 클래스의 일부 메서드들이 너무 많은 `if-else` 분기문과 중첩된 로직을 가지고 있어 인지 복잡도가 높았습니다(java:S3776).
-
-#### **대상**:
-*   `GameClient.java`: `getSelfId()`, `handleGameInit()`, `handleRoomState()`
-*   `RoomListCanvas.java`: `render()`
-*   `RoomLobbyCanvas.java`: `render()`
-*   `BaseAlienEntity.java`: `move()`
-*   `BaseSkillManager.java`: `getRandomSkillPoints()`
-*   `NearEntity.java`: `move()`
-
-#### **적용 기법**: **메서드 추출 (Extract Method)**
-
-각 메서드의 복잡한 로직을 역할에 따라 여러 개의 작은 private 메서드로 분리하여 복잡도를 낮추고 가독성을 향상시켰습니다.
-
-#### **변경 내용**:
-*   **`GameClient.java`**: `getSelfId()`를 `findSelfIdBySessionId()`, `findSelfIdByUsername()`으로, `handleGameInit()`을 `processPlayersInGameInit()`, `updateCachedSelfId()`로, `handleRoomState()`를 `parsePlayers()`, `resolveSelfId()`로 분리했습니다.
-*   **`RoomListCanvas.java`**: `render()` 메서드를 `drawBackground()`, `drawTitle()`, `drawRoomList()`, `drawBottomButtons()` 등 여러 드로잉 관련 메서드로 분리했습니다.
-*   **`RoomLobbyCanvas.java`**: `render()` 메서드를 `drawBackground()`, `drawTitle()`, `drawSinglePlayerUI()`, `drawMultiplayerUI()` 등으로 분리하고, `drawMultiplayerUI()`는 다시 `drawPlayerList()`, `drawHelp()`, `drawChat()`으로 세분화했습니다.
-*   **`BaseAlienEntity.java`**: `move()` 메서드를 `updateFrame()`, `updateDirection()`, `handleHorizontalMovement()`, `handleVerticalMovement()`, `clampYPosition()` 등으로 분리했습니다.
-*   **`BaseSkillManager.java`**: `getRandomSkillPoints()` 메서드를 라운드 범위에 따라 `getRandomSkillPointsForRound1to2()`, `getRandomSkillPointsForRound3to4()`, `getRandomSkillPointsForRound5plus()`로 분리했습니다.
-*   **`NearEntity.java`**: `move()` 메서드를 `updateTargetVelocity()`, `updateVelocity()`, `updatePosition()`, `clampPosition()`으로 분리했습니다.
-
----
-
-### **직렬화 경고 수정 (Serialization-related Warnings)**
-
-#### **냄새**: **직렬화 불가능 필드 (Non-Serializable Fields)**
-
-`Canvas`를 상속하는 `RoomListCanvas`와 `RoomLobbyCanvas` 클래스가 `Serializable`을 구현하지 않는 필드를 멤버로 가져 `java:S1948` 경고가 발생했습니다.
-
-#### **대상**:
-*   `RoomListCanvas.java`: `navigator`, `client`, `backgroundImage`, `keyAdapter`, `mouseAdapter` 필드
-*   `RoomLobbyCanvas.java`: `navigator`, `client`, `players`, `backgroundImage`, `keyAdapter` 필드
-
-#### **적용 기법**:
-*   **`transient` 키워드 추가**: 직렬화 과정에서 제외되어야 하는 UI 관련 필드 및 핸들러에 `transient` 키워드를 추가하여 `NotSerializableException` 발생 가능성을 제거했습니다.
-
----
-
-### **스타일 경고 수정 (Style-related Warnings)**
-
-#### **냄새**: **스타일 위반 (Style Violation)**
-
-`RoomListCanvas.java`의 `onRoomsUpdated`와 `handleButtonClick` 메서드에서 한 줄에 여러 `if` 문이 있거나 `else if`가 새 줄에 없어 스타일 경고(java:S3972)가 발생했습니다.
-
-#### **대상**:
-*   `RoomListCanvas.java`: `onRoomsUpdated()`, `handleButtonClick()` 메서드
-
-#### **적용 기법**:
-*   **코드 포맷팅**: `if` 및 `else if` 문을 표준 코드 스타일에 맞게 여러 줄로 나누어 가독성을 향상시켰습니다.
-
----
-
-### **Switch 문 default 케이스 추가**
-
-#### **냄새**: **`switch` 문에 `default` 케이스 없음 (Missing 'default' case)**
-
-`RoomListCanvas.java`, `RoomLobbyCanvas.java`의 `keyPressed` 메서드 내 `switch` 문에 `default` 케이스가 없어 예외적인 값에 대한 처리가 누락될 수 있었습니다(java:S131).
-
-#### **대상**:
-*   `RoomListCanvas.java`: `keyPressed()` 메서드 내 `switch` 문
-*   `RoomLobbyCanvas.java`: `keyPressed()` 메서드 내 `switch` 문
-
-#### **적용 기법**:
-*   **`default` 케이스 추가**: 각 `switch` 문에 비어 있는 `default` 케이스를 추가하여 모든 가능한 입력에 대해 명시적으로 처리하도록 하여 코드의 안정성을 높였습니다.
+*   **`ClientConnection.java`**: `roomId`, `hostId`, `single`과 같은 프로토콜 관련 문자열을 `KEY_ROOM_ID`, `KEY_HOST_ID`, `KEY_SINGLE` 상수로 대체했습니다. 로깅 메시지의 `") by "` 리터럴을 `LOG_BY_USERNAME` 상수로 대체하고, `sendRoomList` 메서드에서 `"single"` 문자열 리터럴을 `KEY_SINGLE` 상수로 대체했습니다.
+*   **`GameServer.java`**: `startMaintenance` 메서드의 로직을 `cleanupStaleRooms`와 `cleanupInactiveSessions` 메서드로 분리했습니다.
+*   **`ServerGameSession.java`**:
+    *   `handleAction`의 `switch`문의 각 `case`를 `handleRoundReadyAction`, `handleChatAction` 등의 개별 메서드로 추출했습니다.
+    *   `persistLeaderboardIfNeeded`에서 플레이어 이름 수집 로직을 `getPlayerNamesForLeaderboard` 메서드로 추출했습니다.
+*   **`ServerMultiplayerGame.java`**:
+    *   `"sprites/shot.gif"`를 `DEFAULT_WEAPON_SKIN` 상수로, `"스킬 포인트가 부족합니다! (필요: "`를 `INSUFFICIENT_SKILL_POINTS_MSG` 상수로 대체했습니다. `", 보유: "`를 `AVAILABLE_SKILL_POINTS_MSG_SUFFIX` 상수로, `", 레벨: "`를 `LEVEL_MSG_PREFIX` 상수로 대체했습니다.
+    *   `setupPlayerShips` 메서드를 `cleanAndEnsurePlayerRuntimes`, `determineSpawnOrder`, `spawnShips`, `assignFallbackShip` 메서드로 분리했습니다.
+    *   `update` 메서드를 `updateGameLogic`, `updatePlayerShipStates`, `performCollisionChecks`, `updatePrimaryShipReference` 메서드로 분리했습니다.
+    *   `createSnapshot`에서 플레이어 상태를 스냅샷으로 변환하는 로직을 `mapPlayerStatesToSnapshot` 메서드로 추출했습니다.
+    *   `notifyAlienKilled` 메서드를 `handleKillerRewardsAndDrops`, `updateAlienStateAndCheckWinCondition`, `countRemainingAliens`, `adjustAlienSpeed` 메서드로 분리했습니다.
+    *   `mapPlayerStatesToSnapshot` 메서드의 인지 복잡도를 줄이기 위해 `getSkillValue` 및 `getSkillTimeRemaining` 헬퍼 메서드를 추출하고 이를 사용하여 플레이어 스킬 값을 검색합니다. `java.util.function.Function` import를 추가했습니다.
