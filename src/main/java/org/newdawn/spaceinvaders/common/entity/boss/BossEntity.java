@@ -5,7 +5,6 @@ import java.awt.Color;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
 import java.awt.Rectangle;
-import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import org.newdawn.spaceinvaders.common.entity.MagneticFieldEntity;
@@ -32,78 +31,39 @@ public class BossEntity extends Entity {
 
     private final BossEnvironment environment;
     private final int round;
+    private final BossConfig config;
+    private final RoundAttackConfig attackConfig;
 
     private int currentHP;
-    private int maxHP;
     private int phase = 1;
     private boolean used = false;
-
-    private double moveSpeed = 50;
-
-    /** 라운드 1 타이머 */
-    private long lastIceAttack = 0;
-    private long iceAttackInterval = 4000;
-    private long lastIceBallAttack = 0;
-    private long iceBallAttackInterval = 4000;
-    private long lastMagneticField = 0;
-    private long magneticFieldInterval = 15000;
-
-    private long lastAttackTime = 0;
-    private long attackInterval = 3000;
-    private final int[] attackPatterns = {1, 2, 3, 4, 5};
-    private final boolean[] attackUsed = new boolean[attackPatterns.length];
-
-    /** 라운드 2 타이머 */
-    private long lastRound2Attack = 0;
-    private long round2AttackInterval = 4000;
-    private int round2AttackPattern = 0;
-
-    /** 라운드 3 타이머 */
-    private long lastRound3Attack = 0;
-    private long round3AttackInterval = 4000;
-    private int round3AttackPattern = 0;
-
-    /** 라운드 4 타이머 */
-    private long lastRound4HealAttack = 0;
-    private long round4HealInterval = 60000;
-    private long lastRound4GreenSphereAttack = 0;
-    private long round4GreenSphereInterval = 2000;
-    private long lastRound4PlayerLineAttack = 0;
-    private long round4PlayerLineInterval = 5000;
-    private boolean round4TimerStarted = false;
-    private long round4StartTime = 0;
-    private long round4TimeLimit = 600000;
+    private AttackPatternSequence attackPatternSequence;
 
     public BossEntity(BossEnvironment environment, int x, int y, int round) {
-        super(getBossSpriteForRound(round), x, y);
+        super(BossConfigFactory.getConfig(round).getSpritePath(), x, y);
         this.environment = environment;
         this.round = round;
-
-        // 보스 라운드별 HP 설정 (2배 증가): 1라운드=200, 2라운드=280, 3라운드=400, 4라운드=600
-        switch (round) {
-            case 1:
-                maxHP = 200; // 게임 라운드 2 (100 * 2)
-                break;
-            case 2:
-                maxHP = 280; // 게임 라운드 4 (140 * 2)
-                break;
-            case 3:
-                maxHP = 400; // 게임 라운드 6 (200 * 2)
-                break;
-            case 4:
-                maxHP = 600; // 게임 라운드 8 (300 * 2)
-                break;
-            default:
-                maxHP = 200; // 기본값
-                break;
-        }
-        currentHP = maxHP;
-        moveSpeed = 50 + (round * 10);
-
+        this.config = BossConfigFactory.getConfig(round);
+        this.attackConfig = RoundAttackConfigFactory.getConfig(round);
+        
+        currentHP = config.getMaxHP();
+        
         dx = 0;
         dy = 0;
-
-        Arrays.fill(attackUsed, false);
+        
+        // 라운드 1의 경우 공격 패턴 시퀀스 초기화
+        if (round == 1) {
+            initializeAttackPatternSequence();
+        }
+    }
+    
+    private void initializeAttackPatternSequence() {
+        attackPatternSequence = new AttackPatternSequence();
+        attackPatternSequence.addPattern(new AttackPattern(1, "Ice Attack", this::tryIceAttack));
+        attackPatternSequence.addPattern(new AttackPattern(2, "Ice Ball Attack", this::tryIceBallAttack));
+        attackPatternSequence.addPattern(new AttackPattern(3, "Fan Ice Balls", this::tryFanIceBallsAttack));
+        attackPatternSequence.addPattern(new AttackPattern(4, "Wave Ice Balls", this::tryWaveIceBallsAttack));
+        attackPatternSequence.addPattern(new AttackPattern(5, "Spiral Ice Balls", this::trySpiralIceBallsAttack));
     }
 
     @Override
@@ -139,11 +99,10 @@ public class BossEntity extends Entity {
         if (!environment.canEnemiesAttack()) {
             return;
         }
-        long now = System.currentTimeMillis();
-        if (now - lastMagneticField < magneticFieldInterval) {
+        if (!attackConfig.hasMagneticFieldTimer() || !attackConfig.getMagneticFieldTimer().canAttack()) {
             return;
         }
-        lastMagneticField = now;
+        attackConfig.getMagneticFieldTimer().recordAttack();
         double fieldRadius = 190;
         double fieldStrength = -0.5;
         long duration = 4000;
@@ -152,93 +111,38 @@ public class BossEntity extends Entity {
     }
 
     private void trySequentialRandomAttack() {
-        long now = System.currentTimeMillis();
-        if (now - lastAttackTime < attackInterval) {
+        if (!attackConfig.hasMainAttackTimer() || !attackConfig.getMainAttackTimer().canAttack()) {
             return;
         }
-
-        boolean allUsed = true;
-        for (boolean used : attackUsed) {
-            if (!used) {
-                allUsed = false;
-                break;
-            }
-        }
-        if (allUsed) {
-            Arrays.fill(attackUsed, false);
-        }
-
-        int available = 0;
-        for (boolean used : attackUsed) {
-            if (!used) {
-                available++;
-            }
-        }
-        if (available == 0) {
-            return;
-        }
-
-        int pick = (int) (Math.random() * available);
-        int selectedPattern = attackPatterns[0];
-        for (int i = 0; i < attackPatterns.length; i++) {
-            if (!attackUsed[i]) {
-                if (pick == 0) {
-                    selectedPattern = attackPatterns[i];
-                    attackUsed[i] = true;
-                    break;
-                }
-                pick--;
-            }
-        }
-
-        executeAttackPattern(selectedPattern);
-        lastAttackTime = now;
-    }
-
-    private void executeAttackPattern(int pattern) {
-        switch (pattern) {
-            case 1:
-                tryIceAttack();
-                break;
-            case 2:
-                tryIceBallAttack();
-                break;
-            case 3:
-                tryFanIceBallsAttack();
-                break;
-            case 4:
-                tryWaveIceBallsAttack();
-                break;
-            case 5:
-                trySpiralIceBallsAttack();
-                break;
-            default:
-                break;
+        
+        AttackPattern selected = attackPatternSequence.selectAndExecuteRandom();
+        if (selected != null) {
+            attackConfig.getMainAttackTimer().recordAttack();
         }
     }
+
+    // executeAttackPattern 메서드는 AttackPatternSequence에서 직접 호출되므로 제거
 
     private void tryIceAttack() {
         if (!environment.canEnemiesAttack()) {
             return;
         }
-        long now = System.currentTimeMillis();
-        if (now - lastIceAttack < iceAttackInterval) {
+        if (!attackConfig.hasIceAttackTimer() || !attackConfig.getIceAttackTimer().canAttack()) {
             return;
         }
+        attackConfig.getIceAttackTimer().recordAttack();
         environment.addEntity(new IceAttack(environment, (int) x, (int) y + 150));
-        lastIceAttack = now;
     }
 
     private void tryIceBallAttack() {
         if (!environment.canEnemiesAttack()) {
             return;
         }
-        long now = System.currentTimeMillis();
-        if (now - lastIceBallAttack < iceBallAttackInterval) {
+        if (!attackConfig.hasIceBallAttackTimer() || !attackConfig.getIceBallAttackTimer().canAttack()) {
             return;
         }
+        attackConfig.getIceBallAttackTimer().recordAttack();
         performTripleIceBallAttack();
-        lastIceBallAttack = now;
     }
 
     private void performTripleIceBallAttack() {
@@ -288,12 +192,11 @@ public class BossEntity extends Entity {
     }
 
     private void tryRound2Attack() {
-        long now = System.currentTimeMillis();
-        if (now - lastRound2Attack < round2AttackInterval) {
+        if (!attackConfig.hasMainAttackTimer() || !attackConfig.getMainAttackTimer().canAttack()) {
             return;
         }
-
-        switch (round2AttackPattern) {
+        
+        switch (attackConfig.getCurrentAttackPattern()) {
             case 0:
                 executeRound2LaserAttack();
                 break;
@@ -310,9 +213,9 @@ public class BossEntity extends Entity {
                 executeRound2MachineGunAttack();
                 break;
         }
-
-        round2AttackPattern = (round2AttackPattern + 1) % 5;
-        lastRound2Attack = now;
+        
+        attackConfig.nextAttackPattern(5);
+        attackConfig.getMainAttackTimer().recordAttack();
     }
 
     private void executeRound2LaserAttack() {
@@ -350,12 +253,11 @@ public class BossEntity extends Entity {
     }
 
     private void tryRound3Attack() {
-        long now = System.currentTimeMillis();
-        if (now - lastRound3Attack < round3AttackInterval) {
+        if (!attackConfig.hasMainAttackTimer() || !attackConfig.getMainAttackTimer().canAttack()) {
             return;
         }
-
-        switch (round3AttackPattern) {
+        
+        switch (attackConfig.getCurrentAttackPattern()) {
             case 0:
                 executeRound3StraightAttack();
                 break;
@@ -366,9 +268,9 @@ public class BossEntity extends Entity {
                 executeRound3PullAttack();
                 break;
         }
-
-        round3AttackPattern = (round3AttackPattern + 1) % 3;
-        lastRound3Attack = now;
+        
+        attackConfig.nextAttackPattern(3);
+        attackConfig.getMainAttackTimer().recordAttack();
     }
 
     private void executeRound3StraightAttack() {
@@ -395,19 +297,15 @@ public class BossEntity extends Entity {
     }
 
     private void tryRound4Attacks() {
-        if (!round4TimerStarted) {
-            round4TimerStarted = true;
-            round4StartTime = System.currentTimeMillis();
-        }
-        long now = System.currentTimeMillis();
+        attackConfig.startTimer();
 
-        if (now - lastRound4HealAttack >= round4HealInterval) {
+        if (attackConfig.hasHealAttackTimer() && attackConfig.getHealAttackTimer().canAttack()) {
             Round4HealAttack heal = new Round4HealAttack(environment, 400, 250);
             environment.addEntity(heal);
-            lastRound4HealAttack = now;
+            attackConfig.getHealAttackTimer().recordAttack();
         }
 
-        if (now - lastRound4GreenSphereAttack >= round4GreenSphereInterval) {
+        if (attackConfig.hasGreenSphereAttackTimer() && attackConfig.getGreenSphereAttackTimer().canAttack()) {
             double playerX = 400;
             double playerY = 500;
             Entity ship = environment.getShip(null);
@@ -424,31 +322,31 @@ public class BossEntity extends Entity {
             }
             Round4GreenSphereAttack sphere = new Round4GreenSphereAttack(environment, (int) x, (int) y + 150, dx, dy);
             environment.addEntity(sphere);
-            lastRound4GreenSphereAttack = now;
+            attackConfig.getGreenSphereAttackTimer().recordAttack();
         }
 
-        if (now - lastRound4PlayerLineAttack >= round4PlayerLineInterval) {
+        if (attackConfig.hasPlayerLineAttackTimer() && attackConfig.getPlayerLineAttackTimer().canAttack()) {
             int randomX = 150 + (int) (Math.random() * 500);
             Round4PlayerLineAttack lineAttack = new Round4PlayerLineAttack(environment, randomX, 500);
             environment.addEntity(lineAttack);
-            lastRound4PlayerLineAttack = now;
+            attackConfig.getPlayerLineAttackTimer().recordAttack();
         }
 
-        if (now - round4StartTime > round4TimeLimit) {
-            round4StartTime = now;
+        if (attackConfig.isTimeLimitExceeded()) {
+            attackConfig.startTimer(); // 리셋
         }
     }
 
     private void performFallbackPattern() {
-        long now = System.currentTimeMillis();
-        if (now - lastAttackTime < 1500) {
+        AttackTimer fallbackTimer = new AttackTimer(1500);
+        if (!fallbackTimer.canAttack()) {
             return;
         }
         Entity targetShip = environment.getShip(null);
         double playerX = targetShip != null ? targetShip.getX() + 15 : x;
         double playerY = targetShip != null ? targetShip.getY() : y + 200;
         createDirectionalShot(x, y + 75, playerX - x, playerY - (y + 75), 300, false);
-        lastAttackTime = now;
+        fallbackTimer.recordAttack();
     }
 
     public void takeDamage(int damage, String playerId) {
@@ -470,9 +368,9 @@ public class BossEntity extends Entity {
 
     private void updatePhase() {
         int newPhase;
-        if (currentHP > maxHP * 0.66) {
+        if (currentHP > config.getMaxHP() * 0.66) {
             newPhase = 1;
-        } else if (currentHP > maxHP * 0.33) {
+        } else if (currentHP > config.getMaxHP() * 0.33) {
             newPhase = 2;
         } else {
             newPhase = 3;
@@ -481,8 +379,8 @@ public class BossEntity extends Entity {
     }
 
     private void grantBossRewards(String playerId) {
-        environment.addScore(playerId, 1000 * Math.max(1, round));
-        environment.addSkillPoints(playerId, 5 * Math.max(1, round));
+        environment.addScore(playerId, config.getScoreValue());
+        environment.addSkillPoints(playerId, config.getSkillPointsReward());
 
         int[] bossCoinValues = {10, 15, 20, 25, 30};
         int coinValue = bossCoinValues[(int) (Math.random() * bossCoinValues.length)];
@@ -503,7 +401,7 @@ public class BossEntity extends Entity {
     }
 
     public int getMaxHP() {
-        return maxHP;
+        return config.getMaxHP();
     }
 
     public int getPhase() {
@@ -511,7 +409,7 @@ public class BossEntity extends Entity {
     }
 
     public void healToFull() {
-        currentHP = maxHP;
+        currentHP = config.getMaxHP();
     }
 
     @Override
@@ -535,7 +433,7 @@ public class BossEntity extends Entity {
         g2d.setColor(Color.RED);
         g2d.fillRect((int) x - 50, (int) y + halfSize + 10, 100, 8);
         g2d.setColor(Color.GREEN);
-        int healthWidth = (int) (100 * ((double) currentHP / maxHP));
+        int healthWidth = (int) (100 * ((double) currentHP / config.getMaxHP()));
         g2d.fillRect((int) x - 50, (int) y + halfSize + 10, healthWidth, 8);
         g2d.setColor(Color.WHITE);
         g2d.drawRect((int) x - 50, (int) y + halfSize + 10, 100, 8);
@@ -578,26 +476,13 @@ public class BossEntity extends Entity {
         }
     }
 
-    private static String getBossSpriteForRound(int round) {
-        switch (round) {
-            case 1:
-                return "sprites/Boss/1Boss.png";
-            case 2:
-                return "sprites/Boss/2Boss.png";
-            case 3:
-                return "sprites/Boss/3Boss.png";
-            case 4:
-                return "sprites/Boss/4Boss.png";
-            default:
-                return "sprites/Boss/5Boss.png";
-        }
-    }
+    // getBossSpriteForRound 메서드는 BossConfigFactory에서 관리하므로 제거
 
     @Override
     protected String snapshotMetadata() {
         Map<String, String> map = new LinkedHashMap<>();
         map.put("hp", Integer.toString(currentHP));
-        map.put("max", Integer.toString(maxHP));
+        map.put("max", Integer.toString(config.getMaxHP()));
         map.put("phase", Integer.toString(phase));
         return MetadataCodec.encode(map);
     }
@@ -612,10 +497,7 @@ public class BossEntity extends Entity {
             currentHP = Integer.parseInt(map.getOrDefault("hp", Integer.toString(currentHP)));
         } catch (NumberFormatException ignore) {
         }
-        try {
-            maxHP = Integer.parseInt(map.getOrDefault("max", Integer.toString(maxHP)));
-        } catch (NumberFormatException ignore) {
-        }
+        // maxHP는 config에서 관리하므로 스냅샷에서 복원하지 않음
         try {
             phase = Integer.parseInt(map.getOrDefault("phase", Integer.toString(phase)));
         } catch (NumberFormatException ignore) {

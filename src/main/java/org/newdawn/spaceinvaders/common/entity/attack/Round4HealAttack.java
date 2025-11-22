@@ -25,27 +25,13 @@ public class Round4HealAttack extends BaseAttackEntity {
     }
 
     private void loadHealImage() {
-        try {
-            java.net.URL imageUrl = getClass().getClassLoader().getResource("sprites/Boss_Attack/4round.gif");
-            if (imageUrl != null) {
-                healImage = java.awt.Toolkit.getDefaultToolkit().createImage(imageUrl);
-                MediaTracker tracker = new MediaTracker(new java.awt.Canvas());
-                tracker.addImage(healImage, 0);
-                tracker.waitForAll();
-                if (tracker.isErrorAny()) {
-                    healImage = null;
-                }
-            }
-        } catch (Exception e) {
-            healImage = null;
-        }
+        healImage = loadImageWithMediaTracker("sprites/Boss_Attack/4round.gif");
     }
 
     @Override
     public void move(long delta) {
-        if (System.currentTimeMillis() - startTime > healDuration) {
+        if (checkAndRemoveIfExpired(startTime, healDuration)) {
             healBossToFull();
-            game.removeEntity(this);
         }
     }
 

@@ -22,21 +22,12 @@ public class Round2RandomAttack extends BaseAttackEntity {
         this.startTime = System.currentTimeMillis();
         this.dx = 0;
         this.dy = 0;
-        Image loaded;
-        try {
-            java.net.URL imageURL = getClass().getClassLoader().getResource("sprites/Boss_Attack/2round2.gif");
-            loaded = imageURL != null ? java.awt.Toolkit.getDefaultToolkit().createImage(imageURL) : null;
-        } catch (Exception ex) {
-            loaded = null;
-        }
-        attackImage = loaded;
+        attackImage = loadImageFromToolkit("sprites/Boss_Attack/2round2.gif");
     }
 
     @Override
     public void move(long delta) {
-        if (System.currentTimeMillis() - startTime > slashDuration) {
-            game.removeEntity(this);
-        }
+        checkAndRemoveIfExpired(startTime, slashDuration);
     }
 
     @Override
