@@ -72,8 +72,9 @@ public abstract class BaseSkillEntity extends Entity {
                 skillIcon = ImageIO.read(is);
             }
         } catch (IOException e) {
-            System.err.println("Failed to load skill icon: " + iconPath);
-            e.printStackTrace();
+            org.newdawn.spaceinvaders.common.util.Logger logger = 
+                org.newdawn.spaceinvaders.common.util.LoggerFactory.getLogger(BaseSkillEntity.class);
+            logger.error("Failed to load skill icon: " + iconPath, e);
         }
     }
 

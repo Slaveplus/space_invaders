@@ -193,7 +193,9 @@ public class ShotEntity extends Entity {
             return javax.imageio.ImageIO.read(Objects.requireNonNull(
                     getClass().getClassLoader().getResourceAsStream(path)));
         } catch (Exception e) {
-            System.err.println("Failed to load skill image: " + path);
+            org.newdawn.spaceinvaders.common.util.Logger logger = 
+                org.newdawn.spaceinvaders.common.util.LoggerFactory.getLogger(ShotEntity.class);
+            logger.error("Failed to load skill image: " + path, e);
             return null;
         }
     }

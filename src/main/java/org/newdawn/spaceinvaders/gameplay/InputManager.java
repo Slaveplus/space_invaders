@@ -45,7 +45,7 @@ public class InputManager {
          */
         public void keyTyped(KeyEvent e) {
             // 라운드 설명 창이 열려있을 때 (자동 닫기 기능으로 인해 키 입력 처리 제거)
-            if (gameStateManager.isShowingRoundInfo()) {
+            if (!gameStateManager.isInputProcessingActive()) {
                 return;
             }
             
@@ -98,7 +98,9 @@ public class InputManager {
             if (e.getKeyCode() == KeyEvent.VK_F4) {
                 gameStateManager.toggleDebugDrawHitboxes();
                 boolean enabled = gameStateManager.isDebugDrawHitboxes();
-                System.out.println("Hitbox debug overlay: " + (enabled ? "ON" : "OFF"));
+                org.newdawn.spaceinvaders.common.util.Logger logger = 
+                    org.newdawn.spaceinvaders.common.util.LoggerFactory.getLogger(InputManager.class);
+                logger.debug("Hitbox debug overlay: " + (enabled ? "ON" : "OFF"));
                 return;
             }
             
@@ -201,7 +203,9 @@ public class InputManager {
         public void mouseClicked(MouseEvent e) {
             int x = e.getX();
             int y = e.getY();
-            System.out.println("게임 중 마우스 클릭: (" + x + ", " + y + ")");
+            org.newdawn.spaceinvaders.common.util.Logger logger = 
+                org.newdawn.spaceinvaders.common.util.LoggerFactory.getLogger(InputManager.class);
+            logger.debug("게임 중 마우스 클릭: (" + x + ", " + y + ")");
         }
     }
     
@@ -209,8 +213,7 @@ public class InputManager {
      * 게임플레이 입력 상태 업데이트
      */
     public void updateGameplayInput() {
-        if (game.getShip() != null && 
-            !gameStateManager.isShowingPauseMenu() && !gameStateManager.isShowingSkillMenu()) {
+        if (game.getShip() != null && gameStateManager.isShipControlActive()) {
             
             // 우주선 이동 처리 (좌우만)
             game.getShip().setHorizontalMovement(0);

@@ -45,32 +45,16 @@ public class Round2QuadAttack extends BaseAttackEntity {
     }
 
     private void loadAttackImage() {
-        try {
-            java.net.URL imageUrl = getClass().getClassLoader().getResource("sprites/Boss_Attack/2round1.gif");
-            if (imageUrl != null) {
-                attackImage = java.awt.Toolkit.getDefaultToolkit().createImage(imageUrl);
-                MediaTracker tracker = new MediaTracker(new java.awt.Canvas());
-                tracker.addImage(attackImage, 0);
-                tracker.waitForAll();
-                if (tracker.isErrorAny()) {
-                    attackImage = null;
-                }
-            }
-        } catch (Exception e) {
-            attackImage = null;
-        }
+        attackImage = loadImageWithMediaTracker("sprites/Boss_Attack/2round1.gif");
     }
 
     @Override
     public void move(long delta) {
         super.move(delta);
-        if (System.currentTimeMillis() - startTime > attackDuration) {
-            game.removeEntity(this);
+        if (checkAndRemoveIfExpired(startTime, attackDuration)) {
             return;
         }
-        if (x < -50 || x > 850 || y < -50 || y > 650) {
-            game.removeEntity(this);
-        }
+        checkAndRemoveIfOutOfBounds();
     }
 
     @Override
@@ -87,19 +71,7 @@ public class Round2QuadAttack extends BaseAttackEntity {
 
     @Override
     public void collidedWith(Entity other) {
-        if (other instanceof ShipEntity) {
-            ShipEntity ship = (ShipEntity) other;
-            if (isInvincible(ship)) {
-                game.removeEntity(this);
-                return;
-            }
-            double distance = Math.hypot(this.x - other.getX(), this.y - other.getY());
-            double collisionRadius = 25.0;
-            if (distance <= collisionRadius) {
-                damageShip(ship, damage);
-                game.removeEntity(this);
-            }
-        }
+        handleShipCollisionWithRadius(other, damage, 25.0);
     }
 
     @Override

@@ -28,26 +28,16 @@ public class Round4GreenSphereAttack extends BaseAttackEntity {
     }
 
     private void loadSphereImage() {
-        try {
-            java.net.URL imageURL = getClass().getClassLoader().getResource("sprites/Boss_Attack/5round1.gif");
-            if (imageURL != null) {
-                sphereImage = java.awt.Toolkit.getDefaultToolkit().createImage(imageURL);
-            }
-        } catch (Exception ignore) {
-            sphereImage = null;
-        }
+        sphereImage = loadImageFromToolkit("sprites/Boss_Attack/5round1.gif");
     }
 
     @Override
     public void move(long delta) {
         super.move(delta);
-        if (System.currentTimeMillis() - startTime > attackDuration) {
-            game.removeEntity(this);
+        if (checkAndRemoveIfExpired(startTime, attackDuration)) {
             return;
         }
-        if (x < -50 || x > 850 || y < -50 || y > 650) {
-            game.removeEntity(this);
-        }
+        checkAndRemoveIfOutOfBounds();
     }
 
     @Override
@@ -85,9 +75,6 @@ public class Round4GreenSphereAttack extends BaseAttackEntity {
 
     @Override
     public void collidedWith(Entity other) {
-        if (other instanceof ShipEntity) {
-            damageShip((ShipEntity) other, damage);
-            game.removeEntity(this);
-        }
+        handleShipCollision(other, damage);
     }
 }

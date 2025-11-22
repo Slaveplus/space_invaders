@@ -31,23 +31,14 @@ public class IceBallAttack extends BaseAttackEntity {
     }
 
     private void loadIceBallImage() {
-        try {
-            java.net.URL imageURL = getClass().getClassLoader().getResource("sprites/Boss_Attack/ice ball.gif");
-            if (imageURL != null) {
-                iceBallImage = Toolkit.getDefaultToolkit().createImage(imageURL);
-            }
-        } catch (Exception e) {
-            iceBallImage = null;
-        }
+        iceBallImage = loadImageFromToolkit("sprites/Boss_Attack/ice ball.gif");
     }
 
     @Override
     public void move(long delta) {
         x += (delta * dx) / 1000;
         y += (delta * dy) / 1000;
-        if (y > 600 || y < -100 || x < -100 || x > 800) {
-            game.removeEntity(this);
-        }
+        checkAndRemoveIfOutOfBounds(-100, 800, -100, 600);
     }
 
     @Override
@@ -81,9 +72,6 @@ public class IceBallAttack extends BaseAttackEntity {
 
     @Override
     public void collidedWith(Entity other) {
-        if (other instanceof ShipEntity) {
-            damageShip((ShipEntity) other, damage);
-            game.removeEntity(this);
-        }
+        handleShipCollision(other, damage);
     }
 }

@@ -24,19 +24,13 @@ public class Round2Phase2Attack extends BaseAttackEntity {
     }
 
     private Image loadImage(String ref) {
-        try {
-            return SpriteStore.get().getSprite(ref).getImage();
-        } catch (Exception ex) {
-            return null;
-        }
+        return loadImageFromSpriteStore(ref);
     }
 
     @Override
     public void move(long delta) {
         super.move(delta);
-        if (y > 600 || y < -100 || x < -100 || x > 800) {
-            game.removeEntity(this);
-        }
+        checkAndRemoveIfOutOfBounds(-100, 800, -100, 600);
     }
 
     @Override
@@ -51,20 +45,10 @@ public class Round2Phase2Attack extends BaseAttackEntity {
 
     @Override
     public void collidedWith(Entity other) {
-        if (other instanceof ShipEntity) {
-            ShipEntity ship = (ShipEntity) other;
-            if (isInvincible(ship)) {
-                game.removeEntity(this);
-                return;
-            }
-            double distance = Math.hypot(this.x - other.getX(), this.y - other.getY());
-            double projectileRadius = 25;
-            double shipRadius = 20;
-            if (distance <= (projectileRadius + shipRadius)) {
-                damageShip(ship, damage);
-                game.removeEntity(this);
-            }
-        }
+        double projectileRadius = 25;
+        double shipRadius = 20;
+        double collisionRadius = projectileRadius + shipRadius;
+        handleShipCollisionWithRadius(other, damage, collisionRadius);
     }
 
     public int getDamage() {

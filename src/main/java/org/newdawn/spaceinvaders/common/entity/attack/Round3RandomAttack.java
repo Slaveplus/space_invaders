@@ -29,27 +29,12 @@ public class Round3RandomAttack extends BaseAttackEntity {
     }
 
     private void loadAttackImage() {
-        try {
-            java.net.URL imageUrl = getClass().getClassLoader().getResource("sprites/Boss_Attack/3round2.gif");
-            if (imageUrl != null) {
-                attackImage = java.awt.Toolkit.getDefaultToolkit().createImage(imageUrl);
-                MediaTracker tracker = new MediaTracker(new java.awt.Canvas());
-                tracker.addImage(attackImage, 0);
-                tracker.waitForAll();
-                if (tracker.isErrorAny()) {
-                    attackImage = null;
-                }
-            }
-        } catch (Exception e) {
-            attackImage = null;
-        }
+        attackImage = loadImageWithMediaTracker("sprites/Boss_Attack/3round2.gif");
     }
 
     @Override
     public void move(long delta) {
-        if (System.currentTimeMillis() - startTime > attackDuration) {
-            game.removeEntity(this);
-        }
+        checkAndRemoveIfExpired(startTime, attackDuration);
     }
 
     @Override
