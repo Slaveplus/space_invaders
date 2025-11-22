@@ -44,7 +44,9 @@ public class CoinDisplayEntity extends Entity {
         try (InputStream is = getClass().getClassLoader().getResourceAsStream("sprites/star coin normal.png")) {
             return is != null ? ImageIO.read(is) : null;
         } catch (IOException e) {
-            System.err.println("Failed to load coin sprite: " + e.getMessage());
+            org.newdawn.spaceinvaders.common.util.Logger logger = 
+                org.newdawn.spaceinvaders.common.util.LoggerFactory.getLogger(CoinDisplayEntity.class);
+            logger.error("Failed to load coin sprite: " + e.getMessage(), e);
             return null;
         }
     }

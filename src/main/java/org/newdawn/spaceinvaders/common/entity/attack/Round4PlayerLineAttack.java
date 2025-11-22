@@ -26,27 +26,12 @@ public class Round4PlayerLineAttack extends BaseAttackEntity {
     }
 
     private void loadAttackImage() {
-        try {
-            java.net.URL imageUrl = getClass().getClassLoader().getResource("sprites/Boss_Attack/4round3.gif");
-            if (imageUrl != null) {
-                attackImage = java.awt.Toolkit.getDefaultToolkit().createImage(imageUrl);
-                MediaTracker tracker = new MediaTracker(new java.awt.Canvas());
-                tracker.addImage(attackImage, 0);
-                tracker.waitForAll();
-                if (tracker.isErrorAny()) {
-                    attackImage = null;
-                }
-            }
-        } catch (Exception e) {
-            attackImage = null;
-        }
+        attackImage = loadImageWithMediaTracker("sprites/Boss_Attack/4round3.gif");
     }
 
     @Override
     public void move(long delta) {
-        if (System.currentTimeMillis() - startTime > attackDuration) {
-            game.removeEntity(this);
-        }
+        checkAndRemoveIfExpired(startTime, attackDuration);
     }
 
     @Override
@@ -67,15 +52,7 @@ public class Round4PlayerLineAttack extends BaseAttackEntity {
 
     @Override
     public void collidedWith(Entity other) {
-        if (other instanceof ShipEntity) {
-            ShipEntity ship = (ShipEntity) other;
-            if (isInvincible(ship)) {
-                game.removeEntity(this);
-                return;
-            }
-            damageShip(ship, 5);
-            game.removeEntity(this);
-        }
+        handleShipCollision(other, 5);
     }
 
     @Override

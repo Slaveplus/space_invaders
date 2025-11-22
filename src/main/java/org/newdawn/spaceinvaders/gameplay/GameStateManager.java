@@ -1,6 +1,8 @@
 package org.newdawn.spaceinvaders.gameplay;
 
 import org.newdawn.spaceinvaders.common.entity.Entity;
+import org.newdawn.spaceinvaders.common.util.Logger;
+import org.newdawn.spaceinvaders.common.util.LoggerFactory;
 import java.util.ArrayList;
 
 /**
@@ -78,8 +80,11 @@ public class GameStateManager {
     // 디버그 오버레이 플래그
     private boolean debugDrawHitboxes = false;
     
+    /** 로거 */
+    private static final Logger logger = LoggerFactory.getLogger(GameStateManager.class);
+    
     public GameStateManager() {
-        System.out.println("GameStateManager 초기화 완료");
+        logger.debug("GameStateManager 초기화 완료");
     }
 
     public boolean isDebugDrawHitboxes() {
@@ -97,7 +102,7 @@ public class GameStateManager {
      * 게임 시작 시 초기화
      */
     public void startNewGame() {
-        System.out.println("🎮 GameStateManager.startNewGame() called!");
+        logger.debug("GameStateManager.startNewGame() called!");
 
         // 모든 플레이어 상태 초기화 (현재는 로컬 플레이어만 존재)
         players.clear();
@@ -111,7 +116,7 @@ public class GameStateManager {
 
         // Reset round
         currentRound = 1;
-        System.out.println("🎮 GameStateManager: Set currentRound = " + currentRound);
+        logger.debug("GameStateManager: Set currentRound = " + currentRound);
         // Reset alien firing interval
         alienFiringInterval = baseAlienFiringInterval;
 
@@ -130,14 +135,14 @@ public class GameStateManager {
         gameStartTime = System.currentTimeMillis();
         pausedTime = 0; // 누적 일시정지 시간 초기화
         pauseStartTime = 0; // 현재 일시정지 시작 시간 초기화
-        System.out.println("🎮 Game started at: " + gameStartTime);
+        logger.debug("Game started at: " + gameStartTime);
     }
     
     /**
      * 게임 상태 초기화 (메인메뉴로 돌아갈 때 사용)
      */
     public void resetGame() {
-        System.out.println("🎮 GameStateManager.resetGame() called!");
+        logger.debug("GameStateManager.resetGame() called!");
         
         players.clear();
         
@@ -164,7 +169,7 @@ public class GameStateManager {
         entities.clear();
         removeList.clear();
         
-        System.out.println("🎮 Game state reset completed");
+        logger.debug("Game state reset completed");
     }
     
     // Getters and Setters for gameplay state
@@ -380,7 +385,7 @@ public class GameStateManager {
      */
     public void addEarnedCoins(int amount) {
         this.earnedCoins += amount;
-        System.out.println("💰 Earned coins: " + amount + " (Total: " + this.earnedCoins + ")");
+        logger.debug("Earned coins: " + amount + " (Total: " + this.earnedCoins + ")");
     }
     
     /**
@@ -584,5 +589,71 @@ public class GameStateManager {
         }
         long currentTime = System.currentTimeMillis();
         return (currentTime - roundInfoStartTime) >= 5000; // 5초 이후에 자동으로 닫힘
+    }
+    
+    // ========== 게임플레이 활성 상태 체크 공통 메서드 ==========
+    
+    /**
+     * 게임플레이가 활성화되어 있는지 확인
+     * (모든 메뉴가 닫혀있고, 키 입력 대기 상태가 아닐 때)
+     * 
+     * @return 게임플레이 활성화 여부
+     */
+    public boolean isGameplayActive() {
+        return !waitingForKeyPress &&
+               !showingPauseMenu &&
+               !showingSkillMenu &&
+               !showingRoundInfo &&
+               !showingQuitConfirm;
+    }
+    
+    /**
+     * 우주선 제어가 가능한지 확인
+     * (일시정지 메뉴, 스킬 메뉴, 라운드 정보, 종료 확인 창이 모두 닫혀있을 때)
+     * 
+     * @return 우주선 제어 가능 여부
+     */
+    public boolean isShipControlActive() {
+        return !showingPauseMenu &&
+               !showingSkillMenu &&
+               !showingRoundInfo &&
+               !showingQuitConfirm;
+    }
+    
+    /**
+     * 충돌 체크가 가능한지 확인
+     * (일시정지 메뉴, 스킬 메뉴, 라운드 정보, 종료 확인 창이 모두 닫혀있을 때)
+     * 
+     * @return 충돌 체크 가능 여부
+     */
+    public boolean isCollisionCheckActive() {
+        return !showingPauseMenu &&
+               !showingSkillMenu &&
+               !showingRoundInfo &&
+               !showingQuitConfirm;
+    }
+    
+    /**
+     * 데미지 적용이 가능한지 확인
+     * (키 입력 대기, 일시정지 메뉴, 스킬 메뉴, 라운드 정보, 종료 확인 창이 모두 닫혀있을 때)
+     * 
+     * @return 데미지 적용 가능 여부
+     */
+    public boolean isDamageApplicable() {
+        return !waitingForKeyPress &&
+               !showingPauseMenu &&
+               !showingSkillMenu &&
+               !showingRoundInfo &&
+               !showingQuitConfirm;
+    }
+    
+    /**
+     * 입력 처리가 가능한지 확인
+     * (라운드 정보 창이 열려있지 않을 때)
+     * 
+     * @return 입력 처리 가능 여부
+     */
+    public boolean isInputProcessingActive() {
+        return !showingRoundInfo;
     }
 }

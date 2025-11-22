@@ -83,7 +83,9 @@ public class HeatEffectEntity extends Entity {
             g2d.setComposite(java.awt.AlphaComposite.getInstance(
                     java.awt.AlphaComposite.SRC_OVER, 1.0f));
         } catch (Exception e) {
-            System.err.println("Error drawing heat effect: " + e.getMessage());
+            org.newdawn.spaceinvaders.common.util.Logger logger = 
+                org.newdawn.spaceinvaders.common.util.LoggerFactory.getLogger(HeatEffectEntity.class);
+            logger.error("Error drawing heat effect: " + e.getMessage(), e);
         }
     }
 
@@ -93,7 +95,9 @@ public class HeatEffectEntity extends Entity {
                 heatImage = ImageIO.read(is);
             }
         } catch (IOException e) {
-            System.err.println("Failed to load heat effect image: " + e.getMessage());
+            org.newdawn.spaceinvaders.common.util.Logger logger = 
+                org.newdawn.spaceinvaders.common.util.LoggerFactory.getLogger(HeatEffectEntity.class);
+            logger.error("Failed to load heat effect image: " + e.getMessage(), e);
         }
     }
 

@@ -3,6 +3,8 @@ package org.newdawn.spaceinvaders.gameplay.entity;
 import org.newdawn.spaceinvaders.common.entity.Entity;
 import org.newdawn.spaceinvaders.common.entity.attack.IceAttack;
 import org.newdawn.spaceinvaders.common.entity.effect.ExplosionEntity;
+import org.newdawn.spaceinvaders.common.util.Logger;
+import org.newdawn.spaceinvaders.common.util.LoggerFactory;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
 import java.awt.Rectangle;
@@ -16,6 +18,9 @@ import org.newdawn.spaceinvaders.common.sprite.Sprite;
  * @author Space Invaders Team
  */
 public class SideMonster extends Entity {
+	/** 로거 */
+	private static final Logger logger = LoggerFactory.getLogger(SideMonster.class);
+	
 	/** 엔티티가 존재하는 게임 */
 	private Game game;
 	/** 이동 속도 */
@@ -122,7 +127,7 @@ public class SideMonster extends Entity {
 						x += 20; // Move right
 					}
 					
-					System.out.println("Side monster reversed direction due to boss proximity!");
+					logger.debug("Side monster reversed direction due to boss proximity!");
 					break;
 				}
 			}
@@ -174,7 +179,7 @@ public class SideMonster extends Entity {
 			
 			// 디버그: 히트박스 정보 출력
 			if (Math.random() < 0.005) { // 0.5% 확률로 출력
-				System.out.println("SideMonster hitbox - X:" + hitboxX + " Y:" + hitboxY + " W:" + hitboxWidth + " H:" + hitboxHeight + " (60% of scaled size)");
+				logger.debug("SideMonster hitbox - X:" + hitboxX + " Y:" + hitboxY + " W:" + hitboxWidth + " H:" + hitboxHeight + " (60% of scaled size)");
 			}
 			
 			return new Rectangle(hitboxX, hitboxY, hitboxWidth, hitboxHeight);
@@ -186,10 +191,10 @@ public class SideMonster extends Entity {
 	 * Take damage
 	 */
 	public void takeDamage(int damage) {
-		System.out.println("SideMonster took " + damage + " damage! HP: " + currentHP + " -> " + (currentHP - damage));
+		logger.debug("SideMonster took " + damage + " damage! HP: " + currentHP + " -> " + (currentHP - damage));
 		currentHP -= damage;
 		if (currentHP <= 0) {
-			System.out.println("SideMonster destroyed!");
+			logger.debug("SideMonster destroyed!");
 			// Create explosion
 			ExplosionEntity explosion = new ExplosionEntity(game, "sprites/Skill/Explosion.png", (int)x, (int)y, 1000);
 			game.addEntity(explosion);
@@ -244,10 +249,10 @@ public class SideMonster extends Entity {
 			// Update last ice attack time
 			lastIceAttack = currentTime;
 			
-			System.out.println("Side Monster performed ice attack with ice.gif!");
+			logger.debug("Side Monster performed ice attack with ice.gif!");
 			
 		} catch (Exception e) {
-			System.err.println("Error in side monster ice attack: " + e.getMessage());
+			logger.error("Error in side monster ice attack: " + e.getMessage(), e);
 			// 게임이 크래시되지 않도록 예외를 잡고 계속 진행
 			lastIceAttack = System.currentTimeMillis(); // 다음 공격 시간 업데이트
 		}

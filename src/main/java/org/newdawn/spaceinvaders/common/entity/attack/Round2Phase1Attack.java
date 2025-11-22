@@ -24,11 +24,7 @@ public class Round2Phase1Attack extends BaseAttackEntity {
     }
 
     private Image loadImage(String ref) {
-        try {
-            return SpriteStore.get().getSprite(ref).getImage();
-        } catch (Exception ex) {
-            return null;
-        }
+        return loadImageFromSpriteStore(ref);
     }
 
     @Override
@@ -40,9 +36,7 @@ public class Round2Phase1Attack extends BaseAttackEntity {
             game.removeEntity(this);
             return;
         }
-        if (y > 600 || y < -100) {
-            game.removeEntity(this);
-        }
+        checkAndRemoveIfOutOfBoundsY(600);
     }
 
     private void launchPhase2() {
@@ -66,10 +60,7 @@ public class Round2Phase1Attack extends BaseAttackEntity {
 
     @Override
     public void collidedWith(Entity other) {
-        if (other instanceof ShipEntity) {
-            damageShip((ShipEntity) other, damage);
-            game.removeEntity(this);
-        }
+        handleShipCollision(other, damage);
     }
 
     @Override
