@@ -17,6 +17,8 @@ public class GameClient implements Runnable {
     private volatile boolean running;
     private Thread thread;
     private Thread heartbeatThread; // 주기적 PING 전송 스레드
+    private static final String KEY_ROOM_ID = "roomId";
+    private static final String ROOM_TYPE_SINGLE = "single";
     private final List<GameClientListener> listeners = new CopyOnWriteArrayList<>();
 
     private String currentRoomId;
@@ -54,30 +56,45 @@ public class GameClient implements Runnable {
     public List<PlayerInfo> getCurrentPlayers() { return currentPlayers; }
     public List<RoomInfo> getCachedRooms() { return cachedRooms; }
     public boolean isHost() { return currentHostId != null && currentPlayers.stream().anyMatch(p -> p.host && p.id.equals(getSelfId())); }
+    private String findSelfIdBySessionId() {
+        if (sessionId != null) {
+            for (PlayerInfo info : currentPlayers) {
+                if (info != null && sessionId.equals(info.id)) {
+                    return info.id;
+                }
+            }
+        }
+        return null;
+    }
+
+    private String findSelfIdByUsername() {
+        if (username != null) {
+            for (PlayerInfo info : currentPlayers) {
+                if (info != null && username.equals(info.username)) {
+                    return info.id;
+                }
+            }
+        }
+        return null;
+    }
+
     public String getSelfId() {
         if (cachedSelfId != null && !cachedSelfId.isEmpty()) {
             return cachedSelfId;
         }
-        if (sessionId != null && !sessionId.isEmpty()) {
-            cachedSelfId = sessionId;
+
+        String foundId = findSelfIdBySessionId();
+        if (foundId != null) {
+            cachedSelfId = foundId;
             return cachedSelfId;
         }
-        if (sessionId != null) {
-            for (PlayerInfo info : currentPlayers) {
-                if (info != null && sessionId.equals(info.id)) {
-                    cachedSelfId = info.id;
-                    return cachedSelfId;
-                }
-            }
+
+        foundId = findSelfIdByUsername();
+        if (foundId != null) {
+            cachedSelfId = foundId;
+            return cachedSelfId;
         }
-        if ((cachedSelfId == null || cachedSelfId.isEmpty()) && username != null) {
-            for (PlayerInfo info : currentPlayers) {
-                if (info != null && username.equals(info.username)) {
-                    cachedSelfId = info.id;
-                    return cachedSelfId;
-                }
-            }
-        }
+
         return cachedSelfId;
     }
     public String getUsername() { return username; }
@@ -85,7 +102,7 @@ public class GameClient implements Runnable {
     public boolean isCurrentRoomSingle() { return currentRoomSingle; }
 
     public void requestRoomList() { send("LIST_ROOMS"); }
-    public void createRoom(String name, boolean single, int max) { send("CREATE_ROOM|name="+escape(name)+"|type="+(single?"single":"multi")+"|max="+max); }
+    public void createRoom(String name, boolean single, int max) { send("CREATE_ROOM|name="+escape(name)+"|type="+(single?ROOM_TYPE_SINGLE:"multi")+"|max="+max); }
     public void joinRoom(String roomId) { send("JOIN_ROOM|"+roomId); }
     public void leaveRoom() { send("LEAVE_ROOM"); currentRoomId = null; currentPlayers = new ArrayList<>(); }
     public void toggleReady() { send("TOGGLE_READY"); }
@@ -136,8 +153,8 @@ public class GameClient implements Runnable {
             case "ROOM_JOINED": handleRoomJoined(parts); break;
             case "ROOM_STATE": handleRoomState(parts); break;
             case "CHAT": handleChat(parts); break;
-            case "HOST_LEFT": fireHostLeft(getValue(parts, "roomId")); break;
-            case "GAME_START": fireGameStart(getValue(parts, "roomId")); break;
+            case "HOST_LEFT": fireHostLeft(getValue(parts, KEY_ROOM_ID)); break;
+            case "GAME_START": fireGameStart(getValue(parts, KEY_ROOM_ID)); break;
             case "GAME_INIT": handleGameInit(line); break;
             case "GAME_STATE": handleGameState(line); break;
             case "GAME_EVENT": handleGameEvent(line); break;
@@ -148,25 +165,34 @@ public class GameClient implements Runnable {
         }
     }
 
+    private void updateCachedSelfId(String playerId, String playerUsername) {
+        if (sessionId != null && sessionId.equals(playerId)) {
+            cachedSelfId = playerId;
+        } else if ((cachedSelfId == null || cachedSelfId.isEmpty())
+                && playerUsername != null && playerUsername.equals(username)) {
+            cachedSelfId = playerId;
+        }
+    }
+
+    private void processPlayersInGameInit(List<GameInitInfo.Player> players) {
+        if (players == null) {
+            return;
+        }
+        List<PlayerInfo> snapshot = new ArrayList<>();
+        for (GameInitInfo.Player p : players) {
+            if (p == null) continue;
+            snapshot.add(new PlayerInfo(p.id, p.username, false, currentHostId != null && currentHostId.equals(p.id)));
+            updateCachedSelfId(p.id, p.username);
+        }
+        if (!snapshot.isEmpty()) {
+            currentPlayers = snapshot;
+        }
+    }
+
     private void handleGameInit(String line) {
         GameInitInfo info = GameInitInfo.fromLine(line);
         if (info != null) {
-            if (info.players != null) {
-                List<PlayerInfo> snapshot = new ArrayList<>();
-                for (GameInitInfo.Player p : info.players) {
-                    if (p == null) continue;
-                    snapshot.add(new PlayerInfo(p.id, p.username, false, currentHostId != null && currentHostId.equals(p.id)));
-                    if (sessionId != null && sessionId.equals(p.id)) {
-                        cachedSelfId = p.id;
-                    } else if ((cachedSelfId == null || cachedSelfId.isEmpty())
-                            && p.username != null && p.username.equals(username)) {
-                        cachedSelfId = p.id;
-                    }
-                }
-                if (!snapshot.isEmpty()) {
-                    currentPlayers = snapshot;
-                }
-            }
+            processPlayersInGameInit(info.players);
             for (GameClientListener l : listeners) {
                 l.onGameInit(info);
             }
@@ -202,7 +228,7 @@ public class GameClient implements Runnable {
                 if (f.length >= 5) {
                     String id = f[0];
                     String name = unescape(f[1]);
-                    boolean single = "single".equalsIgnoreCase(f[2]);
+                    boolean single = ROOM_TYPE_SINGLE.equalsIgnoreCase(f[2]);
                     int cur = parseIntSafe(f[3]);
                     int max = parseIntSafe(f[4]);
                     temp.add(new RoomInfo(id, name, single, cur, max));
@@ -214,17 +240,13 @@ public class GameClient implements Runnable {
     }
 
     private void handleRoomJoined(String[] parts) {
-        currentRoomId = getValue(parts, "roomId");
+        currentRoomId = getValue(parts, KEY_ROOM_ID);
         currentHostId = getValue(parts, "hostId");
-        currentRoomSingle = "1".equals(getValue(parts, "single"));
+        currentRoomSingle = "1".equals(getValue(parts, ROOM_TYPE_SINGLE));
         for (GameClientListener l : listeners) l.onJoinedRoom(currentRoomId, currentHostId);
     }
 
-    private void handleRoomState(String[] parts) {
-        String roomId = getValue(parts, "roomId");
-        currentHostId = getValue(parts, "hostId");
-        currentRoomSingle = "1".equals(getValue(parts, "single"));
-        String plist = getValue(parts, "players");
+    private List<PlayerInfo> parsePlayers(String plist) {
         List<PlayerInfo> ps = new ArrayList<>();
         if (plist != null && !plist.isEmpty()) {
             String[] entries = plist.split(";");
@@ -235,25 +257,30 @@ public class GameClient implements Runnable {
                 }
             }
         }
+        return ps;
+    }
+
+    private String resolveSelfId(List<PlayerInfo> players) {
+        String foundId = findSelfIdBySessionId();
+        if (foundId != null) {
+            return foundId;
+        }
+        return findSelfIdByUsername();
+    }
+
+    private void handleRoomState(String[] parts) {
+        String roomId = getValue(parts, KEY_ROOM_ID);
+        currentHostId = getValue(parts, "hostId");
+        currentRoomSingle = "1".equals(getValue(parts, ROOM_TYPE_SINGLE));
+        String plist = getValue(parts, "players");
+        List<PlayerInfo> ps = parsePlayers(plist);
         currentPlayers = ps;
-        String resolvedId = cachedSelfId;
-        if (sessionId != null) {
-            for (PlayerInfo player : ps) {
-                if (player != null && sessionId.equals(player.id)) {
-                    resolvedId = player.id;
-                    break;
-                }
-            }
+        
+        String resolvedId = resolveSelfId(ps);
+        if (resolvedId != null) {
+            cachedSelfId = resolvedId;
         }
-        if ((resolvedId == null || resolvedId.isEmpty()) && username != null) {
-            for (PlayerInfo player : ps) {
-                if (player != null && username.equals(player.username)) {
-                    resolvedId = player.id;
-                    break;
-                }
-            }
-        }
-        cachedSelfId = resolvedId;
+
         currentRoomId = roomId;
         for (GameClientListener l : listeners) l.onRoomState(roomId, currentHostId, Collections.unmodifiableList(currentPlayers));
     }
@@ -284,7 +311,7 @@ public class GameClient implements Runnable {
         if (roomId == null) roomId = currentRoomId;
         if (roomId == null) return;
         send(TextMessage.builder("GAME_READY")
-                .put("roomId", roomId)
+                .put(KEY_ROOM_ID, roomId)
                 .put("seedAck", seedAck)
                 .toLine());
     }
@@ -293,7 +320,7 @@ public class GameClient implements Runnable {
         if (roomId == null) roomId = currentRoomId;
         if (roomId == null) return;
         send(TextMessage.builder("GAME_INPUT")
-                .put("roomId", roomId)
+                .put(KEY_ROOM_ID, roomId)
                 .put("seq", sequence)
                 .put("mask", mask)
                 .put("clientTime", clientTime)
@@ -304,7 +331,7 @@ public class GameClient implements Runnable {
         if (roomId == null) roomId = currentRoomId;
         if (roomId == null) return;
         send(TextMessage.builder("STATE_ACK")
-                .put("roomId", roomId)
+                .put(KEY_ROOM_ID, roomId)
                 .put("tick", tick)
                 .toLine());
     }
@@ -313,7 +340,7 @@ public class GameClient implements Runnable {
         if (roomId == null) roomId = currentRoomId;
         if (roomId == null) return;
         send(TextMessage.builder("STATE_REQUEST")
-                .put("roomId", roomId)
+                .put(KEY_ROOM_ID, roomId)
                 .put("fromTick", fromTick)
                 .toLine());
     }
@@ -322,7 +349,7 @@ public class GameClient implements Runnable {
         if (roomId == null) roomId = currentRoomId;
         if (roomId == null) return;
         TextMessage.Builder builder = TextMessage.builder("GAME_ACTION")
-                .put("roomId", roomId);
+                .put(KEY_ROOM_ID, roomId);
         if (action != null) builder.put("action", action);
         if (data != null) builder.put("data", data);
         send(builder.toLine());
