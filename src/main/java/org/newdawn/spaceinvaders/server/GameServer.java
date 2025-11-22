@@ -41,40 +41,50 @@ public class GameServer implements Runnable {
     private void startMaintenance() {
         maintenanceThread = new Thread(() -> {
             while (running) {
-                try { Thread.sleep(MAINT_INTERVAL); } catch (InterruptedException ignored) {}
-                long now = System.currentTimeMillis();
-                // 고아 세션/방 정리: rooms 맵 접근
-                synchronized (roomManager) {
-                    // 방 순회하며 호스트가 null 이거나 빈 방 제거
-                    roomManager.getRoomsInternal().entrySet().removeIf(e -> {
-                        Room r = e.getValue();
-                        boolean remove = r.getPlayers().isEmpty() || r.getHost()==null;
-                        if (remove) {
-                            System.out.println("[Maint] Removing stale/empty room " + r.getId());
-                            gameManager.removeSession(r.getId());
-                        }
-                        return remove;
-                    });
+                try {
+                    Thread.sleep(MAINT_INTERVAL);
+                } catch (InterruptedException ignored) {
+                    Thread.currentThread().interrupt();
+                    break;
                 }
-                // 세션 타임아웃: 연결 목록 복사 후 검사
-                connections.removeIf(cc -> {
-                    try {
-                        PlayerSession ps = cc.getSession();
-                        if (ps == null) return false;
-                        if (now - ps.getLastActivity() > SESSION_TIMEOUT) {
-                            System.out.println("[Maint] Session timeout: " + ps.getUsername());
-                            cc.forceClose();
-                            return true;
-                        }
-                    } catch (Exception ex) {
-                        return true;
-                    }
-                    return false;
-                });
+                long now = System.currentTimeMillis();
+                cleanupStaleRooms();
+                cleanupInactiveSessions(now);
             }
         }, "Server-Maintenance");
         maintenanceThread.setDaemon(true);
         maintenanceThread.start();
+    }
+
+    private void cleanupStaleRooms() {
+        synchronized (roomManager) {
+            roomManager.getRoomsInternal().entrySet().removeIf(entry -> {
+                Room room = entry.getValue();
+                if (room.getPlayers().isEmpty() || room.getHost() == null) {
+                    System.out.println("[Maint] Removing stale/empty room " + room.getId());
+                    gameManager.removeSession(room.getId());
+                    return true;
+                }
+                return false;
+            });
+        }
+    }
+
+    private void cleanupInactiveSessions(long now) {
+        connections.removeIf(connection -> {
+            try {
+                PlayerSession session = connection.getSession();
+                if (session == null || (now - session.getLastActivity() <= SESSION_TIMEOUT)) {
+                    return false;
+                }
+                System.out.println("[Maint] Session timeout: " + session.getUsername());
+                connection.forceClose();
+                return true;
+            } catch (Exception ex) {
+                System.err.println("[Maint] Error during session cleanup: " + ex.getMessage());
+                return true;
+            }
+        });
     }
 
     void removeConnection(ClientConnection cc) {
