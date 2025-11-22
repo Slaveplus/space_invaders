@@ -125,21 +125,33 @@ public abstract class BaseSkillManager {
         environment.createSkillDrop(dropX, dropY, drop.skillType, drop.skillValue);
     }
 
+    private int getRandomSkillPointsForRound1to2(double random) {
+        return random < 50 ? 0 : random < 85 ? 1 : 2;
+    }
+
+    private int getRandomSkillPointsForRound3to4(double random) {
+        if (random < 40) return 1;
+        if (random < 70) return 2;
+        if (random < 90) return 3;
+        return 4;
+    }
+
+    private int getRandomSkillPointsForRound5plus(double random) {
+        if (random < 35) return 2;
+        if (random < 65) return 3;
+        if (random < 85) return 4;
+        if (random < 95) return 5;
+        return 6;
+    }
+
     public int getRandomSkillPoints(int round) {
         double random = Math.random() * 100;
         if (round <= 2) {
-            return random < 50 ? 0 : random < 85 ? 1 : 2;
+            return getRandomSkillPointsForRound1to2(random);
         } else if (round <= 4) {
-            if (random < 40) return 1;
-            if (random < 70) return 2;
-            if (random < 90) return 3;
-            return 4;
+            return getRandomSkillPointsForRound3to4(random);
         } else {
-            if (random < 35) return 2;
-            if (random < 65) return 3;
-            if (random < 85) return 4;
-            if (random < 95) return 5;
-            return 6;
+            return getRandomSkillPointsForRound5plus(random);
         }
     }
 

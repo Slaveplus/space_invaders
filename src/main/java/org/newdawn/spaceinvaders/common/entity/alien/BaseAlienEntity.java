@@ -86,45 +86,49 @@ public abstract class BaseAlienEntity extends Entity {
         environment.notifyAlienKilled();
     }
 
-    @Override
-    public void move(long delta) {
+    private void updateFrame(long delta) {
         lastFrameChange += delta;
         if (lastFrameChange > frameDuration) {
             lastFrameChange = 0;
             frameNumber = (frameNumber + 1) % frames.length;
             sprite = frames[frameNumber];
         }
-        long currentTime = System.currentTimeMillis();
+    }
+
+    private void updateDirection(long currentTime) {
         if (currentTime - lastDirectionChange > directionChangeInterval) {
             shuffleHorizontalDirection(currentTime);
         }
-        double deltaSeconds = delta * 0.001;
+    }
+
+    private void onHorizontalBoundaryCollision(long currentTime) {
+        syncHorizontalFromDx();
+        if (Math.random() < 0.4) {
+            changeVerticalDirection();
+        }
+        directionChangeInterval = 600 + (long) (Math.random() * 1200);
+        lastDirectionChange = currentTime;
+    }
+
+    private void handleHorizontalMovement(double deltaSeconds, long currentTime) {
         if (movingRight) {
             x += horizontalSpeed * deltaSeconds;
             if (x >= 750) {
                 x = 745;
                 movingRight = false;
-                syncHorizontalFromDx();
-                if (Math.random() < 0.4) {
-                    changeVerticalDirection();
-                }
-                directionChangeInterval = 600 + (long) (Math.random() * 1200);
-                lastDirectionChange = currentTime;
+                onHorizontalBoundaryCollision(currentTime);
             }
         } else {
             x -= horizontalSpeed * deltaSeconds;
             if (x <= 10) {
                 x = 15;
                 movingRight = true;
-                syncHorizontalFromDx();
-                if (Math.random() < 0.4) {
-                    changeVerticalDirection();
-                }
-                directionChangeInterval = 600 + (long) (Math.random() * 1200);
-                lastDirectionChange = currentTime;
+                onHorizontalBoundaryCollision(currentTime);
             }
         }
+    }
 
+    private void handleVerticalMovement(long delta) {
         if (!movingDown) {
             y -= moveSpeed * delta * 0.0005;
             if (y <= 80) {
@@ -136,11 +140,25 @@ public abstract class BaseAlienEntity extends Entity {
                 movingDown = false;
             }
         }
+    }
+
+    private void clampYPosition() {
         if (y < 50) {
             y = 50;
         } else if (y > 300) {
             y = 300;
         }
+    }
+
+    @Override
+    public void move(long delta) {
+        updateFrame(delta);
+        long currentTime = System.currentTimeMillis();
+        updateDirection(currentTime);
+        double deltaSeconds = delta * 0.001;
+        handleHorizontalMovement(deltaSeconds, currentTime);
+        handleVerticalMovement(delta);
+        clampYPosition();
     }
 
     public void doLogic() {

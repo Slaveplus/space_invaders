@@ -32,13 +32,13 @@ public class ShotEntity extends Entity {
     protected int skillType = -1;
     protected int skillValue;
     protected int nearMonsterRound = -1;
-    protected String spritePath;
+
 
     public ShotEntity(GameContext game, String sprite, int x, int y) {
         super(sprite, x, y);
         this.game = game;
         this.dy = PLAYER_SHOT_SPEED;
-        this.spritePath = sprite;
+
     }
 
     public ShotEntity(GameContext game, String sprite, int x, int y, boolean alienShot) {
@@ -46,7 +46,7 @@ public class ShotEntity extends Entity {
         this.game = game;
         this.alienShot = alienShot;
         this.dy = alienShot ? ALIEN_SHOT_SPEED : PLAYER_SHOT_SPEED;
-        this.spritePath = sprite;
+
     }
 
     public ShotEntity(GameContext game, String sprite, int x, int y, int skillType, int skillValue) {
@@ -56,7 +56,7 @@ public class ShotEntity extends Entity {
         this.skillType = skillType;
         this.skillValue = skillValue;
         this.dy = SKILL_DROP_SPEED;
-        this.spritePath = sprite;
+
     }
 
     public void setPiercingShot(boolean piercingShot) {
@@ -66,7 +66,7 @@ public class ShotEntity extends Entity {
     public void setNearMonsterShot(boolean nearMonsterShot, int round, String spritePath) {
         this.nearMonsterShot = nearMonsterShot;
         this.nearMonsterRound = round;
-        setSpritePath(spritePath);
+        changeSkin(spritePath);
     }
 
     @Override
@@ -318,12 +318,6 @@ public class ShotEntity extends Entity {
         return skillDrop;
     }
 
-    public void setSpritePath(String spritePath) {
-        this.spritePath = spritePath;
-        if (spritePath != null && !spritePath.isEmpty()) {
-            changeSkin(spritePath);
-        }
-    }
 
     @Override
     protected String snapshotMetadata() {
