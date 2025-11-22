@@ -3,77 +3,33 @@ package org.newdawn.spaceinvaders.mainmenu;
 import java.awt.*;
 import java.awt.event.KeyEvent;
 import java.awt.image.BufferedImage;
-import java.io.IOException;
-import java.io.InputStream;
-import javax.imageio.ImageIO;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
+import java.util.Properties;
+import org.newdawn.spaceinvaders.app.ScreenNavigator;
+import org.newdawn.spaceinvaders.login.User;
+import org.newdawn.spaceinvaders.login.UserManager;
+import org.newdawn.spaceinvaders.room.GameClient;
 import org.newdawn.spaceinvaders.shop.Shop;
 import org.newdawn.spaceinvaders.shop.ShopAnimation;
-import org.newdawn.spaceinvaders.login.UserManager;
-import org.newdawn.spaceinvaders.login.User;
-import org.newdawn.spaceinvaders.app.ScreenNavigator;
-import org.newdawn.spaceinvaders.room.GameClient;
-
-/**
- * 우주 배경을 사용한 메인 메뉴 시스템
- */
-import java.util.Properties;
-import java.io.FileOutputStream;
-import java.io.FileInputStream;
-import java.io.File;
 
 public class MainMenu {
-    // Kostar 폰트 로드
-    private static Font KOSTAR_FONT = null;
-    
-    static {
-        loadKostarFont();
-    }
-    
-    /**
-     * Kostar 폰트 로드
-     */
-    private static void loadKostarFont() {
-        try {
-            InputStream fontStream = MainMenu.class.getClassLoader().getResourceAsStream("fonts/Kostar.ttf");
-            if (fontStream != null) {
-                KOSTAR_FONT = Font.createFont(Font.TRUETYPE_FONT, fontStream);
-                fontStream.close();
-                System.out.println("✅ MainMenu Kostar 폰트 로드 성공");
-            } else {
-                System.err.println("❌ MainMenu Kostar 폰트 파일을 찾을 수 없습니다");
-                KOSTAR_FONT = new Font("Arial", Font.PLAIN, 12); // 폴백
-            }
-        } catch (Exception e) {
-            System.err.println("❌ MainMenu Kostar 폰트 로드 실패: " + e.getMessage());
-            KOSTAR_FONT = new Font("Arial", Font.PLAIN, 12); // 폴백
-        }
-    }
-    
-    /**
-     * Kostar 폰트를 지정된 크기로 반환
-     */
+    private final MainMenuAssets assets;
+    private final MenuOptionProvider optionProvider;
+
     public static Font getKostarFont(int size) {
-        if (KOSTAR_FONT != null) {
-            return KOSTAR_FONT.deriveFont(Font.PLAIN, size);
-        }
-        return new Font("Arial", Font.PLAIN, size);
+        return MainMenuAssets.sharedBaseFont().deriveFont(Font.PLAIN, (float) size);
     }
-    
-    /**
-     * Kostar 폰트를 지정된 크기와 스타일로 반환
-     */
+
     public static Font getKostarFont(int style, int size) {
-        if (KOSTAR_FONT != null) {
-            return KOSTAR_FONT.deriveFont(style, size);
-        }
-        return new Font("Arial", style, size);
+        return MainMenuAssets.sharedBaseFont().deriveFont(style, (float) size);
     }
-    
+
     // 상점 클래스 연결
     private Shop shop;
     private boolean showingShop = false;
     private UserManager userManager;
-    // private User currentUser; // 직접 사용하지 않으므로 제거
     private boolean logoutRequested = false;
     private ScreenNavigator navigator;
 
@@ -108,53 +64,10 @@ public class MainMenu {
     private PlayRecordsManager playRecordsManager;
     private GlobalLeaderboardManager leaderboardManager;
     
-    // 통합 게임플레이 서브메뉴 옵션
-    private String[] gameplayOptions = {
-        "싱글 플레이",
-        "멀티 플레이",
-        "리더보드",
-        "플레이기록",
-        "이전메뉴"
-    };
-    
-    // 설정 메뉴 옵션들 (동적 생성)
-    private String[] getSettingsOptions() {
-        return new String[] {
-            "배경음악 " + (musicEnabled ? "ON" : "OFF"),
-            "해상도 변경",
-            "제작자",
-            "이전메뉴"
-        };
-    }
-    
-    // 해상도 옵션들
-    private String[] resolutionOptions = {
-        "800x600",
-        "1024x768",
-        "1440x1080",
-        "이전메뉴"
-    };
-    
-    // 해상도 값들 (resolutionOptions와 매칭)
-    private int[][] resolutionValues = {
-        {800, 600},
-        {1024, 768},
-        {1440, 1080},
-        {0, 0} // 이전메뉴는 무시
-    };
-    
-    // 계정 메뉴 옵션들
-    private String[] accountOptions = {
-        "계정 정보",
-        "게임 통계", 
-        "정보수정",
-        "로그아웃",
-        "이전메뉴"
-    };
-    
     public MainMenu(UserManager userManager, ScreenNavigator navigator) {
-        loadBackgroundImage();
-        initializeFonts();
+        this.assets = MainMenuAssets.load();
+        this.optionProvider = new MenuOptionProvider();
+        applyAssets();
         shop = new Shop(userManager); // UserManager를 Shop에 전달
         this.userManager = userManager;
         this.navigator = navigator;
@@ -165,6 +78,13 @@ public class MainMenu {
         this.settingsAnimation = new ShopAnimation();
         this.accountAnimation = new ShopAnimation();
     // currentUser 캐싱은 사용하지 않음 (UserManager에서 직접 조회)
+    }
+
+    private void applyAssets() {
+        this.backgroundImage = assets.getBackgroundImage();
+        this.titleFont = assets.getTitleFont();
+        this.menuFont = assets.getMenuFont();
+        this.submenuFont = assets.getSubmenuFont();
     }
     
     /**
@@ -178,18 +98,27 @@ public class MainMenu {
     }
 
     private String[] getMainMenuOptions() {
-        String welcomeMessage = userManager != null && userManager.isLoggedIn() 
-            ? "환영합니다! " + userManager.getCurrentUser().getUsername()
-            : "게스트";
-        
-        return new String[]{
-            "게임플레이",
-            "상점",
-            "인벤토리",
-            "설정",
-            welcomeMessage,  // 환영 메시지
-            "게임 종료"
-        };
+        return optionProvider.mainMenuOptions(userManager);
+    }
+
+    private String[] getSettingsOptions() {
+        return optionProvider.settingsOptions(musicEnabled);
+    }
+
+    private String[] getGameplayOptions() {
+        return optionProvider.gameplayOptions();
+    }
+
+    private String[] getAccountOptions() {
+        return optionProvider.accountOptions();
+    }
+
+    private String[] getResolutionOptions() {
+        return optionProvider.resolutionOptions();
+    }
+
+    private int[][] getResolutionValues() {
+        return optionProvider.resolutionValues();
     }
     
     /**
@@ -207,55 +136,6 @@ public class MainMenu {
             }
         }
         return "게스트 사용자";
-    }
-    
-    /**
-     * 배경 이미지를 로드합니다
-     */
-    private void loadBackgroundImage() {
-        try {
-            InputStream inputStream = getClass().getClassLoader().getResourceAsStream("sprites/backgrounds/Background-0.jpg");
-            if (inputStream != null) {
-                backgroundImage = ImageIO.read(inputStream);
-            }
-        } catch (IOException e) {
-            System.err.println("배경 이미지를 로드할 수 없습니다: " + e.getMessage());
-            // 기본 배경 이미지 생성
-            backgroundImage = new BufferedImage(800, 600, BufferedImage.TYPE_INT_RGB);
-            Graphics2D g2d = backgroundImage.createGraphics();
-            g2d.setColor(Color.BLACK);
-            g2d.fillRect(0, 0, 800, 600);
-            g2d.dispose();
-        }
-    }
-    
-    /**
-     * 폰트를 초기화합니다
-     */
-    private void initializeFonts() {
-        try {
-            // Kostar 폰트 로드
-            InputStream fontStream = getClass().getClassLoader().getResourceAsStream("fonts/Kostar.ttf");
-            if (fontStream != null) {
-                Font kostarFont = Font.createFont(Font.TRUETYPE_FONT, fontStream);
-                titleFont = kostarFont.deriveFont(Font.BOLD, 48f);
-                menuFont = kostarFont.deriveFont(Font.BOLD, 24f);
-                submenuFont = kostarFont.deriveFont(Font.BOLD, 20f);
-                fontStream.close();
-            } else {
-                // 폰트 로드 실패 시 기본 폰트 사용
-                System.err.println("Kostar 폰트를 로드할 수 없습니다. 기본 폰트를 사용합니다.");
-                titleFont = getKostarFont(Font.BOLD, 48);
-                menuFont = getKostarFont(Font.BOLD, 24);
-                submenuFont = getKostarFont(Font.BOLD, 20);
-            }
-        } catch (Exception e) {
-            System.err.println("폰트 로드 중 오류 발생: " + e.getMessage());
-            // 오류 발생 시 기본 폰트 사용
-            titleFont = getKostarFont(Font.BOLD, 48);
-            menuFont = getKostarFont(Font.BOLD, 24);
-            submenuFont = getKostarFont(Font.BOLD, 20);
-        }
     }
     
     /**
@@ -407,13 +287,13 @@ public class MainMenu {
     private String[] getCurrentMenuOptions() {
         switch (currentState) {
             case GAMEPLAY:
-                return gameplayOptions;
+                return getGameplayOptions();
             case SETTINGS:
                 return getSettingsOptions();
             case RESOLUTION:
-                return resolutionOptions;
+                return getResolutionOptions();
             case ACCOUNT:
-                return accountOptions;
+                return getAccountOptions();
             case INVENTORY:
                 return new String[]{"뒤로가기"}; // 인벤토리는 뒤로가기만
             case SHOP:
@@ -585,7 +465,7 @@ public class MainMenu {
             case 0: // 800x600
             case 1: // 1024x768
             case 2: // 1440x1080
-                int[] resolution = resolutionValues[selectedOption];
+                int[] resolution = getResolutionValues()[selectedOption];
                 if (resolution[0] > 0 && resolution[1] > 0) {
                     navigator.setResolution(resolution[0], resolution[1]);
                 }
@@ -811,7 +691,7 @@ public class MainMenu {
         g2d.drawString(title, titleX, 100);
         
         // 메뉴 옵션들 (왼쪽 패널)
-        String[] options = accountOptions;
+        String[] options = getAccountOptions();
         g2d.setFont(menuFont);
         
         int startY = 140;
@@ -1290,6 +1170,7 @@ public class MainMenu {
         
         int startY = 200;
         int lineHeight = 50;
+        String[] resolutionOptions = getResolutionOptions();
         
         for (int i = 0; i < resolutionOptions.length; i++) {
             // 선택된 항목 강조
