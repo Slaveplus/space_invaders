@@ -9,6 +9,25 @@ import org.newdawn.spaceinvaders.login.UserManager;
  * 로컬 캐시를 사용하여 성능 최적화
  */
 public class EquipmentManager {
+    // Firebase 경로 상수
+    private static final String FIREBASE_USERS_PATH = "users/";
+    private static final String FIREBASE_INVENTORY_PATH = "/inventory";
+    private static final String FIREBASE_ITEMS_KEY = "items";
+    private static final String FIREBASE_IS_EQUIPPED_KEY = "isEquipped";
+    
+    // 메시지 상수
+    private static final String MSG_LOCAL_EQUIP = "아이템 로컬 장착: ";
+    private static final String MSG_LOCAL_UNEQUIP = "아이템 로컬 해제: ";
+    private static final String MSG_SAVING_EQUIPMENT = "장착 정보를 DB에 저장 중...";
+    private static final String MSG_SAVE_SUCCESS = "장착 정보 DB 저장 완료";
+    private static final String MSG_SAVE_FAILED = "장착 정보 DB 저장 실패: ";
+    private static final String MSG_DISCARD_CHANGES = "로컬 변경사항 취소됨";
+    private static final String MSG_SAVE_EQUIPMENT_ERROR = "장착 아이템 DB 저장 중 오류: ";
+    private static final String MSG_UPDATE_ALL_ITEMS_ERROR = "모든 아이템 장착 상태 업데이트 중 오류: ";
+    private static final String MSG_UPDATE_ITEM_STATUS_FAILED = "아이템 장착 상태 업데이트 실패: ";
+    private static final String MSG_UPDATE_ITEM_STATUS_ERROR = "아이템 장착 상태 업데이트 중 오류: ";
+    private static final String MSG_LOAD_ERROR = "장착 정보 DB 로드 중 오류: ";
+    
     private Map<ShopCategory, ShopItem> equippedItems;
     private List<ShopItem> playerInventory;
     private UserManager userManager;
@@ -84,7 +103,7 @@ public class EquipmentManager {
         equippedItems.put(category, item);
         hasLocalChanges = true;
         
-        System.out.println("아이템 로컬 장착: " + item.getName());
+        System.out.println(MSG_LOCAL_EQUIP + item.getName());
         return true;
     }
     
@@ -103,7 +122,7 @@ public class EquipmentManager {
         if (equippedItem != null) {
             equippedItems.put(category, null);
             hasLocalChanges = true;
-            System.out.println("아이템 로컬 해제: " + equippedItem.getName());
+            System.out.println(MSG_LOCAL_UNEQUIP + equippedItem.getName());
             return true;
         }
         return false;
@@ -160,7 +179,7 @@ public class EquipmentManager {
         }
         
         isSaving = true;
-        System.out.println("장착 정보를 DB에 저장 중...");
+        System.out.println(MSG_SAVING_EQUIPMENT);
         
         try {
             saveEquippedItemsToDB();
@@ -172,11 +191,11 @@ public class EquipmentManager {
             }
             
             hasLocalChanges = false;
-            System.out.println("장착 정보 DB 저장 완료");
+            System.out.println(MSG_SAVE_SUCCESS);
             return true;
             
         } catch (Exception e) {
-            System.err.println("장착 정보 DB 저장 실패: " + e.getMessage());
+            System.err.println(MSG_SAVE_FAILED + e.getMessage());
             return false;
         } finally {
             isSaving = false;
@@ -193,7 +212,7 @@ public class EquipmentManager {
                 equippedItems.put(entry.getKey(), entry.getValue());
             }
             hasLocalChanges = false;
-            System.out.println("로컬 변경사항 취소됨");
+            System.out.println(MSG_DISCARD_CHANGES);
         }
     }
     
@@ -215,7 +234,7 @@ public class EquipmentManager {
                 }
                 
             } catch (Exception e) {
-                System.err.println("장착 아이템 DB 저장 중 오류: " + e.getMessage());
+                System.err.println(MSG_SAVE_EQUIPMENT_ERROR + e.getMessage());
                 e.printStackTrace();
                 throw e;
             }
@@ -232,13 +251,13 @@ public class EquipmentManager {
                 
                 // 인벤토리 데이터 가져오기
                 Object inventoryData = userManager.getFirebaseDB().getData(
-                    "users/" + uid + "/inventory", 
+                    FIREBASE_USERS_PATH + uid + FIREBASE_INVENTORY_PATH, 
                     Object.class
                 );
                 
                 if (inventoryData instanceof java.util.Map) {
                     java.util.Map<String, Object> inventoryMap = (java.util.Map<String, Object>) inventoryData;
-                    Object itemsObj = inventoryMap.get("items");
+                    Object itemsObj = inventoryMap.get(FIREBASE_ITEMS_KEY);
                     
                     if (itemsObj instanceof java.util.Map) {
                         java.util.Map<String, Object> items = (java.util.Map<String, Object>) itemsObj;
@@ -250,7 +269,7 @@ public class EquipmentManager {
                     }
                 }
             } catch (Exception e) {
-                System.err.println("모든 아이템 장착 상태 업데이트 중 오류: " + e.getMessage());
+                System.err.println(MSG_UPDATE_ALL_ITEMS_ERROR + e.getMessage());
                 e.printStackTrace();
                 throw e;
             }
@@ -264,15 +283,16 @@ public class EquipmentManager {
         if (userManager != null && userManager.isLoggedIn()) {
             try {
                 String uid = userManager.getCurrentUser().getUid();
-                String path = "users/" + uid + "/inventory/items/" + itemId + "/isEquipped";
+                String path = FIREBASE_USERS_PATH + uid + FIREBASE_INVENTORY_PATH + "/" 
+                    + FIREBASE_ITEMS_KEY + "/" + itemId + "/" + FIREBASE_IS_EQUIPPED_KEY;
                 
                 boolean success = userManager.getFirebaseDB().updateData(path, equipped);
                 if (!success) {
-                    System.err.println("아이템 장착 상태 업데이트 실패: " + itemId);
-                    throw new RuntimeException("아이템 장착 상태 업데이트 실패: " + itemId);
+                    System.err.println(MSG_UPDATE_ITEM_STATUS_FAILED + itemId);
+                    throw new RuntimeException(MSG_UPDATE_ITEM_STATUS_FAILED + itemId);
                 }
             } catch (Exception e) {
-                System.err.println("아이템 장착 상태 업데이트 중 오류: " + e.getMessage());
+                System.err.println(MSG_UPDATE_ITEM_STATUS_ERROR + e.getMessage());
                 e.printStackTrace();
                 throw e;
             }
@@ -283,58 +303,99 @@ public class EquipmentManager {
      * DB에서 장착 정보 로드
      */
     public void loadEquippedItemsFromDB(List<ShopItem> allShopItems) {
-        if (userManager != null && userManager.isLoggedIn()) {
-            try {
-                String uid = userManager.getCurrentUser().getUid();
-                
-                // 인벤토리 데이터에서 isEquipped가 true인 아이템들 찾기
-                Object inventoryData = userManager.getFirebaseDB().getData(
-                    "users/" + uid + "/inventory", 
-                    Object.class
-                );
-                
-                if (inventoryData instanceof java.util.Map) {
-                    java.util.Map<String, Object> inventoryMap = (java.util.Map<String, Object>) inventoryData;
-                    Object itemsObj = inventoryMap.get("items");
-                    
-                    if (itemsObj instanceof java.util.Map) {
-                        java.util.Map<String, Object> items = (java.util.Map<String, Object>) itemsObj;
-                        
-                        // 각 아이템의 isEquipped 상태 확인
-                        for (Map.Entry<String, Object> itemEntry : items.entrySet()) {
-                            String itemId = itemEntry.getKey();
-                            Object itemData = itemEntry.getValue();
-                            
-                            if (itemData instanceof java.util.Map) {
-                                java.util.Map<String, Object> itemMap = (java.util.Map<String, Object>) itemData;
-                                Object isEquippedObj = itemMap.get("isEquipped");
-                                
-                                if (isEquippedObj instanceof Boolean && (Boolean) isEquippedObj) {
-                                    // isEquipped가 true인 아이템 찾기
-                                    ShopItem item = allShopItems.stream()
-                                            .filter(shopItem -> shopItem.getId().equals(itemId))
-                                            .findFirst()
-                                            .orElse(null);
-                                    
-                                    if (item != null) {
-                                        ShopCategory category = item.getCategory();
-                                        equippedItems.put(category, item);
-                                        originalEquippedItems.put(category, item);
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-                
-                // 로드 완료 후 변경사항 플래그 초기화
-                hasLocalChanges = false;
-                
-            } catch (Exception e) {
-                System.err.println("장착 정보 DB 로드 중 오류: " + e.getMessage());
-                e.printStackTrace();
+        if (userManager == null || !userManager.isLoggedIn()) {
+            return;
+        }
+        
+        try {
+            java.util.Map<String, Object> items = getInventoryItemsFromDB();
+            if (items != null) {
+                processEquippedItems(items, allShopItems);
+            }
+            
+            // 로드 완료 후 변경사항 플래그 초기화
+            hasLocalChanges = false;
+            
+        } catch (Exception e) {
+            System.err.println(MSG_LOAD_ERROR + e.getMessage());
+            e.printStackTrace();
+        }
+    }
+    
+    /**
+     * DB에서 인벤토리 아이템 맵 가져오기
+     */
+    private java.util.Map<String, Object> getInventoryItemsFromDB() {
+        String uid = userManager.getCurrentUser().getUid();
+        
+        Object inventoryData = userManager.getFirebaseDB().getData(
+            FIREBASE_USERS_PATH + uid + FIREBASE_INVENTORY_PATH, 
+            Object.class
+        );
+        
+        if (!(inventoryData instanceof java.util.Map)) {
+            return null;
+        }
+        
+        java.util.Map<String, Object> inventoryMap = (java.util.Map<String, Object>) inventoryData;
+        Object itemsObj = inventoryMap.get(FIREBASE_ITEMS_KEY);
+        
+        if (!(itemsObj instanceof java.util.Map)) {
+            return null;
+        }
+        
+        return (java.util.Map<String, Object>) itemsObj;
+    }
+    
+    /**
+     * 장착된 아이템들을 처리하여 equippedItems에 추가
+     */
+    private void processEquippedItems(java.util.Map<String, Object> items, List<ShopItem> allShopItems) {
+        for (Map.Entry<String, Object> itemEntry : items.entrySet()) {
+            String itemId = itemEntry.getKey();
+            Object itemData = itemEntry.getValue();
+            
+            if (!(itemData instanceof java.util.Map)) {
+                continue;
+            }
+            
+            java.util.Map<String, Object> itemMap = (java.util.Map<String, Object>) itemData;
+            if (!isItemEquipped(itemMap)) {
+                continue;
+            }
+            
+            ShopItem item = findShopItemById(itemId, allShopItems);
+            if (item != null) {
+                equipItemFromDB(item);
             }
         }
+    }
+    
+    /**
+     * 아이템이 장착되어 있는지 확인
+     */
+    private boolean isItemEquipped(java.util.Map<String, Object> itemMap) {
+        Object isEquippedObj = itemMap.get(FIREBASE_IS_EQUIPPED_KEY);
+        return isEquippedObj instanceof Boolean && (Boolean) isEquippedObj;
+    }
+    
+    /**
+     * 아이템 ID로 ShopItem 찾기
+     */
+    private ShopItem findShopItemById(String itemId, List<ShopItem> allShopItems) {
+        return allShopItems.stream()
+                .filter(shopItem -> shopItem.getId().equals(itemId))
+                .findFirst()
+                .orElse(null);
+    }
+    
+    /**
+     * DB에서 로드한 아이템을 장착 목록에 추가
+     */
+    private void equipItemFromDB(ShopItem item) {
+        ShopCategory category = item.getCategory();
+        equippedItems.put(category, item);
+        originalEquippedItems.put(category, item);
     }
     
     /**
