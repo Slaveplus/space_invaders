@@ -11,6 +11,8 @@ import javax.imageio.ImageIO;
  * 확장 가능한 로그인 시스템
  */
 public class LoginScreen {
+    private static final String DEFAULT_FONT_NAME = "Arial";
+    
     private UserManager userManager;
     private LoginInputHandler inputHandler;
     private BufferedImage backgroundImage;
@@ -57,19 +59,19 @@ public class LoginScreen {
                 inputFont = kostarFont.deriveFont(Font.PLAIN, 16f);
                 fontStream.close();
             } else {
-                // 폰트 로드 실패 시 기본 폰트 사용
                 System.err.println("Kostar 폰트를 로드할 수 없습니다. 기본 폰트를 사용합니다.");
-                titleFont = new Font("Arial", Font.BOLD, 36);
-                menuFont = new Font("Arial", Font.BOLD, 20);
-                inputFont = new Font("Arial", Font.PLAIN, 16);
+                initializeDefaultFonts();
             }
         } catch (Exception e) {
             System.err.println("폰트 로드 중 오류 발생: " + e.getMessage());
-            // 오류 발생 시 기본 폰트 사용
-            titleFont = new Font("Arial", Font.BOLD, 36);
-            menuFont = new Font("Arial", Font.BOLD, 20);
-            inputFont = new Font("Arial", Font.PLAIN, 16);
+            initializeDefaultFonts();
         }
+    }
+    
+    private void initializeDefaultFonts() {
+        titleFont = new Font(DEFAULT_FONT_NAME, Font.BOLD, 36);
+        menuFont = new Font(DEFAULT_FONT_NAME, Font.BOLD, 20);
+        inputFont = new Font(DEFAULT_FONT_NAME, Font.PLAIN, 16);
     }
     
     public void handleKeyInput(int keyCode, char keyChar) {
@@ -131,76 +133,76 @@ public class LoginScreen {
         int startY = 200;
         int lineHeight = 50;
         
-        // 사용자명 입력 필드
+        drawUsernameField(g2d, startY);
+        drawPasswordField(g2d, startY, lineHeight);
+    }
+    
+    private void drawUsernameField(Graphics2D g2d, int startY) {
         g2d.setColor(Color.WHITE);
         g2d.setFont(menuFont);
         g2d.drawString("Email:", 200, startY);
         
-        // 사용자명 입력 박스
-        g2d.setColor(Color.GRAY);
-        g2d.drawRect(300, startY - 25, 300, 30);
-        g2d.setColor(Color.BLACK);
-        g2d.fillRect(301, startY - 24, 298, 28);
+        drawInputBox(g2d, 300, startY - 25, 300, 30);
         
-        g2d.setColor(Color.WHITE);
-        g2d.setFont(inputFont);
         String displayUsername = isUsernameInput ? currentInput : username;
-        if (isUsernameInput && currentInput.isEmpty()) {
-            g2d.setColor(Color.GRAY);
-            g2d.drawString("Email을 입력하세요", 305, startY - 5);
-        } else {
-            g2d.setColor(Color.WHITE);
-            g2d.drawString(displayUsername, 305, startY - 5);
-        }
+        drawInputText(g2d, displayUsername, 305, startY - 5, isUsernameInput && currentInput.isEmpty(), "Email을 입력하세요");
         
-        // 사용자명 필드에 커서 그리기
         if (isUsernameInput && showCursor) {
-            FontMetrics inputMetrics = g2d.getFontMetrics();
-            int cursorX = 305 + inputMetrics.stringWidth(displayUsername);
-            g2d.setColor(Color.WHITE);
-            g2d.drawLine(cursorX, startY - 20, cursorX, startY - 10);
+            drawCursor(g2d, displayUsername, 305, startY - 20, startY - 10);
         }
-        
-        // 비밀번호 입력 필드
+    }
+    
+    private void drawPasswordField(Graphics2D g2d, int startY, int lineHeight) {
         g2d.setColor(Color.WHITE);
         g2d.setFont(menuFont);
         g2d.drawString("비밀번호:", 200, startY + lineHeight);
         
-        // 비밀번호 입력 박스
-        g2d.setColor(Color.GRAY);
-        g2d.drawRect(300, startY + lineHeight - 25, 300, 30);
-        g2d.setColor(Color.BLACK);
-        g2d.fillRect(301, startY + lineHeight - 24, 298, 28);
+        drawInputBox(g2d, 300, startY + lineHeight - 25, 300, 30);
         
-        g2d.setColor(Color.WHITE);
-        g2d.setFont(inputFont);
         String displayPassword = !isUsernameInput ? currentInput : password;
-        if (!isUsernameInput && currentInput.isEmpty()) {
+        String maskedPassword = maskPassword(displayPassword);
+        boolean isEmpty = !isUsernameInput && currentInput.isEmpty();
+        drawInputText(g2d, maskedPassword, 305, startY + lineHeight - 5, isEmpty, "비밀번호를 입력하세요");
+        
+        if (!isUsernameInput && showCursor) {
+            drawCursor(g2d, maskedPassword, 305, startY + lineHeight - 20, startY + lineHeight - 10);
+        }
+    }
+    
+    private void drawInputBox(Graphics2D g2d, int x, int y, int width, int height) {
+        g2d.setColor(Color.GRAY);
+        g2d.drawRect(x, y, width, height);
+        g2d.setColor(Color.BLACK);
+        g2d.fillRect(x + 1, y + 1, width - 2, height - 2);
+    }
+    
+    private void drawInputText(Graphics2D g2d, String text, int x, int y, boolean isEmpty, String placeholder) {
+        g2d.setFont(inputFont);
+        if (isEmpty) {
             g2d.setColor(Color.GRAY);
-            g2d.drawString("비밀번호를 입력하세요", 305, startY + lineHeight - 5);
+            g2d.drawString(placeholder, x, y);
         } else {
             g2d.setColor(Color.WHITE);
-            // 비밀번호는 *로 표시
-            String maskedPassword = "";
-            for (int i = 0; i < displayPassword.length(); i++) {
-                maskedPassword += "*";
-            }
-            g2d.drawString(maskedPassword, 305, startY + lineHeight - 5);
+            g2d.drawString(text, x, y);
         }
-        
-        // 비밀번호 필드에 커서 그리기
-        if (!isUsernameInput && showCursor) {
-            FontMetrics inputMetrics = g2d.getFontMetrics();
-            String displayPasswordForCursor = !isUsernameInput ? currentInput : password;
-            String maskedPasswordForCursor = "";
-            for (int i = 0; i < displayPasswordForCursor.length(); i++) {
-                maskedPasswordForCursor += "*";
-            }
-            int cursorX = 305 + inputMetrics.stringWidth(maskedPasswordForCursor);
-            g2d.setColor(Color.WHITE);
-            g2d.drawLine(cursorX, startY + lineHeight - 20, cursorX, startY + lineHeight - 10);
+    }
+    
+    private String maskPassword(String password) {
+        if (password == null || password.isEmpty()) {
+            return "";
         }
-        
+        StringBuilder masked = new StringBuilder();
+        for (int i = 0; i < password.length(); i++) {
+            masked.append("*");
+        }
+        return masked.toString();
+    }
+    
+    private void drawCursor(Graphics2D g2d, String text, int baseX, int topY, int bottomY) {
+        FontMetrics inputMetrics = g2d.getFontMetrics();
+        int cursorX = baseX + inputMetrics.stringWidth(text);
+        g2d.setColor(Color.WHITE);
+        g2d.drawLine(cursorX, topY, cursorX, bottomY);
     }
     
     private void drawButtons(Graphics2D g2d) {

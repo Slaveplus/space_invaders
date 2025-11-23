@@ -15,6 +15,9 @@ import org.newdawn.spaceinvaders.shop.Shop;
 import org.newdawn.spaceinvaders.shop.ShopAnimation;
 
 public class MainMenu {
+    // 상수 정의
+    private static final String MSG_PRESS_ENTER_TO_CONFIRM = "확인하려면 Enter를 누르세요.";
+    
     private final MainMenuAssets assets;
     private final MenuOptionProvider optionProvider;
 
@@ -246,38 +249,42 @@ public class MainMenu {
                 handleMenuSelection();
                 break;
             case KeyEvent.VK_ESCAPE:
-                if (currentState == MenuState.INVENTORY) {
-                    currentState = MenuState.MAIN;
-                    selectedOption = 3; // 인벤토리 옵션으로 돌아가기
-                } else if (currentState == MenuState.RESOLUTION) {
-                    // 설정 메뉴의 좌우 패널 애니메이션 시작 (상점과 동일한 방식)
-                    if (settingsAnimation != null) {
-                        settingsAnimation.startAnimation(ShopAnimation.AnimationType.SLIDE_IN);
-                    }
-                    currentState = MenuState.SETTINGS;
-                    selectedOption = 0;
-                } else if (currentState == MenuState.SETTINGS) {
-                    // 설정에서 메인으로 돌아갈 때 슬라이드 아웃 애니메이션
-                    if (settingsAnimation != null) {
-                        settingsAnimation.startAnimation(ShopAnimation.AnimationType.SLIDE_OUT);
-                    }
-                    currentState = MenuState.MAIN;
-                    selectedOption = 4; // 설정 인덱스 조정
-                } else if (currentState == MenuState.ACCOUNT) {
-                    // 계정에서 메인으로 돌아갈 때 슬라이드 아웃 애니메이션
-                    if (accountAnimation != null) {
-                        accountAnimation.startAnimation(ShopAnimation.AnimationType.SLIDE_OUT);
-                    }
-                    currentState = MenuState.MAIN;
-                    selectedOption = 5; // 계정 인덱스 조정
-                } else if (currentState == MenuState.GAMEPLAY) {
-                    currentState = MenuState.MAIN;
-                    selectedOption = 0;
-                } else if (currentState != MenuState.MAIN) {
-                    currentState = MenuState.MAIN;
-                    selectedOption = 0;
-                }
+                handleEscapeKey();
                 break;
+            default:
+                // 처리하지 않는 키 입력은 무시
+                break;
+        }
+    }
+    
+    private void handleEscapeKey() {
+        if (currentState == MenuState.INVENTORY) {
+            currentState = MenuState.MAIN;
+            selectedOption = 3;
+        } else if (currentState == MenuState.RESOLUTION) {
+            if (settingsAnimation != null) {
+                settingsAnimation.startAnimation(ShopAnimation.AnimationType.SLIDE_IN);
+            }
+            currentState = MenuState.SETTINGS;
+            selectedOption = 0;
+        } else if (currentState == MenuState.SETTINGS) {
+            if (settingsAnimation != null) {
+                settingsAnimation.startAnimation(ShopAnimation.AnimationType.SLIDE_OUT);
+            }
+            currentState = MenuState.MAIN;
+            selectedOption = 4;
+        } else if (currentState == MenuState.ACCOUNT) {
+            if (accountAnimation != null) {
+                accountAnimation.startAnimation(ShopAnimation.AnimationType.SLIDE_OUT);
+            }
+            currentState = MenuState.MAIN;
+            selectedOption = 5;
+        } else if (currentState == MenuState.GAMEPLAY) {
+            currentState = MenuState.MAIN;
+            selectedOption = 0;
+        } else if (currentState != MenuState.MAIN) {
+            currentState = MenuState.MAIN;
+            selectedOption = 0;
         }
     }
     
@@ -363,40 +370,50 @@ public class MainMenu {
             case 1: // 상점
                 showingShop = true;
                 shop.reset();
-                // 상점 진입 애니메이션 시작
                 shop.startEntryAnimation();
                 break;
             case 2: // 인벤토리
-                currentState = MenuState.INVENTORY;
-                selectedOption = 0;
-                // 인벤토리 진입 시 경고창 초기화
-                if (shop != null && shop.getShopManager() != null) {
-                    shop.getShopManager().clearWarningDialog();
-                }
-                // 인벤토리 진입 애니메이션 시작 (위에서 아래로)
-                if (shop != null) {
-                    shop.startInventoryEntryAnimation();
-                }
+                enterInventory();
                 break;
             case 3: // 설정
-                currentState = MenuState.SETTINGS;
-                selectedOption = 0;
-                // 설정 진입 애니메이션 시작
-                if (settingsAnimation != null) {
-                    settingsAnimation.startAnimation(ShopAnimation.AnimationType.SLIDE_IN);
-                }
+                enterSettings();
                 break;
             case 4: // 계정 (사용자)
-                currentState = MenuState.ACCOUNT;
-                selectedOption = 0;
-                // 계정 진입 애니메이션 시작
-                if (accountAnimation != null) {
-                    accountAnimation.startAnimation(ShopAnimation.AnimationType.SLIDE_IN);
-                }
+                enterAccount();
                 break;
             case 5: // 게임 종료
                 System.exit(0);
                 break;
+            default:
+                // 유효하지 않은 옵션은 무시
+                break;
+        }
+    }
+    
+    private void enterInventory() {
+        currentState = MenuState.INVENTORY;
+        selectedOption = 0;
+        if (shop != null && shop.getShopManager() != null) {
+            shop.getShopManager().clearWarningDialog();
+        }
+        if (shop != null) {
+            shop.startInventoryEntryAnimation();
+        }
+    }
+    
+    private void enterSettings() {
+        currentState = MenuState.SETTINGS;
+        selectedOption = 0;
+        if (settingsAnimation != null) {
+            settingsAnimation.startAnimation(ShopAnimation.AnimationType.SLIDE_IN);
+        }
+    }
+    
+    private void enterAccount() {
+        currentState = MenuState.ACCOUNT;
+        selectedOption = 0;
+        if (accountAnimation != null) {
+            accountAnimation.startAnimation(ShopAnimation.AnimationType.SLIDE_IN);
         }
     }
     
@@ -427,6 +444,9 @@ public class MainMenu {
                 currentState = MenuState.MAIN;
                 selectedOption = 0;
                 break;
+            default:
+                // 유효하지 않은 옵션은 무시
+                break;
         }
     }
     
@@ -442,7 +462,6 @@ public class MainMenu {
             case 1: // 해상도 변경
                 currentState = MenuState.RESOLUTION;
                 selectedOption = 0;
-                // 해상도 진입 애니메이션 시작
                 if (settingsAnimation != null) {
                     settingsAnimation.startAnimation(ShopAnimation.AnimationType.SLIDE_IN);
                 }
@@ -450,12 +469,14 @@ public class MainMenu {
             case 2: // 제작자
                 break;
             case 3: // 이전메뉴
-                // 설정에서 메인으로 돌아갈 때 슬라이드 아웃 애니메이션
                 if (settingsAnimation != null) {
                     settingsAnimation.startAnimation(ShopAnimation.AnimationType.SLIDE_OUT);
                 }
                 currentState = MenuState.MAIN;
-                selectedOption = 4; // 설정 옵션으로 돌아가기
+                selectedOption = 4;
+                break;
+            default:
+                // 유효하지 않은 옵션은 무시
                 break;
         }
     }
@@ -471,12 +492,14 @@ public class MainMenu {
                 }
                 break;
             case 3: // 이전메뉴
-                // 설정 메뉴의 좌우 패널 애니메이션 시작 (상점과 동일한 방식)
                 if (settingsAnimation != null) {
                     settingsAnimation.startAnimation(ShopAnimation.AnimationType.SLIDE_IN);
                 }
                 currentState = MenuState.SETTINGS;
-                selectedOption = 1; // 해상도 변경 옵션으로 돌아가기
+                selectedOption = 1;
+                break;
+            default:
+                // 유효하지 않은 옵션은 무시
                 break;
         }
     }
@@ -493,29 +516,37 @@ public class MainMenu {
                 // 정보수정 화면 (구현 필요)
                 break;
             case 3: // 로그아웃
-                if (userManager != null) {
-                    userManager.logoutUser();
-                }
-                // 즉시 메인 메뉴 상태로 돌아가 선택값 초기화 (다음 화면 전환 시 깔끔한 상태)
-                currentState = MenuState.MAIN;
-                selectedOption = 0;
-                logoutRequested = true;
+                handleLogout();
                 break;
             case 4: // 이전메뉴
-                // 계정에서 메인으로 돌아갈 때 슬라이드 아웃 애니메이션
                 if (accountAnimation != null) {
                     accountAnimation.startAnimation(ShopAnimation.AnimationType.SLIDE_OUT);
                 }
                 currentState = MenuState.MAIN;
-                selectedOption = 5; // 계정 옵션으로 돌아가기
+                selectedOption = 5;
+                break;
+            default:
+                // 유효하지 않은 옵션은 무시
                 break;
         }
+    }
+    
+    private void handleLogout() {
+        if (userManager != null) {
+            userManager.logoutUser();
+        }
+        currentState = MenuState.MAIN;
+        selectedOption = 0;
+        logoutRequested = true;
     }
     
     private void handleInventorySelection() {
         switch (selectedOption) {
             case 0: // 뒤로가기
                 handleInventoryExit();
+                break;
+            default:
+                // 유효하지 않은 옵션은 무시
                 break;
         }
     }
@@ -742,19 +773,10 @@ public class MainMenu {
             // 선택된 항목에 따라 다른 정보 표시
             switch (selectedOption) {
                 case 0: // 계정정보
-                    g2d.drawString("이메일 : " + currentUser.getEmail(), startX, startY);
-                    g2d.drawString("레벨 : " + currentUser.getLevel(), startX, startY + lineHeight);
-                    g2d.drawString("최고점수 : " + currentUser.getHighScore(), startX, startY + lineHeight * 2);
-                    g2d.drawString("총 게임 수 : " + currentUser.getTotalGamesPlayed(), startX, startY + lineHeight * 3);
-                    g2d.drawString("보유코인 : " + currentUser.getCoins(), startX, startY + lineHeight * 4);
-                    g2d.drawString("보유젬 : " + currentUser.getGems(), startX, startY + lineHeight * 5);
+                    drawAccountInfo(g2d, currentUser, startX, startY, lineHeight);
                     break;
                 case 1: // 게임통계
-                    g2d.drawString("총 게임 수 : " + currentUser.getTotalGamesPlayed(), startX, startY);
-                    g2d.drawString("승리 횟수 : " + currentUser.getTotalWins(), startX, startY + lineHeight);
-                    g2d.drawString("승률 : " + String.format("%.1f", currentUser.getWinRate()) + "%", startX, startY + lineHeight * 2);
-                    g2d.drawString("최고 점수 : " + currentUser.getHighScore(), startX, startY + lineHeight * 3);
-                    g2d.drawString("현재 레벨 : " + currentUser.getLevel(), startX, startY + lineHeight * 4);
+                    drawGameStats(g2d, currentUser, startX, startY, lineHeight);
                     break;
                 case 2: // 정보수정
                     g2d.drawString("정보수정 기능은", startX, startY);
@@ -762,16 +784,36 @@ public class MainMenu {
                     break;
                 case 3: // 로그아웃
                     g2d.drawString("로그아웃을 하시겠습니까?", startX, startY);
-                    g2d.drawString("확인하려면 Enter를 누르세요.", startX, startY + lineHeight);
+                    g2d.drawString(MSG_PRESS_ENTER_TO_CONFIRM, startX, startY + lineHeight);
                     break;
                 case 4: // 이전메뉴
                     g2d.drawString("메인 메뉴로 돌아갑니다.", startX, startY);
-                    g2d.drawString("확인하려면 Enter를 누르세요.", startX, startY + lineHeight);
+                    g2d.drawString(MSG_PRESS_ENTER_TO_CONFIRM, startX, startY + lineHeight);
+                    break;
+                default:
+                    // 유효하지 않은 옵션은 무시
                     break;
             }
         } else {
             g2d.drawString("로그인이 필요합니다.", startX, startY);
         }
+    }
+    
+    private void drawAccountInfo(Graphics2D g2d, User user, int startX, int startY, int lineHeight) {
+        g2d.drawString("이메일 : " + user.getEmail(), startX, startY);
+        g2d.drawString("레벨 : " + user.getLevel(), startX, startY + lineHeight);
+        g2d.drawString("최고점수 : " + user.getHighScore(), startX, startY + lineHeight * 2);
+        g2d.drawString("총 게임 수 : " + user.getTotalGamesPlayed(), startX, startY + lineHeight * 3);
+        g2d.drawString("보유코인 : " + user.getCoins(), startX, startY + lineHeight * 4);
+        g2d.drawString("보유젬 : " + user.getGems(), startX, startY + lineHeight * 5);
+    }
+    
+    private void drawGameStats(Graphics2D g2d, User user, int startX, int startY, int lineHeight) {
+        g2d.drawString("총 게임 수 : " + user.getTotalGamesPlayed(), startX, startY);
+        g2d.drawString("승리 횟수 : " + user.getTotalWins(), startX, startY + lineHeight);
+        g2d.drawString("승률 : " + String.format("%.1f", user.getWinRate()) + "%", startX, startY + lineHeight * 2);
+        g2d.drawString("최고 점수 : " + user.getHighScore(), startX, startY + lineHeight * 3);
+        g2d.drawString("현재 레벨 : " + user.getLevel(), startX, startY + lineHeight * 4);
     }
     
     private void drawSettingsMenu(Graphics2D g2d) {
@@ -878,7 +920,10 @@ public class MainMenu {
                 break;
             case 3: // 이전메뉴
                 g2d.drawString("메인 메뉴로 돌아갑니다.", startX, startY);
-                g2d.drawString("확인하려면 Enter를 누르세요.", startX, startY + lineHeight);
+                g2d.drawString(MSG_PRESS_ENTER_TO_CONFIRM, startX, startY + lineHeight);
+                break;
+            default:
+                // 유효하지 않은 옵션은 무시
                 break;
         }
     }
@@ -922,63 +967,105 @@ public class MainMenu {
     }
 
     private void handleServerConnectKey(int keyCode) {
-        if (serverMessageTimer > 0) {
-            serverMessageTimer--;
-            if (serverMessageTimer == 0) serverMessage = "";
-        }
+        updateServerMessageTimer();
+        
         switch (keyCode) {
             case KeyEvent.VK_TAB:
             case KeyEvent.VK_DOWN:
-                if (serverAddressFocus) {
-                    serverAddressFocus = false; // 포트 필드로 이동
-                } else {
-                    // 버튼 선택 모드 유지 (심플 처리)
-                    serverAddressFocus = false;
-                }
+                handleServerNavigationDown();
                 break;
             case KeyEvent.VK_UP:
-                if (!serverAddressFocus) {
-                    serverAddressFocus = true;
-                }
+                handleServerNavigationUp();
                 break;
             case KeyEvent.VK_LEFT:
-                if (!serverAddressFocus) serverSelectedButton = Math.max(0, serverSelectedButton - 1);
+                handleServerButtonLeft();
                 break;
             case KeyEvent.VK_RIGHT:
-                if (!serverAddressFocus) serverSelectedButton = Math.min(1, serverSelectedButton + 1);
+                handleServerButtonRight();
                 break;
             case KeyEvent.VK_BACK_SPACE:
-                if (serverAddressFocus && serverAddressInput.length() > 0) {
-                    serverAddressInput = serverAddressInput.substring(0, serverAddressInput.length()-1);
-                } else if (!serverAddressFocus && serverPortInput.length() > 0) {
-                    serverPortInput = serverPortInput.substring(0, serverPortInput.length()-1);
-                }
+                handleServerBackspace();
                 break;
             case KeyEvent.VK_ENTER:
-                if (serverAddressFocus) {
-                    serverAddressFocus = false; // 포트로 이동
-                } else {
-                    if (serverSelectedButton == 0) {
-                        attemptServerConnection();
-                    } else {
-                        currentState = MenuState.GAMEPLAY;
-                        selectedOption = 0;
-                    }
-                }
+                handleServerEnter();
                 break;
             default:
-                if (keyCode >= KeyEvent.VK_A && keyCode <= KeyEvent.VK_Z && serverAddressFocus) {
-                    char c = (char)('a' + (keyCode - KeyEvent.VK_A));
-                    serverAddressInput += c;
-                } else if (keyCode >= KeyEvent.VK_0 && keyCode <= KeyEvent.VK_9) {
-                    char c = (char)('0' + (keyCode - KeyEvent.VK_0));
-                    if (serverAddressFocus) serverAddressInput += c; else serverPortInput += c;
-                } else if (keyCode == KeyEvent.VK_PERIOD && serverAddressFocus) {
-                    serverAddressInput += '.';
-                } else if (keyCode == KeyEvent.VK_MINUS && serverAddressFocus) {
-                    serverAddressInput += '-';
-                }
+                handleServerCharacterInput(keyCode);
                 break;
+        }
+    }
+    
+    private void updateServerMessageTimer() {
+        if (serverMessageTimer > 0) {
+            serverMessageTimer--;
+            if (serverMessageTimer == 0) {
+                serverMessage = "";
+            }
+        }
+    }
+    
+    private void handleServerNavigationDown() {
+        if (serverAddressFocus) {
+            serverAddressFocus = false;
+        } else {
+            serverAddressFocus = false;
+        }
+    }
+    
+    private void handleServerNavigationUp() {
+        if (!serverAddressFocus) {
+            serverAddressFocus = true;
+        }
+    }
+    
+    private void handleServerButtonLeft() {
+        if (!serverAddressFocus) {
+            serverSelectedButton = Math.max(0, serverSelectedButton - 1);
+        }
+    }
+    
+    private void handleServerButtonRight() {
+        if (!serverAddressFocus) {
+            serverSelectedButton = Math.min(1, serverSelectedButton + 1);
+        }
+    }
+    
+    private void handleServerBackspace() {
+        if (serverAddressFocus && serverAddressInput.length() > 0) {
+            serverAddressInput = serverAddressInput.substring(0, serverAddressInput.length() - 1);
+        } else if (!serverAddressFocus && serverPortInput.length() > 0) {
+            serverPortInput = serverPortInput.substring(0, serverPortInput.length() - 1);
+        }
+    }
+    
+    private void handleServerEnter() {
+        if (serverAddressFocus) {
+            serverAddressFocus = false;
+        } else {
+            if (serverSelectedButton == 0) {
+                attemptServerConnection();
+            } else {
+                currentState = MenuState.GAMEPLAY;
+                selectedOption = 0;
+            }
+        }
+    }
+    
+    private void handleServerCharacterInput(int keyCode) {
+        if (keyCode >= KeyEvent.VK_A && keyCode <= KeyEvent.VK_Z && serverAddressFocus) {
+            char c = (char)('a' + (keyCode - KeyEvent.VK_A));
+            serverAddressInput += c;
+        } else if (keyCode >= KeyEvent.VK_0 && keyCode <= KeyEvent.VK_9) {
+            char c = (char)('0' + (keyCode - KeyEvent.VK_0));
+            if (serverAddressFocus) {
+                serverAddressInput += c;
+            } else {
+                serverPortInput += c;
+            }
+        } else if (keyCode == KeyEvent.VK_PERIOD && serverAddressFocus) {
+            serverAddressInput += '.';
+        } else if (keyCode == KeyEvent.VK_MINUS && serverAddressFocus) {
+            serverAddressInput += '-';
         }
     }
 
