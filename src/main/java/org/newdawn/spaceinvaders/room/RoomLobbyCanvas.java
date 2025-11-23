@@ -12,7 +12,6 @@ import java.util.Deque;
 import java.util.List;
 import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
-import org.newdawn.spaceinvaders.room.GameInitInfo;
 import java.io.InputStream;
 import java.io.IOException;
 

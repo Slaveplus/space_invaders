@@ -6,6 +6,7 @@ import java.awt.Graphics2D;
 import java.awt.Image;
 import org.newdawn.spaceinvaders.common.GameContext;
 import org.newdawn.spaceinvaders.common.entity.Entity;
+import org.newdawn.spaceinvaders.common.entity.ShipEntity;
 import org.newdawn.spaceinvaders.common.entity.ShipEntity; 
 
 /**
