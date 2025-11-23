@@ -8,6 +8,7 @@ import java.awt.image.BufferedImage;
 import java.io.InputStream;
 import javax.imageio.ImageIO;
 import org.newdawn.spaceinvaders.gameplay.UIRenderer;
+import org.newdawn.spaceinvaders.common.util.FontConstants;
 
 /**
  * 싱글플레이어와 멀티플레이어 모드 모두에서 공유되는 공통 게임플레이 HUD를 렌더링합니다.
@@ -163,11 +164,11 @@ public final class SharedHudRenderer {
         g.drawRoundRect(startX + 1, startY + 1, panelWidth - 2, panelHeight - 2, 14, 14);
 
         g.setColor(new Color(100, 255, 255));
-        g.setFont(new Font("Arial", Font.BOLD, 16));
+        g.setFont(new Font(FontConstants.DEFAULT_FONT_NAME, Font.BOLD, 16));
         g.drawString("TIME: " + context.getFormattedPlayTime(), startX + 15, startY + 25);
 
         g.setColor(new Color(255, 215, 0));
-        g.setFont(new Font("Arial", Font.BOLD, 16));
+        g.setFont(new Font(FontConstants.DEFAULT_FONT_NAME, Font.BOLD, 16));
         g.drawString("COINS: " + context.getEarnedCoins(), startX + 50, startY + 50);
 
         BufferedImage coin = getCoinImage();
@@ -202,7 +203,7 @@ public final class SharedHudRenderer {
 
         drawSkillCount(g, count, x + size - 6, y + size - 6);
 
-        g.setFont(new Font("Arial", Font.BOLD, 10));
+        g.setFont(new Font(FontConstants.DEFAULT_FONT_NAME, Font.BOLD, 10));
         int labelWidth = g.getFontMetrics().stringWidth(label);
         int labelX = x + (size - labelWidth) / 2;
         int labelY = y + size + 12;
@@ -217,7 +218,7 @@ public final class SharedHudRenderer {
         g.setColor(new Color(0, 0, 0, 180));
         g.fillOval(centerX - radius, centerY - radius, radius * 2, radius * 2);
         g.setColor(Color.YELLOW);
-        g.setFont(new Font("Arial", Font.BOLD, 10));
+        g.setFont(new Font(FontConstants.DEFAULT_FONT_NAME, Font.BOLD, 10));
         String text = Integer.toString(count);
         int width = g.getFontMetrics().stringWidth(text);
         int height = g.getFontMetrics().getHeight();
