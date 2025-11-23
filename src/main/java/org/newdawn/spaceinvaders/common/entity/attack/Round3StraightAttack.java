@@ -2,10 +2,8 @@ package org.newdawn.spaceinvaders.common.entity.attack;
 
 import java.awt.Graphics;
 import java.awt.Image;
-import java.awt.MediaTracker;
 import org.newdawn.spaceinvaders.common.GameContext;
 import org.newdawn.spaceinvaders.common.entity.Entity;
-import org.newdawn.spaceinvaders.common.entity.ShipEntity;
 
 /**
  * 라운드 3 직선 돌진 공격.

@@ -1,6 +1,5 @@
 package org.newdawn.spaceinvaders.multyplay.net;
 
-import org.newdawn.spaceinvaders.common.entity.EntitySnapshot;
 import java.util.List;
 
 /**
