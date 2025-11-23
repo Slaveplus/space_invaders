@@ -1408,7 +1408,7 @@ public class MultiplayerGameCanvas extends Canvas implements Screen, Multiplayer
 
 		@Override
 		public java.awt.Rectangle getBounds() {
-			int r = (int) Math.round(radius);
+			int r = radius;
 			return new java.awt.Rectangle((int) Math.round(x) - r, (int) Math.round(y) - r, r * 2, r * 2);
 		}
 	}
@@ -1815,7 +1815,9 @@ public class MultiplayerGameCanvas extends Canvas implements Screen, Multiplayer
 					SKILL_ICON_CACHE.put(type, img);
 					return img;
 				}
-			} catch (Exception ignored) {}
+			} catch (Exception ignored) {
+                // Method is intentionally empty.
+            }
 			return null;
 		}
 
