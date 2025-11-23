@@ -227,7 +227,6 @@ public class RoomLobbyCanvas extends Canvas implements Screen, GameClientListene
         drawMultiplayerUI(g);
     }
 
-    private String getSelfName() { return client==null?"":client.getSelfId()==null?"":players.stream().filter(p->p.id.equals(client.getSelfId())).map(p->p.username).findFirst().orElse(""); }
 
     private void appendChatLine(String line) {
         if (line==null) return;

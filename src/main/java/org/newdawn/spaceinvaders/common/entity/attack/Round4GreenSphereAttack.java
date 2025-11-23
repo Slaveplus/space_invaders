@@ -6,7 +6,6 @@ import java.awt.Image;
 import java.awt.Rectangle;
 import org.newdawn.spaceinvaders.common.GameContext;
 import org.newdawn.spaceinvaders.common.entity.Entity;
-import org.newdawn.spaceinvaders.common.entity.ShipEntity;
 
 /**
  * 라운드 4 초록 구체 공격.

@@ -5,10 +5,8 @@ import java.awt.Graphics2D;
 import java.awt.Image;
 import java.awt.Rectangle;
 import java.awt.RenderingHints;
-import java.awt.Toolkit;
 import org.newdawn.spaceinvaders.common.GameContext;
 import org.newdawn.spaceinvaders.common.entity.Entity;
-import org.newdawn.spaceinvaders.common.entity.ShipEntity;
 
 /**
  * 라운드 2 보스의 아이스 볼 공격.
@@ -17,14 +15,10 @@ public class IceBallAttack extends BaseAttackEntity {
     private final double moveSpeed = 150;
     private final int damage = 1;
     private final double scale = 0.6;
-    private final double dirX;
-    private final double dirY;
     private Image iceBallImage;
 
     public IceBallAttack(GameContext game, int x, int y, double dirX, double dirY) {
         super(game, "sprites/Boss_Attack/ice ball.gif", x, y);
-        this.dirX = dirX;
-        this.dirY = dirY;
         this.dx = dirX * moveSpeed;
         this.dy = dirY * moveSpeed;
         loadIceBallImage();

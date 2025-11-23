@@ -248,25 +248,6 @@ public abstract class BaseAlienEntity extends Entity {
         }
     }
 
-    private void avoidPlayer() {
-        try {
-            int playerX = environment.getPlayerShipX();
-            int playerY = environment.getPlayerShipY();
-            double dxToPlayer = playerX - x;
-            double dyToPlayer = playerY - y;
-            double distanceToPlayer = Math.sqrt(dxToPlayer * dxToPlayer + dyToPlayer * dyToPlayer);
-            double minDistance = 120;
-            if (distanceToPlayer < minDistance && distanceToPlayer > 0) {
-                double moveAwayX = -dxToPlayer / distanceToPlayer;
-                double moveAwayY = -dyToPlayer / distanceToPlayer;
-                this.dx = moveAwayX * moveSpeed * 1.5;
-                this.dy = moveAwayY * moveSpeed * 0.5;
-                movingRight = this.dx > 0;
-                movingDown = this.dy > 0;
-            }
-        } catch (Exception ignore) {
-        }
-    }
 
     @Override
     public void draw(Graphics g) {

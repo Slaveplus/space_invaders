@@ -1,7 +1,6 @@
 package org.newdawn.spaceinvaders.gameplay.entity;
 
 import org.newdawn.spaceinvaders.common.entity.Entity;
-import org.newdawn.spaceinvaders.common.entity.projectile.BossShotEnvironment;
 import org.newdawn.spaceinvaders.common.entity.skill.BaseSkillEntity;
 import org.newdawn.spaceinvaders.common.entity.skill.SkillEnvironment;
 import org.newdawn.spaceinvaders.gameplay.Game;

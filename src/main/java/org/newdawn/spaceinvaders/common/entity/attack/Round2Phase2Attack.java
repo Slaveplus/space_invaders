@@ -4,8 +4,6 @@ import java.awt.Graphics;
 import java.awt.Image;
 import org.newdawn.spaceinvaders.common.GameContext;
 import org.newdawn.spaceinvaders.common.entity.Entity;
-import org.newdawn.spaceinvaders.common.entity.ShipEntity;
-import org.newdawn.spaceinvaders.common.sprite.SpriteStore;
 
 /**
  * 라운드 2 단계 2 공격.
