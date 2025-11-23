@@ -143,6 +143,12 @@ public class Game extends Canvas implements Screen, GameplayContext, BossEnviron
 		// 입력 핸들러 추가 (inputManager 초기화 후)
 		addKeyListener(inputManager.new KeyInputHandler());
 		addMouseListener(inputManager.new MouseInputHandler());
+
+        // 책임 분리된 클래스들 초기화
+        this.entityFactory = new EntityFactory(this, alienEnvironment, alienHpResolver);
+        this.gameRenderer = new GameRenderer(backgroundRenderer, uiRenderer, resolutionManager);
+        this.itemApplier = new ItemApplier(userManager);
+        // gameUpdater는 ship이 생성된 후 초기화 (startGame 또는 initEntities 후)
 		
 		// 게임의 엔티티들을 초기화하여 시작할 때 볼 수 있는 것이 있도록 함
 		logger.debug("Game constructor calling initEntities()...");
@@ -150,12 +156,6 @@ public class Game extends Canvas implements Screen, GameplayContext, BossEnviron
 
 		// 기본 로컬 네트워크 어댑터 설정 (멀티 환경에서는 외부에서 교체)
 		this.networkAdapter = new LocalLoopbackNetworkAdapter(gameStateManager);
-		
-		// 책임 분리된 클래스들 초기화
-		this.entityFactory = new EntityFactory(this, alienEnvironment, alienHpResolver);
-		this.gameRenderer = new GameRenderer(backgroundRenderer, uiRenderer, resolutionManager);
-		this.itemApplier = new ItemApplier(userManager);
-		// gameUpdater는 ship이 생성된 후 초기화 (startGame 또는 initEntities 후)
 	}
 
 	
