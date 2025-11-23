@@ -21,7 +21,7 @@ public final class SharedMultiplayerRoundCoordinator {
     }
 
     public static boolean isNearRound(int round) {
-        return round % 2 == 1;
+        return (round & 1) == 1;
     }
 
     public static int mapBossRound(int round) {
