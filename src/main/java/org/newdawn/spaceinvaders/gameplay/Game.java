@@ -6,7 +6,6 @@ import java.awt.Graphics2D;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.function.IntUnaryOperator;
-import org.newdawn.spaceinvaders.common.GameContext;
 import org.newdawn.spaceinvaders.common.entity.Entity;
 import org.newdawn.spaceinvaders.common.entity.boss.BossEntity;
 import org.newdawn.spaceinvaders.common.entity.boss.BossEnvironment;
@@ -46,7 +45,7 @@ import org.newdawn.spaceinvaders.common.util.LoggerFactory;
  * 
  * @author Kevin Glass
  */
-public class Game extends Canvas implements Screen, GameplayContext, GameContext, BossEnvironment, NearEnvironment
+public class Game extends Canvas implements Screen, GameplayContext, BossEnvironment, NearEnvironment
 {
 	/** 가속 페이지 플리핑을 사용할 수 있게 해주는 전략 */
 	// BufferStrategy는 상위 App에서 관리

@@ -10,7 +10,6 @@ import java.awt.Graphics2D;
 import java.awt.Rectangle;
 import java.awt.RenderingHints;
 import org.newdawn.spaceinvaders.gameplay.Game;
-import org.newdawn.spaceinvaders.common.sprite.Sprite;
 
 /**
  * 최소한의 히트박스로 수평 이동하는 간단한 사이드 몬스터

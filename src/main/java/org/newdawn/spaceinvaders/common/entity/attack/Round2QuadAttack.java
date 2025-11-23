@@ -2,10 +2,8 @@ package org.newdawn.spaceinvaders.common.entity.attack;
 
 import java.awt.Graphics;
 import java.awt.Image;
-import java.awt.MediaTracker;
 import org.newdawn.spaceinvaders.common.GameContext;
 import org.newdawn.spaceinvaders.common.entity.Entity;
-import org.newdawn.spaceinvaders.common.entity.ShipEntity;
 
 /**
  * 라운드 2 사방 발사 공격.
@@ -14,12 +12,10 @@ public class Round2QuadAttack extends BaseAttackEntity {
     private final int damage = 2;
     private final long attackDuration = 3000;
     private final long startTime;
-    private final int direction;
     private Image attackImage;
 
     public Round2QuadAttack(GameContext game, int x, int y, int direction) {
         super(game, "sprites/Boss_Attack/2round1.gif", x, y);
-        this.direction = direction;
         this.startTime = System.currentTimeMillis();
         double moveSpeed = 150;
         switch (direction) {

@@ -2,10 +2,8 @@ package org.newdawn.spaceinvaders.common.entity.attack;
 
 import java.awt.Graphics;
 import java.awt.Image;
-import java.awt.MediaTracker;
 import org.newdawn.spaceinvaders.common.GameContext;
 import org.newdawn.spaceinvaders.common.entity.Entity;
-import org.newdawn.spaceinvaders.common.entity.ShipEntity;
 
 /**
  * 라운드 2 기관총 공격.

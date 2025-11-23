@@ -10,7 +10,6 @@ import org.newdawn.spaceinvaders.common.entity.projectile.MissileEntity;
 import org.newdawn.spaceinvaders.common.entity.effect.ExplosionEntity;
 import org.newdawn.spaceinvaders.common.entity.effect.HeatEffectEntity;
 import org.newdawn.spaceinvaders.common.entity.ui.CoinDisplayEntity;
-import org.newdawn.spaceinvaders.gameplay.core.GameplayContext;
 import org.newdawn.spaceinvaders.gameplay.entity.GameplayAlienEnvironment;
 import org.newdawn.spaceinvaders.gameplay.entity.GameplayMissileEnvironment;
 import org.newdawn.spaceinvaders.gameplay.entity.CoinEntity;
