@@ -13,10 +13,10 @@ import java.awt.event.MouseEvent;
  * 로그인 화면용 캔버스 래퍼
  */
 public class LoginScreenCanvas extends Canvas implements Screen {
-    private final LoginScreen loginScreen;
-    private final ScreenNavigator navigator;
+    private transient final LoginScreen loginScreen;
+    private transient final ScreenNavigator navigator;
 
-    private final KeyAdapter keyAdapter = new KeyAdapter() {
+    private transient final KeyAdapter keyAdapter = new KeyAdapter() {
         @Override
         public void keyPressed(KeyEvent e) {
             loginScreen.handleKeyInput(e.getKeyCode(), '\0');
@@ -34,7 +34,7 @@ public class LoginScreenCanvas extends Canvas implements Screen {
         }
     };
 
-    private final MouseAdapter mouseAdapter = new MouseAdapter() {
+    private transient final MouseAdapter mouseAdapter = new MouseAdapter() {
         @Override
         public void mouseClicked(MouseEvent e) {
             loginScreen.handleMouseClick(e.getX(), e.getY());

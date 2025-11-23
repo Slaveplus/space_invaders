@@ -16,43 +16,15 @@ public class LoginInputHandler {
     public void handleInput(int keyCode, char keyChar) {
         switch (keyCode) {
             case KeyEvent.VK_TAB:
-                // 입력 필드 간 이동 (사용자명 ↔ 비밀번호)
-                // 현재 입력 내용을 저장
-                if (loginScreen.isUsernameInput()) {
-                    // 사용자명 입력 중이면 사용자명에 저장
-                    loginScreen.setUsername(loginScreen.getCurrentInput());
-                } else {
-                    // 비밀번호 입력 중이면 비밀번호에 저장
-                    loginScreen.setPassword(loginScreen.getCurrentInput());
-                }
-                
-                // 입력 필드 전환
-                loginScreen.setUsernameInput(!loginScreen.isUsernameInput());
-                
-                // 새로운 필드의 기존 내용을 currentInput에 설정
-                if (loginScreen.isUsernameInput()) {
-                    loginScreen.setCurrentInput(loginScreen.getUsername());
-                } else {
-                    loginScreen.setCurrentInput(loginScreen.getPassword());
-                }
-                
-                System.out.println("입력 필드 이동: " + (loginScreen.isUsernameInput() ? "사용자명" : "비밀번호"));
+                handleTabKey();
                 break;
                 
             case KeyEvent.VK_LEFT:
-                // 버튼 선택 (왼쪽)
-                if (loginScreen.getSelectedButton() > 0) {
-                    loginScreen.setSelectedButton(loginScreen.getSelectedButton() - 1);
-                    System.out.println("버튼 선택: " + (loginScreen.getSelectedButton() == 0 ? "로그인" : "회원가입"));
-                }
+                handleLeftKey();
                 break;
                 
             case KeyEvent.VK_RIGHT:
-                // 버튼 선택 (오른쪽)
-                if (loginScreen.getSelectedButton() < 1) {
-                    loginScreen.setSelectedButton(loginScreen.getSelectedButton() + 1);
-                    System.out.println("버튼 선택: " + (loginScreen.getSelectedButton() == 0 ? "로그인" : "회원가입"));
-                }
+                handleRightKey();
                 break;
                 
             case KeyEvent.VK_ENTER:
@@ -70,6 +42,43 @@ public class LoginInputHandler {
             default:
                 handleTextInput(keyChar);
                 break;
+        }
+    }
+    
+    private void handleTabKey() {
+        saveCurrentInput();
+        loginScreen.setUsernameInput(!loginScreen.isUsernameInput());
+        loadFieldInput();
+        System.out.println("입력 필드 이동: " + (loginScreen.isUsernameInput() ? "사용자명" : "비밀번호"));
+    }
+    
+    private void saveCurrentInput() {
+        if (loginScreen.isUsernameInput()) {
+            loginScreen.setUsername(loginScreen.getCurrentInput());
+        } else {
+            loginScreen.setPassword(loginScreen.getCurrentInput());
+        }
+    }
+    
+    private void loadFieldInput() {
+        if (loginScreen.isUsernameInput()) {
+            loginScreen.setCurrentInput(loginScreen.getUsername());
+        } else {
+            loginScreen.setCurrentInput(loginScreen.getPassword());
+        }
+    }
+    
+    private void handleLeftKey() {
+        if (loginScreen.getSelectedButton() > 0) {
+            loginScreen.setSelectedButton(loginScreen.getSelectedButton() - 1);
+            System.out.println("버튼 선택: " + (loginScreen.getSelectedButton() == 0 ? "로그인" : "회원가입"));
+        }
+    }
+    
+    private void handleRightKey() {
+        if (loginScreen.getSelectedButton() < 1) {
+            loginScreen.setSelectedButton(loginScreen.getSelectedButton() + 1);
+            System.out.println("버튼 선택: " + (loginScreen.getSelectedButton() == 0 ? "로그인" : "회원가입"));
         }
     }
     
