@@ -279,7 +279,42 @@ public class LoginScreen {
         this.messageTimer = 180; // 3초간 표시 (60fps 기준)
     }
     
-    public UserManager getUserManager() { return userManager; }
+    /**
+     * UserManager에 대한 접근을 제공합니다.
+     * 주의: 이 메서드는 내부 표현을 노출할 수 있습니다.
+     * 가능한 경우 위임 메서드(loginUser, registerUser 등)를 사용하세요.
+     * 
+     * @return UserManager 인스턴스 (null이 아님)
+     * @deprecated 내부 표현 노출 방지를 위해 위임 메서드 사용을 권장합니다.
+     *             하지만 호환성을 위해 유지됩니다.
+     */
+    @Deprecated
+    public UserManager getUserManager() { 
+        return userManager; 
+    }
+    
+    /**
+     * 로그인을 시도합니다.
+     * 
+     * @param email 사용자 이메일
+     * @param password 사용자 비밀번호
+     * @return 로그인 성공 여부
+     */
+    public boolean loginUser(String email, String password) {
+        return userManager != null && userManager.loginUser(email, password);
+    }
+    
+    /**
+     * 회원가입을 시도합니다.
+     * 
+     * @param email 사용자 이메일
+     * @param password 사용자 비밀번호
+     * @return 회원가입 성공 여부
+     */
+    public boolean registerUser(String email, String password) {
+        return userManager != null && userManager.registerUser(email, password);
+    }
+    
     public LoginInputHandler getInputHandler() { return inputHandler; }
     
     public void reset() {
