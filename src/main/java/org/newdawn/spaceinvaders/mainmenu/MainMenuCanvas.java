@@ -14,10 +14,10 @@ import org.newdawn.spaceinvaders.login.UserManager;
  * 메인 메뉴 화면용 캔버스 래퍼
  */
 public class MainMenuCanvas extends Canvas implements Screen {
-    private final MainMenu mainMenu;
-    private final ScreenNavigator navigator;
+    private transient final MainMenu mainMenu;
+    private transient final ScreenNavigator navigator;
 
-    private final KeyAdapter keyAdapter = new KeyAdapter() {
+    private transient final KeyAdapter keyAdapter = new KeyAdapter() {
         @Override
         public void keyPressed(KeyEvent e) {
             // ESC 키는 메인 메뉴에서 뒤로가기 용도로만 사용 (게임 종료 안함)
@@ -33,7 +33,7 @@ public class MainMenuCanvas extends Canvas implements Screen {
         }
     };
 
-    private final MouseAdapter mouseAdapter = new MouseAdapter() {
+    private transient final MouseAdapter mouseAdapter = new MouseAdapter() {
         @Override
         public void mouseClicked(MouseEvent e) {
             mainMenu.handleMouseClick(e.getX(), e.getY());
