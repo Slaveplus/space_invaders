@@ -1186,7 +1186,6 @@ public class Game extends Canvas implements Screen, GameplayContext, BossEnviron
 	 * 직렬화 불가능한 필드들을 제외하고 직렬화합니다.
 	 * 
 	 * @param out ObjectOutputStream
-	 * @throws IOException 직렬화 오류 시
 	 */
 	private void writeObject(java.io.ObjectOutputStream out) throws java.io.IOException {
 		// 기본 직렬화 수행 (transient 필드는 자동으로 제외됨)
@@ -1198,7 +1197,6 @@ public class Game extends Canvas implements Screen, GameplayContext, BossEnviron
 	 * 직렬화 불가능한 필드들을 재초기화합니다.
 	 * 
 	 * @param in ObjectInputStream
-	 * @throws IOException 역직렬화 오류 시
 	 * @throws ClassNotFoundException 클래스를 찾을 수 없을 때
 	 */
 	private void readObject(java.io.ObjectInputStream in) throws java.io.IOException, ClassNotFoundException {
