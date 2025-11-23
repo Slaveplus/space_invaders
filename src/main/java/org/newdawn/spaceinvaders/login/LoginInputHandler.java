@@ -124,7 +124,7 @@ public class LoginInputHandler {
             return;
         }
         
-        if (loginScreen.getUserManager().loginUser(email, password)) {
+        if (loginScreen.loginUser(email, password)) {
             loginScreen.setMessage("로그인 성공! 환영합니다, " + email + "님!");
             System.out.println("로그인 성공: " + email);
             loginScreen.markLoginSucceeded();
@@ -154,7 +154,7 @@ public class LoginInputHandler {
         }
         
         // Firebase 회원가입 시도
-        if (loginScreen.getUserManager().registerUser(email, password)) {
+        if (loginScreen.registerUser(email, password)) {
             loginScreen.setMessage("회원가입 성공! " + email + "님, 환영합니다!");
             System.out.println("회원가입 성공: " + email);
         } else {
