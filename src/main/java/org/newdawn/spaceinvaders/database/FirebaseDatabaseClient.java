@@ -24,6 +24,36 @@ import java.util.logging.Logger;
 public class FirebaseDatabaseClient {
     private static final Logger LOGGER = Logger.getLogger(FirebaseDatabaseClient.class.getName());
     private static final Type MAP_TYPE = new TypeToken<Map<String, Object>>(){}.getType();
+    
+    // HTTP 관련 상수
+    private static final String HTTP_METHOD_POST = "POST";
+    private static final String CONTENT_TYPE_JSON = "application/json";
+    private static final String HEADER_CONTENT_TYPE = "Content-Type";
+    private static final String AUTH_PARAM = "auth";
+    
+    // JSON 키 상수
+    private static final String JSON_KEY_EMAIL = "email";
+    private static final String JSON_KEY_PASSWORD = "password";
+    private static final String JSON_KEY_RETURN_SECURE_TOKEN = "returnSecureToken";
+    private static final String JSON_KEY_ERROR = "error";
+    private static final String JSON_KEY_MESSAGE = "message";
+    private static final String JSON_KEY_ID_TOKEN = "idToken";
+    private static final String JSON_KEY_REFRESH_TOKEN = "refreshToken";
+    private static final String JSON_KEY_LOCAL_ID = "localId";
+    private static final String JSON_KEY_EXPIRES_IN = "expiresIn";
+    private static final String JSON_KEY_NAME = "name";
+    
+    // 기타 상수
+    private static final String JSON_EXTENSION = ".json";
+    private static final String NULL_STRING = "null";
+    private static final String UNKNOWN_ERROR = "Unknown error";
+    private static final String FIREBASE_DB_PREFIX = "Firebase DB";
+    private static final String ERROR_SUFFIX = " 오류";
+    private static final String OPERATION_PUT = "PUT";
+    private static final String OPERATION_UPDATE = "UPDATE";
+    private static final String OPERATION_GET = "GET";
+    private static final String OPERATION_POST = "POST";
+    private static final String OPERATION_DELETE = "DELETE";
 
     private enum HttpMethod {
         GET, POST, PUT, DELETE
@@ -47,14 +77,14 @@ public class FirebaseDatabaseClient {
      * 데이터 저장 (PUT)
      */
     public boolean putData(String path, Object data) {
-        return writeData(path, data, HttpMethod.PUT, "PUT");
+        return writeData(path, data, HttpMethod.PUT, OPERATION_PUT);
     }
     
     /**
      * 데이터 업데이트 (PUT)
      */
     public boolean updateData(String path, Object data) {
-        return writeData(path, data, HttpMethod.PUT, "UPDATE");
+        return writeData(path, data, HttpMethod.PUT, OPERATION_UPDATE);
     }
     
     /**
@@ -78,11 +108,11 @@ public class FirebaseDatabaseClient {
         try {
             DatabaseResponse response = executeRequest(path, HttpMethod.DELETE, null);
             if (!response.isSuccessful()) {
-                logHttpFailure("DELETE", path, response);
+                logHttpFailure(OPERATION_DELETE, path, response);
             }
             return response.isSuccessful();
         } catch (IOException e) {
-            LOGGER.log(Level.SEVERE, e, () -> "Firebase DB DELETE 오류");
+            LOGGER.log(Level.SEVERE, e, () -> FIREBASE_DB_PREFIX + " " + OPERATION_DELETE + ERROR_SUFFIX);
             return false;
         }
     }
@@ -96,11 +126,11 @@ public class FirebaseDatabaseClient {
             if (response.isSuccessful() && response.hasBody()) {
                 Type type = new TypeToken<Map<String, String>>(){}.getType();
                 Map<String, String> result = gson.fromJson(response.body, type);
-                return result.get("name");
+                return result.get(JSON_KEY_NAME);
             }
-            logHttpFailure("POST", path, response);
+            logHttpFailure(OPERATION_POST, path, response);
         } catch (IOException e) {
-            LOGGER.log(Level.SEVERE, e, () -> "Firebase DB POST 오류");
+            LOGGER.log(Level.SEVERE, e, () -> FIREBASE_DB_PREFIX + " " + OPERATION_POST + ERROR_SUFFIX);
         }
         return null;
     }
@@ -108,12 +138,12 @@ public class FirebaseDatabaseClient {
     private HttpURLConnection createConnection(String url, String method) throws IOException {
         // 인증 토큰이 있으면 URL에 추가
         if (authToken != null && !authToken.isEmpty()) {
-            url += (url.contains("?") ? "&" : "?") + "auth=" + authToken;
+            url += (url.contains("?") ? "&" : "?") + AUTH_PARAM + "=" + authToken;
         }
         
         HttpURLConnection connection = (HttpURLConnection) new URL(url).openConnection();
         connection.setRequestMethod(method);
-        connection.setRequestProperty("Content-Type", "application/json");
+        connection.setRequestProperty(HEADER_CONTENT_TYPE, CONTENT_TYPE_JSON);
         connection.setConnectTimeout(10000);
         connection.setReadTimeout(10000);
         return connection;
@@ -128,7 +158,7 @@ public class FirebaseDatabaseClient {
             }
             return response.isSuccessful();
         } catch (IOException e) {
-            LOGGER.log(Level.SEVERE, e, () -> String.format("Firebase DB %s 오류", operation));
+            LOGGER.log(Level.SEVERE, e, () -> String.format(FIREBASE_DB_PREFIX + " %s" + ERROR_SUFFIX, operation));
             return false;
         }
     }
@@ -138,19 +168,19 @@ public class FirebaseDatabaseClient {
         try {
             DatabaseResponse response = executeRequest(path, HttpMethod.GET, null);
             if (!response.isSuccessful() || !response.hasBody()) {
-                logHttpFailure("GET", path, response);
+                logHttpFailure(OPERATION_GET, path, response);
                 return null;
             }
             return gson.fromJson(response.body, responseType);
         } catch (IOException e) {
-            LOGGER.log(Level.SEVERE, e, () -> "Firebase DB GET 오류");
+            LOGGER.log(Level.SEVERE, e, () -> FIREBASE_DB_PREFIX + " " + OPERATION_GET + ERROR_SUFFIX);
             return null;
         }
     }
 
     private DatabaseResponse executeRequest(String path, HttpMethod method, Object payload) throws IOException {
         String url = composeUrl(path);
-        LOGGER.log(Level.INFO, () -> String.format("Firebase DB %s 요청: %s", method.name(), url));
+        LOGGER.log(Level.INFO, () -> String.format(FIREBASE_DB_PREFIX + " %s 요청: %s", method.name(), url));
         HttpURLConnection connection = createConnection(url, method.name());
         if (payload != null) {
             connection.setDoOutput(true);
@@ -166,13 +196,13 @@ public class FirebaseDatabaseClient {
             : connection.getErrorStream();
 
         String body = responseStream != null ? readStream(responseStream) : "";
-        LOGGER.log(Level.FINE, () -> String.format("Firebase DB %s 응답 [%d]: %s", method.name(), responseCode, body));
+        LOGGER.log(Level.FINE, () -> String.format(FIREBASE_DB_PREFIX + " %s 응답 [%d]: %s", method.name(), responseCode, body));
         return new DatabaseResponse(responseCode, body);
     }
 
     private String composeUrl(String path) {
         String normalizedPath = path.startsWith("/") ? path.substring(1) : path;
-        return databaseUrl + normalizedPath + ".json";
+        return databaseUrl + normalizedPath + JSON_EXTENSION;
     }
 
     private String readStream(InputStream stream) throws IOException {
@@ -188,11 +218,11 @@ public class FirebaseDatabaseClient {
 
     private void logHttpFailure(String operation, String path, DatabaseResponse response) {
         if (response == null) {
-            LOGGER.log(Level.WARNING, () -> String.format("Firebase DB %s 요청 실패: path=%s, 응답 없음", operation, path));
+            LOGGER.log(Level.WARNING, () -> String.format(FIREBASE_DB_PREFIX + " %s 요청 실패: path=%s, 응답 없음", operation, path));
             return;
         }
         LOGGER.log(Level.WARNING, () -> String.format(
-            "Firebase DB %s 요청 실패: path=%s, code=%d, body=%s",
+            FIREBASE_DB_PREFIX + " %s 요청 실패: path=%s, code=%d, body=%s",
             operation, path, response.code, response.body));
     }
 
@@ -210,7 +240,7 @@ public class FirebaseDatabaseClient {
         }
 
         private boolean hasBody() {
-            return body != null && !body.isEmpty() && !"null".equals(body);
+            return body != null && !body.isEmpty() && !NULL_STRING.equals(body);
         }
     }
     
@@ -230,9 +260,9 @@ public class FirebaseDatabaseClient {
      */
     public UserSession signUp(String email, String password) throws IOException, FirebaseAuthException {
         JsonObject payload = new JsonObject();
-        payload.addProperty("email", email);
-        payload.addProperty("password", password);
-        payload.addProperty("returnSecureToken", true);
+        payload.addProperty(JSON_KEY_EMAIL, email);
+        payload.addProperty(JSON_KEY_PASSWORD, password);
+        payload.addProperty(JSON_KEY_RETURN_SECURE_TOKEN, true);
 
         String response = postAuthJson(FirebaseConfig.AUTH_SIGN_UP_URL, payload.toString());
         return parseAuthResponse(response);
@@ -243,9 +273,9 @@ public class FirebaseDatabaseClient {
      */
     public UserSession signIn(String email, String password) throws IOException, FirebaseAuthException {
         JsonObject payload = new JsonObject();
-        payload.addProperty("email", email);
-        payload.addProperty("password", password);
-        payload.addProperty("returnSecureToken", true);
+        payload.addProperty(JSON_KEY_EMAIL, email);
+        payload.addProperty(JSON_KEY_PASSWORD, password);
+        payload.addProperty(JSON_KEY_RETURN_SECURE_TOKEN, true);
 
         String response = postAuthJson(FirebaseConfig.AUTH_SIGN_IN_URL, payload.toString());
         return parseAuthResponse(response);
@@ -253,8 +283,8 @@ public class FirebaseDatabaseClient {
     
     private String postAuthJson(String url, String jsonData) throws IOException, FirebaseAuthException {
         HttpURLConnection connection = (HttpURLConnection) new URL(url).openConnection();
-        connection.setRequestMethod("POST");
-        connection.setRequestProperty("Content-Type", "application/json");
+        connection.setRequestMethod(HTTP_METHOD_POST);
+        connection.setRequestProperty(HEADER_CONTENT_TYPE, CONTENT_TYPE_JSON);
         connection.setDoOutput(true);
         connection.setConnectTimeout(10000);
         connection.setReadTimeout(10000);
@@ -278,9 +308,9 @@ public class FirebaseDatabaseClient {
         
         if (responseCode >= 400) {
             JsonObject errorObj = gson.fromJson(response.toString(), JsonObject.class);
-            if (errorObj != null && errorObj.has("error")) {
-                JsonObject error = errorObj.getAsJsonObject("error");
-                String message = error.has("message") ? error.get("message").getAsString() : "Unknown error";
+            if (errorObj != null && errorObj.has(JSON_KEY_ERROR)) {
+                JsonObject error = errorObj.getAsJsonObject(JSON_KEY_ERROR);
+                String message = error.has(JSON_KEY_MESSAGE) ? error.get(JSON_KEY_MESSAGE).getAsString() : UNKNOWN_ERROR;
                 throw new FirebaseAuthException(message);
             }
         }
@@ -290,17 +320,17 @@ public class FirebaseDatabaseClient {
     
     private UserSession parseAuthResponse(String json) throws FirebaseAuthException {
         JsonObject obj = gson.fromJson(json, JsonObject.class);
-        if (obj != null && obj.has("error")) {
-            JsonObject error = obj.getAsJsonObject("error");
-            String message = error.has("message") ? error.get("message").getAsString() : "Unknown error";
+        if (obj != null && obj.has(JSON_KEY_ERROR)) {
+            JsonObject error = obj.getAsJsonObject(JSON_KEY_ERROR);
+            String message = error.has(JSON_KEY_MESSAGE) ? error.get(JSON_KEY_MESSAGE).getAsString() : UNKNOWN_ERROR;
             throw new FirebaseAuthException(message);
         }
         
-        String idToken = getAsString(obj, "idToken");
-        String refreshToken = getAsString(obj, "refreshToken");
-        String localId = getAsString(obj, "localId");
-        String email = getAsString(obj, "email");
-        long expiresIn = getAsLong(obj, "expiresIn");
+        String idToken = getAsString(obj, JSON_KEY_ID_TOKEN);
+        String refreshToken = getAsString(obj, JSON_KEY_REFRESH_TOKEN);
+        String localId = getAsString(obj, JSON_KEY_LOCAL_ID);
+        String email = getAsString(obj, JSON_KEY_EMAIL);
+        long expiresIn = getAsLong(obj, JSON_KEY_EXPIRES_IN);
 
         return new UserSession(idToken, refreshToken, localId, email, expiresIn);
     }
