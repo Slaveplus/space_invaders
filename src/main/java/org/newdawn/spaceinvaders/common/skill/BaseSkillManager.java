@@ -111,8 +111,8 @@ public abstract class BaseSkillManager {
         } else {
             for (Entity entity : getEntities()) {
                 if (isAlien(entity)) {
-                    dropX = (int) Math.round(entity.getX());
-                    dropY = (int) Math.round(entity.getY());
+                    dropX = entity.getX();
+                    dropY = entity.getY();
                     break;
                 }
             }
