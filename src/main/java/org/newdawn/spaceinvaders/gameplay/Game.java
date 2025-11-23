@@ -63,7 +63,7 @@ public class Game extends Canvas implements Screen, GameplayContext, GameContext
 	/** 현재 장착된 우주선 스킨 경로 */
 	private String currentSpaceshipSkin = "sprites/ship.gif";
 	/** 현재 장착된 무기 스킨 경로 */
-	private String currentWeaponSkin = "sprites/shot.gif";
+	private String currentWeaponSkin = DEFAULT_WEAPON_SPRITE;
 
 	/** 현재까지 기록된 프레임 수 */
 	// FPS 표시 기능은 상위에서 처리 가능, 내부적으로는 카운트만 유지하지 않음
@@ -82,7 +82,8 @@ public class Game extends Canvas implements Screen, GameplayContext, GameContext
 	private final SharedGameplayCoordinator gameplayCoordinator;
 	/** Alien 엔티티 환경 */
 	private final GameplayAlienEnvironment alienEnvironment;
-	private final IntUnaryOperator alienHpResolver;
+	/** Alien HP 해결자 (직렬화 불가능) */
+	private transient IntUnaryOperator alienHpResolver;
 	// gameplay는 mainmenu 패키지에 의존하지 않도록, 오버레이는 UIRenderer에서 처리
 	
 	/** 메인메뉴 전환 요청 플래그 */
@@ -106,6 +107,9 @@ public class Game extends Canvas implements Screen, GameplayContext, GameContext
 	
 	/** 로거 */
 	private static final Logger logger = LoggerFactory.getLogger(Game.class);
+	
+	/** 기본 무기 스프라이트 경로 */
+	private static final String DEFAULT_WEAPON_SPRITE = "sprites/shot.gif";
 	
 	/**
 	 * 게임을 구성하고 실행합니다.
@@ -384,7 +388,7 @@ public class Game extends Canvas implements Screen, GameplayContext, GameContext
 	 * @param y The y location of the shot
 	 */
 	public void addAlienShot(int x, int y) {
-		ShotEntity shot = entityFactory.createShot("sprites/shot.gif", x, y, true);
+		ShotEntity shot = entityFactory.createShot(DEFAULT_WEAPON_SPRITE, x, y, true);
 		gameStateManager.getEntities().add(shot);
 	}
 	
@@ -401,7 +405,7 @@ public class Game extends Canvas implements Screen, GameplayContext, GameContext
 		int aimOffset = (int)((playerX - alienX) * 0.15); // 15% of distance towards player
 		aimOffset = Math.max(-15, Math.min(15, aimOffset)); // Clamp to player-sized range
 		
-		ShotEntity shot = entityFactory.createShot("sprites/shot.gif", x + aimOffset, y, true);
+		ShotEntity shot = entityFactory.createShot(DEFAULT_WEAPON_SPRITE, x + aimOffset, y, true);
 		gameStateManager.getEntities().add(shot);
 	}
 	
@@ -431,7 +435,7 @@ public class Game extends Canvas implements Screen, GameplayContext, GameContext
 				spritePath = "sprites/Skill/4.png";
 				break;
 			default:
-				spritePath = "sprites/shot.gif";
+				spritePath = DEFAULT_WEAPON_SPRITE;
 				break;
 		}
 		
@@ -1057,7 +1061,7 @@ public class Game extends Canvas implements Screen, GameplayContext, GameContext
 	 */
 	public void addBossShot(int x, int y) {
 		try {
-			ShotEntity shot = entityFactory.createShot("sprites/shot.gif", x, y, true); // true = alien shot
+			ShotEntity shot = entityFactory.createShot(DEFAULT_WEAPON_SPRITE, x, y, true); // true = alien shot
 			gameStateManager.getEntities().add(shot);
 		} catch (Exception e) {
 			logger.error("Error adding boss shot: " + e.getMessage(), e);
@@ -1176,6 +1180,36 @@ public class Game extends Canvas implements Screen, GameplayContext, GameContext
 	 */
 	public ShipEntity getPlayerShip() {
 		return (ShipEntity) ship;
+	}
+	
+	/**
+	 * 직렬화 시 호출되는 커스텀 메서드
+	 * 직렬화 불가능한 필드들을 제외하고 직렬화합니다.
+	 * 
+	 * @param out ObjectOutputStream
+	 * @throws IOException 직렬화 오류 시
+	 */
+	private void writeObject(java.io.ObjectOutputStream out) throws java.io.IOException {
+		// 기본 직렬화 수행 (transient 필드는 자동으로 제외됨)
+		out.defaultWriteObject();
+	}
+	
+	/**
+	 * 역직렬화 시 호출되는 커스텀 메서드
+	 * 직렬화 불가능한 필드들을 재초기화합니다.
+	 * 
+	 * @param in ObjectInputStream
+	 * @throws IOException 역직렬화 오류 시
+	 * @throws ClassNotFoundException 클래스를 찾을 수 없을 때
+	 */
+	private void readObject(java.io.ObjectInputStream in) throws java.io.IOException, ClassNotFoundException {
+		// 기본 역직렬화 수행
+		in.defaultReadObject();
+		
+		// 직렬화 불가능한 필드들을 재초기화
+		if (alienHpResolver == null) {
+			alienHpResolver = GameplayAlienEnvironment.hpResolver();
+		}
 	}
 	
 	/**

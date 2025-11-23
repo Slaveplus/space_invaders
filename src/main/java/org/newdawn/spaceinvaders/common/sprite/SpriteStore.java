@@ -23,6 +23,8 @@ public class SpriteStore {
 
     private final HashMap<String, Sprite> sprites = new HashMap<>();
 
+    private SpriteStore() {}
+
     public Sprite getSprite(String ref) {
         Sprite cached = sprites.get(ref);
         if (cached != null) {
