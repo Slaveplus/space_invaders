@@ -1158,15 +1158,6 @@ public class ServerMultiplayerGame implements MultiplayerGameContext {
         }
     }
 
-    private void spawnBoss(boolean announce) {
-        int round = gameStateManager.getCurrentRound();
-        SharedMultiplayerRoundCoordinator.spawnBoss(this, round);
-        alienCount = gameStateManager.getAlienCount();
-        if (announce) {
-            gameStateManager.setMessage("BOSS APPEARED!");
-            gameStateManager.setWaitingForKeyPress(true);
-        }
-    }
 
     private void revivePlayersForNextRound() {
         for (String playerId : new ArrayList<>(playerRuntimes.keySet())) {

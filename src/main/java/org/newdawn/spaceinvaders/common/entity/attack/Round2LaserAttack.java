@@ -4,10 +4,8 @@ import java.awt.Graphics;
 import java.awt.Graphics2D;
 import java.awt.Image;
 import java.awt.geom.AffineTransform;
-import java.awt.Toolkit;
 import org.newdawn.spaceinvaders.common.GameContext;
 import org.newdawn.spaceinvaders.common.entity.Entity;
-import org.newdawn.spaceinvaders.common.entity.ShipEntity;
 
 /**
  * 라운드 2 레이저 공격.

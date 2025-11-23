@@ -3,7 +3,6 @@ package org.newdawn.spaceinvaders.multyplay.core;
 import java.awt.Canvas;
 import java.awt.Color;
 import java.awt.Font;
-import java.awt.FontMetrics;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
 import java.awt.Image;
@@ -1738,7 +1737,6 @@ public class MultiplayerGameCanvas extends Canvas implements Screen, Multiplayer
 		private boolean isAlienShot;
 		private boolean isSkillDrop;
 		private int skillType;
-		private int skillValue;
 		private boolean hasPiercing;
 		private boolean nearMonsterShot;
 
@@ -1757,8 +1755,6 @@ public class MultiplayerGameCanvas extends Canvas implements Screen, Multiplayer
 			isSkillDrop = "1".equals(meta.get("skill"));
 			try { skillType = Integer.parseInt(meta.getOrDefault("skillType", "-1")); }
 			catch (NumberFormatException ignore) { skillType = -1; }
-			try { skillValue = Integer.parseInt(meta.getOrDefault("skillValue", "0")); }
-			catch (NumberFormatException ignore) { skillValue = 0; }
 			hasPiercing = "1".equals(meta.get("pierce"));
 			nearMonsterShot = "1".equals(meta.get("near"));
 			String spriteOverride = meta.get("sprite");

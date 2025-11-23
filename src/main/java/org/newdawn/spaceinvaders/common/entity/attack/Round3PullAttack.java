@@ -4,7 +4,6 @@ import java.awt.Color;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
 import java.awt.Image;
-import java.awt.MediaTracker;
 import java.util.List;
 import org.newdawn.spaceinvaders.common.GameContext;
 import org.newdawn.spaceinvaders.common.entity.Entity;

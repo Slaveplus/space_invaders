@@ -283,23 +283,6 @@ public class UIRenderer {
         g.drawString(text, tx, ty);
     }
 
-    private void drawCard(Graphics2D g, int x, int y, int w, int h, String title, String sub, boolean selected) {
-        g.setColor(selected ? new Color(60, 60, 140) : new Color(40, 40, 100));
-        g.fillRoundRect(x, y, w, h, 10, 10);
-        g.setColor(new Color(120, 120, 200));
-        g.setStroke(STROKE_2PX);
-        g.drawRoundRect(x, y, w, h, 10, 10);
-
-        g.setColor(Color.WHITE);
-        g.setFont(getKostarFont(Font.BOLD, 14));
-        int tx = x + (w - g.getFontMetrics().stringWidth(title)) / 2;
-        g.drawString(title, tx, y + 55);
-
-        g.setFont(getKostarFont(12));
-        int sx = x + (w - g.getFontMetrics().stringWidth(sub)) / 2;
-        g.setColor(Color.YELLOW);
-        g.drawString(sub, sx, y + 80);
-    }
 
     private void drawUpgradeStats(Graphics2D g, GameStateManager gameStateManager) {
         int startY = 120;
