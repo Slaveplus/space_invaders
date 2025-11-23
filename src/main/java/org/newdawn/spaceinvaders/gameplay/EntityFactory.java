@@ -1,5 +1,6 @@
 package org.newdawn.spaceinvaders.gameplay;
 
+import org.newdawn.spaceinvaders.common.sprite.SpriteConstants;
 import org.newdawn.spaceinvaders.common.entity.Entity;
 import org.newdawn.spaceinvaders.common.entity.alien.AlienEntity;
 import org.newdawn.spaceinvaders.common.entity.boss.BossEntity;
@@ -74,16 +75,16 @@ public class EntityFactory {
         String spritePath;
         switch (skillType) {
             case 0: // Invincible
-                spritePath = "sprites/Skill/1.png";
+                spritePath = SpriteConstants.SKILL_1_PNG;
                 break;
             case 2: // Triple Shot
-                spritePath = "sprites/Skill/3.png";
+                spritePath = SpriteConstants.SKILL_3_PNG;
                 break;
             case 3: // Missile
-                spritePath = "sprites/Skill/4.png";
+                spritePath = SpriteConstants.SKILL_4_PNG;
                 break;
             default:
-                spritePath = "sprites/shot.gif";
+                spritePath = SpriteConstants.SHOT_GIF;
                 break;
         }
         return new ShotEntity(game, spritePath, x, y, skillType, skillValue);
@@ -107,7 +108,7 @@ public class EntityFactory {
      * 폭발 효과 생성
      */
     public ExplosionEntity createExplosion(int x, int y, double radius) {
-        return new ExplosionEntity(game, "sprites/Skill/Explosion.png", x, y, radius);
+        return new ExplosionEntity(game, SpriteConstants.EXPLOSION_PNG, x, y, radius);
     }
     
     /**
@@ -123,7 +124,7 @@ public class EntityFactory {
     public MissileEntity createMissile(double startX, double startY, double targetX, double targetY) {
         return new MissileEntity(
             new GameplayMissileEnvironment(game),
-            "sprites/Skill/Missile.png",
+            SpriteConstants.SKILL_MISSILE_PNG,
             (int)startX,
             (int)startY,
             targetX,

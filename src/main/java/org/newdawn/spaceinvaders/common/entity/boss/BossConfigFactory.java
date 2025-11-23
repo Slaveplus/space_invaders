@@ -1,5 +1,6 @@
 package org.newdawn.spaceinvaders.common.entity.boss;
 
+import org.newdawn.spaceinvaders.common.sprite.SpriteConstants;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -17,7 +18,7 @@ public class BossConfigFactory {
         configs.put(1, new BossConfig.Builder()
             .round(1)
             .maxHP(200)
-            .spritePath("sprites/Boss/1Boss.png")
+            .spritePath(SpriteConstants.BOSS_1_BOSS_PNG)
             .bossSize(280)
             .moveSpeed(60)
             .scoreValue(1000)
@@ -28,7 +29,7 @@ public class BossConfigFactory {
         configs.put(2, new BossConfig.Builder()
             .round(2)
             .maxHP(280)
-            .spritePath("sprites/Boss/2Boss.png")
+            .spritePath(SpriteConstants.BOSS_2_BOSS_PNG)
             .bossSize(280)
             .moveSpeed(70)
             .scoreValue(2000)
@@ -39,7 +40,7 @@ public class BossConfigFactory {
         configs.put(3, new BossConfig.Builder()
             .round(3)
             .maxHP(400)
-            .spritePath("sprites/Boss/3Boss.png")
+            .spritePath(SpriteConstants.BOSS_3_BOSS_PNG)
             .bossSize(280)
             .moveSpeed(80)
             .scoreValue(3000)
@@ -50,7 +51,7 @@ public class BossConfigFactory {
         configs.put(4, new BossConfig.Builder()
             .round(4)
             .maxHP(600)
-            .spritePath("sprites/Boss/4Boss.png")
+            .spritePath(SpriteConstants.BOSS_4_BOSS_PNG)
             .bossSize(280)
             .moveSpeed(90)
             .scoreValue(4000)
@@ -61,7 +62,7 @@ public class BossConfigFactory {
         configs.put(5, new BossConfig.Builder()
             .round(5)
             .maxHP(200)
-            .spritePath("sprites/Boss/5Boss.png")
+            .spritePath(SpriteConstants.BOSS_5_BOSS_PNG)
             .bossSize(300)
             .moveSpeed(50)
             .scoreValue(1000)

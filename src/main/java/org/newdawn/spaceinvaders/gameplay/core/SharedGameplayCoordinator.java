@@ -1,5 +1,7 @@
 package org.newdawn.spaceinvaders.gameplay.core;
 
+import org.newdawn.spaceinvaders.common.sprite.SpriteConstants;
+
 import java.util.List;
 import java.util.Objects;
 import org.newdawn.spaceinvaders.gameplay.GameStateManager;

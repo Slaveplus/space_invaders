@@ -1,5 +1,7 @@
 package org.newdawn.spaceinvaders.shop;
 
+import org.newdawn.spaceinvaders.common.sprite.SpriteConstants;
+
 import java.awt.*;
 import java.awt.image.BufferedImage;
 import java.io.IOException;
@@ -60,7 +62,7 @@ public class Shop {
     
     private void loadBackgroundImage() {
         try {
-            InputStream inputStream = getClass().getClassLoader().getResourceAsStream("sprites/backgrounds/Background-0.jpg");
+            InputStream inputStream = getClass().getClassLoader().getResourceAsStream(SpriteConstants.BACKGROUND_0_JPG);
             if (inputStream != null) {
                 backgroundImage = ImageIO.read(inputStream);
             }

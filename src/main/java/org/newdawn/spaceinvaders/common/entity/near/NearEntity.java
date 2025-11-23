@@ -1,5 +1,6 @@
 package org.newdawn.spaceinvaders.common.entity.near;
 
+import org.newdawn.spaceinvaders.common.sprite.SpriteConstants;
 import java.awt.Color;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
@@ -39,11 +40,11 @@ public class NearEntity extends Entity {
 
     private static String spriteForRound(int round) {
         switch (round) {
-            case 1: return "sprites/Boss/1near.png";
-            case 3: return "sprites/Boss/2near.png";
-            case 5: return "sprites/Boss/3near.png";
-            case 7: return "sprites/Boss/4near.png";
-            default: return "sprites/Boss/1near.png";
+            case 1: return SpriteConstants.BOSS_1_NEAR_PNG;
+            case 3: return SpriteConstants.BOSS_2_NEAR_PNG;
+            case 5: return SpriteConstants.BOSS_3_NEAR_PNG;
+            case 7: return SpriteConstants.BOSS_4_NEAR_PNG;
+            default: return SpriteConstants.BOSS_1_NEAR_PNG;
         }
     }
 
@@ -60,15 +61,15 @@ public class NearEntity extends Entity {
     private static String shotSpriteForRound(int nearRound) {
         switch (nearRound) {
             case 1:
-                return "sprites/Boss_Attack/ice ball.gif";
+                return SpriteConstants.ICE_BALL_GIF;
             case 3:
-                return "sprites/Boss_Attack/2round1.gif";
+                return SpriteConstants.ROUND_2_ATTACK_1_GIF;
             case 5:
-                return "sprites/shot.gif";
+                return SpriteConstants.SHOT_GIF;
             case 7:
-                return "sprites/Skill/Heat.gif";
+                return SpriteConstants.HEAT_GIF;
             default:
-                return "sprites/shot.gif";
+                return SpriteConstants.SHOT_GIF;
         }
     }
 

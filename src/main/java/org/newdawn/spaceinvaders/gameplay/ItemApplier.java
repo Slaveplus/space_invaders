@@ -6,6 +6,7 @@ import org.newdawn.spaceinvaders.shop.ShopItem;
 import org.newdawn.spaceinvaders.common.entity.ShipEntity;
 import org.newdawn.spaceinvaders.common.util.Logger;
 import org.newdawn.spaceinvaders.common.util.LoggerFactory;
+import org.newdawn.spaceinvaders.common.sprite.SpriteConstants;
 
 /**
  * 장착된 아이템 적용을 담당하는 클래스
@@ -13,8 +14,8 @@ import org.newdawn.spaceinvaders.common.util.LoggerFactory;
  */
 public class ItemApplier {
     private final UserManager userManager;
-    private String currentSpaceshipSkin = "sprites/ship.gif";
-    private String currentWeaponSkin = "sprites/shot.gif";
+    private String currentSpaceshipSkin = SpriteConstants.SHIP_GIF;
+    private String currentWeaponSkin = SpriteConstants.SHOT_GIF;
     
     /** 로거 */
     private static final Logger logger = LoggerFactory.getLogger(ItemApplier.class);
@@ -52,7 +53,7 @@ public class ItemApplier {
                 ship.changeSkin(currentSpaceshipSkin);
             }
         } else {
-            currentSpaceshipSkin = "sprites/ship.gif";
+            currentSpaceshipSkin = SpriteConstants.SHIP_GIF;
             logger.debug("기본 스킨 사용: " + currentSpaceshipSkin);
         }
     }
@@ -83,15 +84,15 @@ public class ItemApplier {
     private String mapItemIdToSkinFile(String itemId) {
         switch (itemId) {
             case "fighter_ship":
-                return "spaceship_green.png";
+                return SpriteConstants.SHIPS_SPACESHIP_GREEN_PNG.substring("sprites/ships/".length());
             case "battleship":
-                return "spaceship_blue.png";
+                return SpriteConstants.SHIPS_SPACESHIP_BLUE_PNG.substring("sprites/ships/".length());
             case "professor":
-                return "professor.png";
+                return SpriteConstants.SHIPS_PROFESSOR_PNG.substring("sprites/ships/".length());
             case "king":
-                return "king.png";
+                return SpriteConstants.SHIPS_KING_PNG.substring("sprites/ships/".length());
             case "software_king":
-                return "software_king.png";
+                return SpriteConstants.SHIPS_SOFTWARE_KING_PNG.substring("sprites/ships/".length());
             default:
                 return itemId + ".png";
         }

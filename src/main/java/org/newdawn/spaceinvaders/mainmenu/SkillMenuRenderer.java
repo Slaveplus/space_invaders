@@ -1,5 +1,7 @@
 package org.newdawn.spaceinvaders.mainmenu;
 
+import org.newdawn.spaceinvaders.common.sprite.SpriteConstants;
+
 import java.awt.*;
 import java.awt.image.BufferedImage;
 import javax.imageio.ImageIO;
@@ -253,10 +255,10 @@ public class SkillMenuRenderer {
         String imagePath;
         if (canAfford) {
             // Use Force True.png when affordable
-            imagePath = "sprites/Force/Force True.png";
+            imagePath = SpriteConstants.FORCE_TRUE_PNG;
         } else {
             // Use Force Select.png when not affordable
-            imagePath = "sprites/Force/Force Select.png";
+            imagePath = SpriteConstants.FORCE_SELECT_PNG;
         }
         
         try {
@@ -279,7 +281,7 @@ public class SkillMenuRenderer {
      */
     private BufferedImage loadForceTrueImage() {
         try {
-            InputStream is = getClass().getClassLoader().getResourceAsStream("sprites/Force/Force True.png");
+            InputStream is = getClass().getClassLoader().getResourceAsStream(SpriteConstants.FORCE_TRUE_PNG);
             if (is != null) {
                 BufferedImage image = ImageIO.read(is);
                 is.close();
@@ -287,7 +289,7 @@ public class SkillMenuRenderer {
                 return image;
             }
         } catch (IOException e) {
-            System.err.println("Failed to load Force True image: sprites/Force/Force True.png");
+            System.err.println("Failed to load Force True image: " + SpriteConstants.FORCE_TRUE_PNG);
             e.printStackTrace();
         }
         return null;
@@ -337,7 +339,7 @@ public class SkillMenuRenderer {
      */
     private BufferedImage loadForceSelectImage() {
         try {
-            InputStream is = getClass().getClassLoader().getResourceAsStream("sprites/Force/Force Select.png");
+            InputStream is = getClass().getClassLoader().getResourceAsStream(SpriteConstants.FORCE_SELECT_PNG);
             if (is != null) {
                 BufferedImage image = ImageIO.read(is);
                 is.close();
@@ -345,7 +347,7 @@ public class SkillMenuRenderer {
                 return image;
             }
         } catch (IOException e) {
-            System.err.println("Failed to load Force Select background image: sprites/Force/Force Select.png");
+            System.err.println("Failed to load Force Select background image: " + SpriteConstants.FORCE_SELECT_PNG);
             e.printStackTrace();
         }
         return null;
@@ -358,16 +360,16 @@ public class SkillMenuRenderer {
         String iconPath;
         switch (skillType) {
             case 0: // Attack Power
-                iconPath = "sprites/Skill/Icon.6_26.png";
+                iconPath = SpriteConstants.SKILL_ICON_6_26_PNG;
                 break;
             case 1: // Attack Speed
-                iconPath = "sprites/Skill/Icon.1_45.png";
+                iconPath = SpriteConstants.SKILL_ICON_1_45_PNG;
                 break;
             case 2: // HP Recovery
-                iconPath = "sprites/Skill/Icon.7_11.png";
+                iconPath = SpriteConstants.SKILL_ICON_7_11_PNG;
                 break;
             default:
-                iconPath = "sprites/Skill/Icon.6_26.png";
+                iconPath = SpriteConstants.SKILL_ICON_6_26_PNG;
                 break;
         }
         

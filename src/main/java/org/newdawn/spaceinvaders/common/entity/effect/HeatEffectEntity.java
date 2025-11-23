@@ -1,5 +1,6 @@
 package org.newdawn.spaceinvaders.common.entity.effect;
 
+import org.newdawn.spaceinvaders.common.sprite.SpriteConstants;
 import java.awt.Color;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
@@ -28,7 +29,7 @@ public class HeatEffectEntity extends Entity {
     }
 
     public HeatEffectEntity(GameContext game, int x, int y, long durationMs) {
-        super("sprites/Skill/Heat.gif", x, y);
+        super(SpriteConstants.HEAT_GIF, x, y);
         this.game = game;
         this.heatDuration = durationMs;
         this.startTime = System.currentTimeMillis();
@@ -90,7 +91,7 @@ public class HeatEffectEntity extends Entity {
     }
 
     private void loadHeatImage() {
-        try (InputStream is = getClass().getClassLoader().getResourceAsStream("sprites/Skill/Heat.gif")) {
+        try (InputStream is = getClass().getClassLoader().getResourceAsStream(SpriteConstants.HEAT_GIF)) {
             if (is != null) {
                 heatImage = ImageIO.read(is);
             }

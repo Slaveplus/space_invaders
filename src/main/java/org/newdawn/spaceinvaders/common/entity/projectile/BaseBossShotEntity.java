@@ -1,5 +1,6 @@
 package org.newdawn.spaceinvaders.common.entity.projectile;
 
+import org.newdawn.spaceinvaders.common.sprite.SpriteConstants;
 import java.awt.Color;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
@@ -33,7 +34,7 @@ public abstract class BaseBossShotEntity extends Entity {
                                  boolean canSplit,
                                  double splitY,
                                  int splitCount) {
-        super("sprites/shot.gif", x, y);
+        super(SpriteConstants.SHOT_GIF, x, y);
         this.environment = environment;
         this.directionX = directionX;
         this.directionY = directionY;

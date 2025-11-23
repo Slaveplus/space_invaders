@@ -1,5 +1,7 @@
 package org.newdawn.spaceinvaders.common.entity.alien;
 
+import org.newdawn.spaceinvaders.common.sprite.SpriteConstants;
+
 import java.util.function.IntUnaryOperator;
 
 /**
@@ -22,17 +24,17 @@ public class AlienEntity extends BaseAlienEntity {
     private static String spriteForRound(int round) {
         switch (round) {
             case 1:
-                return "sprites/Boss/1near.png";
+                return SpriteConstants.BOSS_1_NEAR_PNG;
             case 2:
-                return "sprites/Boss/2near.png";
+                return SpriteConstants.BOSS_2_NEAR_PNG;
             case 3:
-                return "sprites/Boss/3near.png";
+                return SpriteConstants.BOSS_3_NEAR_PNG;
             case 4:
-                return "sprites/Boss/4near.png";
+                return SpriteConstants.BOSS_4_NEAR_PNG;
             case 5:
-                return "sprites/Boss/5near.png";
+                return SpriteConstants.BOSS_5_NEAR_PNG;
             default:
-                return "sprites/Boss/5near.png";
+                return SpriteConstants.BOSS_5_NEAR_PNG;
         }
     }
 }

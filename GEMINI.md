@@ -73,26 +73,56 @@ java -cp target/space_invaders-1.0-SNAPSHOT.jar org.newdawn.spaceinvaders.server
 
 *   리펙토링을 진행할 때, 기존의 기능이 똑같이 작동하도록 유지하면서 리펙토링을 해야합니다.
 *   리펙토링을 진행한 후, 빌드를 실행하여 오류가 없는지 확인합니다. 실행은 하지 않아도 됩니다.
-*   리펙토링을 진행한 내용을 아래에 표시된 내용과 같은 양식 예시(리펙토링 진행 내용 작성 예시)대로 refactor_content.md에 작성해야합니다. 이때 기존 내용 뒤에 덧붙혀 작성합니다. 
+*   리펙토링을 진행한 내용을 아래에 표시된 내용과 같은 양식(리펙토링 진행 내용 작성 양식)대로 refactor_content.md에 작성해야합니다. 이때 기존 내용 뒤에 덧붙혀 작성합니다. 
 *   절대 임의로 커밋하지 않습니다.
 
-## 리펙토링 진행 내용 작성 예시
+## 리펙토링 진행 내용 작성 양식
 """
-### **CRUD 공통화 (Create, Read, Update, Delete)**
-
-#### **냄새** : **중복 코드 (Duplicated Code)**
-
-기존 putData, updateData, postData, getData, getDataAsMap, deleteData는 URL 생성, 직렬화, 스트림 처리, 오류 메시지를 모두 개별적으로 구현했음.
-동일한 변경이 필요할 때 여러 메서드를 동시 수정해야 함.
-
-#### **대상** : putData, updateData, deleteData, postData, getData, getDataAsMap, createConnection
-
-#### **적용 기법 :** 공통 로직을 writeData, readData, executeRequest, DatabaseResponse로 템플릿화하여 **캡슐화함.** 이를 통해 CRUD 메서드는 용도에 맞는 파라미터만 넘기고, 내부 구현 세부사항은 템플릿이 감싸게 됨.
-
-```java
-
-private boolean writeData(String path, Object data, HttpMethod method, String operation) { ... }
-private <T> T readData(String path, Type responseType) { ... }
-private DatabaseResponse executeRequest(String path, HttpMethod method, Object payload) throws IOException {
-```
+### 문제 명
+냄새: 냄새는 밑에 기술한 내용중에서 하나를 택해서 선택(없다면 문제 내용을 기술)
+냄새에 대한 자세한 내용.
+대상: 대상 단순 나열.
+적용 기법: 적용 기법을 자세하게 설명.
+개선 전 코드(핵심부분)
+개선 후 코드(핵심부분)
 """
+
+자세한 예시는 docs/sh_refactor.md 파일을 참고하십시오.
+
+위 형식대로 모든 리펙토링에 대한 내용을 구체적으로 작성하십시오.
+
+코드 냄새의 유형은 다음과 같습니다.
+
+"""
+응용 프로그램 수준 코드 냄새:
+*   **모호한 이름 (Mysterious Name):** 함수, 모듈, 변수, 클래스 이름이 그것의 역할이나 사용법을 명확히 설명하지 못하는 경우.
+*   **중복 코드 (Duplicated Code):** 동일하거나 아주 유사한 코드 블록이 여러 곳에 존재하는 경우.
+*   **과도한 복잡성 (Forced Complexity):** 단순한 디자인 패턴으로도 충분한 곳에 불필요하게 복잡한 패턴을 사용하는 경우.
+*   **산탄총 수술 (Shotgun Surgery):** 하나의 작은 변경이 여러 클래스에 걸쳐 동시다발적인 수정을 필요로 하는 경우.
+*   **예측 불가능한 부작용 (Uncontrolled Side Effects):** 코드 실행 시 예상치 못한 예외나 오류를 발생시키며, 단위 테스트만으로는 문제의 원인을 파악하기 어려운 경우.
+*   **변수 재활용 (Variable Reassignment/Changing Role):** 한 변수가 예측 불가능하게 여러 용도로 사용되어 코드 추론을 어렵게 만들고 리팩토링 난이도를 높이는 경우.
+*   **헷갈리는 불리언 값 (Confusing Boolean Logic):** `true`/`false`처럼 명확해 보이지만, 실제로는 그 의미를 다시 확인해야 하거나 반대 상황을 명확히 알기 어려운 불리언 표현.
+
+클래스 수준 코드 냄새:
+*   **거대한 클래스 (Large Class):** 너무 많은 책임과 기능을 가지고 있어 크기가 매우 커진 클래스.
+*   **기능에 대한 욕심 (Feature Envy):** 어떤 메서드가 자신이 속한 클래스의 데이터보다 다른 클래스의 데이터에 더 많이 접근하고 조작하는 경우.
+*   **부적절한 관계 (Inappropriate Intimacy):** 두 클래스가 서로의 private 구현 세부 사항에 지나치게 의존하는 경우.
+*   **거부된 유산 (Refused Bequest):** 자식 클래스가 부모 클래스의 메서드나 속성을 상속받고도 대부분 사용하지 않거나 재정의하여 무시하는 경우.
+*   **게으른 클래스 (Lazy Class):** 클래스가 하는 일이 거의 없어 존재 가치가 적거나 다른 클래스에 쉽게 통합될 수 있는 경우.
+*   **리터럴의 과도한 사용 (Excessive Use of Literals):** 코드 내에 마법의 숫자나 문자열 리터럴이 너무 많이 사용되어 가독성과 유지보수성을 저해하는 경우.
+*   **순환 복잡도 (Cyclomatic Complexity):** 코드의 로직 흐름이 너무 복잡하여 이해하고 테스트하기 어려운 경우 (주로 메서드 내 분기문의 개수로 측정).
+*   **다운캐스팅 (Downcasting):** 상위 타입의 객체를 하위 타입으로 강제 변환하여 사용하는 경우로, 런타임 오류의 가능성을 높이고 유연성을 떨어뜨림.
+*   **고아 변수 또는 상수 클래스 (Orphaned Variables or Constant Class):** 클래스 내에서만 사용되는 것이 아니라 여러 곳에서 공유되어야 할 변수나 상수가 특정 클래스에 묶여 있거나, 단순히 상수만 모아둔 클래스.
+*   **데이터 뭉치 (Data Clumps):** 항상 함께 다니는 데이터 항목들이 독립적인 클래스로 묶여 있지 않고 여러 메서드 호출에서 매번 인자로 전달되는 경우.
+
+메서드 수준 코드 냄새:
+*   **과도한 매개변수 (Too Many Parameters):** 메서드가 너무 많은 매개변수를 받아 복잡하고 이해하기 어려운 경우.
+*   **긴 메서드 (Long Method):** 한 메서드가 너무 많은 코드를 포함하여 여러 책임을 지거나, 로직이 길어져 파악하기 어려운 경우.
+*   **과도하게 긴 식별자 (Excessively Long Identifiers):** 변수나 메서드 이름이 불필요하게 길어 가독성을 해치는 경우.
+*   **과도하게 짧은 식별자 (Excessively Short Identifiers):** 변수나 메서드 이름이 너무 짧아 의미를 파악하기 어려운 경우.
+*   **과도한 데이터 반환 (Excessive Data Return):** 메서드가 필요 이상으로 많은 데이터를 반환하여 클라이언트 코드를 복잡하게 만들거나 캡슐화를 깨뜨리는 경우.
+*   **과도한 주석 (Excessive Comments):** 코드가 명확하지 않아 설명이 너무 많거나, 코드 변경 시 주석이 업데이트되지 않아 거짓 정보를 제공하는 경우.
+*   **과도하게 긴 라인 (Excessively Long Lines):** 코드 라인이 너무 길어 한눈에 보기 어렵고 가독성을 저해하는 경우.
+"""
+
+여러 리펙토링 내용(여러 냄새 수정)이 하나로 작성되어있다면 분리하십시오.

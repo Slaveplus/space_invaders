@@ -1,5 +1,7 @@
 package org.newdawn.spaceinvaders.gameplay;
 
+import org.newdawn.spaceinvaders.common.sprite.SpriteConstants;
+
 import java.awt.Canvas;
 import java.awt.Graphics2D;
 // 여기서는 직접적인 AWT 리스너를 사용하지 않음; InputManager를 통해 처리
@@ -61,9 +63,9 @@ public class Game extends Canvas implements Screen, GameplayContext, GameContext
 	private ResolutionManager resolutionManager;
 	// lastFire과 firingInterval은 이제 GameStateManager에서 관리됨
 	/** 현재 장착된 우주선 스킨 경로 */
-	private String currentSpaceshipSkin = "sprites/ship.gif";
+	private String currentSpaceshipSkin = SpriteConstants.SHIP_GIF;
 	/** 현재 장착된 무기 스킨 경로 */
-	private String currentWeaponSkin = "sprites/shot.gif";
+	private String currentWeaponSkin = SpriteConstants.SHOT_GIF;
 
 	/** 현재까지 기록된 프레임 수 */
 	// FPS 표시 기능은 상위에서 처리 가능, 내부적으로는 카운트만 유지하지 않음
@@ -192,7 +194,7 @@ public class Game extends Canvas implements Screen, GameplayContext, GameContext
 		}
 		
 		// ship 생성 후 다시 한번 스킨 적용 (확실하게 하기 위해)
-		if (ship != null && currentSpaceshipSkin != null && !currentSpaceshipSkin.equals("sprites/ship.gif")) {
+		if (ship != null && currentSpaceshipSkin != null && !currentSpaceshipSkin.equals(SpriteConstants.SHIP_GIF)) {
 			ship.changeSkin(currentSpaceshipSkin);
 			logger.debug("startGame에서 최종 스킨 적용: " + currentSpaceshipSkin);
 		}
@@ -384,7 +386,7 @@ public class Game extends Canvas implements Screen, GameplayContext, GameContext
 	 * @param y The y location of the shot
 	 */
 	public void addAlienShot(int x, int y) {
-		ShotEntity shot = entityFactory.createShot("sprites/shot.gif", x, y, true);
+		ShotEntity shot = entityFactory.createShot(SpriteConstants.SHOT_GIF, x, y, true);
 		gameStateManager.getEntities().add(shot);
 	}
 	
@@ -401,7 +403,7 @@ public class Game extends Canvas implements Screen, GameplayContext, GameContext
 		int aimOffset = (int)((playerX - alienX) * 0.15); // 15% of distance towards player
 		aimOffset = Math.max(-15, Math.min(15, aimOffset)); // Clamp to player-sized range
 		
-		ShotEntity shot = entityFactory.createShot("sprites/shot.gif", x + aimOffset, y, true);
+		ShotEntity shot = entityFactory.createShot(SpriteConstants.SHOT_GIF, x + aimOffset, y, true);
 		gameStateManager.getEntities().add(shot);
 	}
 	
@@ -422,16 +424,16 @@ public class Game extends Canvas implements Screen, GameplayContext, GameContext
 		String spritePath;
 		switch (skillType) {
 			case 0: // Invincible (무적)
-				spritePath = "sprites/Skill/1.png";
+				spritePath = SpriteConstants.SKILL_1_PNG;
 				break;
 			case 2: // Triple Shot (3연발)
-				spritePath = "sprites/Skill/3.png";
+				spritePath = SpriteConstants.SKILL_3_PNG;
 				break;
 			case 3: // Missile (미사일)
-				spritePath = "sprites/Skill/4.png";
+				spritePath = SpriteConstants.SKILL_4_PNG;
 				break;
 			default:
-				spritePath = "sprites/shot.gif";
+				spritePath = SpriteConstants.SHOT_GIF;
 				break;
 		}
 		
@@ -1057,7 +1059,7 @@ public class Game extends Canvas implements Screen, GameplayContext, GameContext
 	 */
 	public void addBossShot(int x, int y) {
 		try {
-			ShotEntity shot = entityFactory.createShot("sprites/shot.gif", x, y, true); // true = alien shot
+			ShotEntity shot = entityFactory.createShot(SpriteConstants.SHOT_GIF, x, y, true); // true = alien shot
 			gameStateManager.getEntities().add(shot);
 		} catch (Exception e) {
 			logger.error("Error adding boss shot: " + e.getMessage(), e);
@@ -1148,15 +1150,15 @@ public class Game extends Canvas implements Screen, GameplayContext, GameContext
 		
 		// 라운드별 배경 파일 매핑 (수정된 버전)
 		if (round == 1 || round == 2) {
-			backgroundFileName = "1.png";
+			backgroundFileName = SpriteConstants.STAGE_BACKGROUND_1_PNG.substring("sprites/stage_background/".length());
 		} else if (round == 3 || round == 4) {
-			backgroundFileName = "2.png";
+			backgroundFileName = SpriteConstants.STAGE_BACKGROUND_2_PNG.substring("sprites/stage_background/".length());
 		} else if (round == 5 || round == 6) {
-			backgroundFileName = "3.png";
+			backgroundFileName = SpriteConstants.STAGE_BACKGROUND_3_PNG.substring("sprites/stage_background/".length());
 		} else if (round == 7 || round == 8) {
-			backgroundFileName = "4.png";  // 5.png에서 4.png로 변경
+			backgroundFileName = SpriteConstants.STAGE_BACKGROUND_4_PNG.substring("sprites/stage_background/".length());  // 5.png에서 4.png로 변경
 		} else {
-			backgroundFileName = "1.png"; // 기본값
+			backgroundFileName = SpriteConstants.STAGE_BACKGROUND_1_PNG.substring("sprites/stage_background/".length()); // 기본값
 		}
 		
 		String backgroundPath = "sprites/stage_background/" + backgroundFileName;

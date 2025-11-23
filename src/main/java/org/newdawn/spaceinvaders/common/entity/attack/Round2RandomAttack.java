@@ -1,5 +1,6 @@
 package org.newdawn.spaceinvaders.common.entity.attack;
 
+import org.newdawn.spaceinvaders.common.sprite.SpriteConstants;
 import java.awt.Graphics;
 import java.awt.Image;
 import org.newdawn.spaceinvaders.common.GameContext;
@@ -16,13 +17,13 @@ public class Round2RandomAttack extends BaseAttackEntity {
     private final Image attackImage;
 
     public Round2RandomAttack(GameContext game, int x, int y) {
-        super(game, "sprites/Boss_Attack/2round2.gif", x, y);
+        super(game, SpriteConstants.BOSS_ATTACK_2ROUND2_GIF, x, y);
         this.x = x;
         this.y = 150;
         this.startTime = System.currentTimeMillis();
         this.dx = 0;
         this.dy = 0;
-        attackImage = loadImageFromToolkit("sprites/Boss_Attack/2round2.gif");
+        attackImage = loadImageFromToolkit(SpriteConstants.BOSS_ATTACK_2ROUND2_GIF);
     }
 
     @Override

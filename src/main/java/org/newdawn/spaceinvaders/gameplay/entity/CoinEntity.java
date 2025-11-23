@@ -1,5 +1,6 @@
 package org.newdawn.spaceinvaders.gameplay.entity;
 
+import org.newdawn.spaceinvaders.common.sprite.SpriteConstants;
 import org.newdawn.spaceinvaders.common.entity.Entity;
 import org.newdawn.spaceinvaders.common.util.Logger;
 import org.newdawn.spaceinvaders.common.util.LoggerFactory;
@@ -37,7 +38,7 @@ public class CoinEntity extends Entity {
      * @param coinValue 코인 가치
      */
     public CoinEntity(Game game, int x, int y, int coinValue) {
-        super("sprites/star coin normal.png", x, y);
+        super(SpriteConstants.STAR_COIN_NORMAL_PNG, x, y);
         this.game = game;
         this.coinValue = coinValue;
         
@@ -56,12 +57,12 @@ public class CoinEntity extends Entity {
      */
     private void loadCoinImage() {
         try {
-            InputStream is = getClass().getClassLoader().getResourceAsStream("sprites/star coin normal.png");
+            InputStream is = getClass().getClassLoader().getResourceAsStream(SpriteConstants.STAR_COIN_NORMAL_PNG);
             if (is != null) {
                 coinImage = ImageIO.read(is);
                 is.close();
             } else {
-                logger.error("Failed to load coin image: sprites/star coin normal.png");
+                logger.error("Failed to load coin image: " + SpriteConstants.STAR_COIN_NORMAL_PNG);
             }
         } catch (Exception e) {
             logger.error("Error loading coin image: " + e.getMessage(), e);

@@ -1,5 +1,6 @@
 package org.newdawn.spaceinvaders.common.entity;
 
+import org.newdawn.spaceinvaders.common.sprite.SpriteConstants;
 import java.awt.BasicStroke;
 import java.awt.Color;
 import java.awt.Font;
@@ -145,7 +146,7 @@ public class ShotEntity extends Entity {
 
     private void drawNearMonsterShot(Graphics g) {
         Graphics2D g2d = (Graphics2D) g;
-        if ("sprites/Skill/Heat.gif".equals(spritePath)) {
+        if (SpriteConstants.HEAT_GIF.equals(spritePath)) {
             int sphereSize = 20;
             g2d.setColor(Color.GREEN);
             g2d.fillOval((int) x - sphereSize / 2, (int) y - sphereSize / 2, sphereSize, sphereSize);
@@ -155,7 +156,7 @@ public class ShotEntity extends Entity {
             g2d.fillOval((int) x - sphereSize / 4, (int) y - sphereSize / 4, sphereSize / 2, sphereSize / 2);
             return;
         }
-        if ("sprites/shot.gif".equals(spritePath) || (spritePath != null && spritePath.endsWith("/shot.gif"))) {
+        if (SpriteConstants.SHOT_GIF.equals(spritePath) || (spritePath != null && spritePath.endsWith("/shot.gif"))) {
             int sphereSize = 20;
             g2d.setColor(Color.BLACK);
             g2d.fillOval((int) x - sphereSize / 2, (int) y - sphereSize / 2, sphereSize, sphereSize);
@@ -163,11 +164,11 @@ public class ShotEntity extends Entity {
             g2d.drawOval((int) x - sphereSize / 2, (int) y - sphereSize / 2, sphereSize, sphereSize);
             return;
         }
-        if ("sprites/Boss_Attack/2round1.gif".equals(spritePath)) {
+        if (SpriteConstants.ROUND_2_ATTACK_1_GIF.equals(spritePath)) {
             sprite.draw(g, (int) x - 75, (int) y - 75, 150, 150);
             return;
         }
-        if ("sprites/Boss_Attack/ice ball.gif".equals(spritePath)) {
+        if (SpriteConstants.ICE_BALL_GIF.equals(spritePath)) {
             sprite.draw(g, (int) x - 50, (int) y - 50, 100, 100);
             return;
         }
@@ -178,16 +179,16 @@ public class ShotEntity extends Entity {
         String path;
         switch (type) {
             case 0:
-                path = "sprites/Skill/1.png";
+                path = SpriteConstants.SKILL_1_PNG;
                 break;
             case 2:
-                path = "sprites/Skill/3.png";
+                path = SpriteConstants.SKILL_3_PNG;
                 break;
             case 3:
-                path = "sprites/Skill/4.png";
+                path = SpriteConstants.SKILL_4_PNG;
                 break;
             default:
-                path = "sprites/Skill/1.png";
+                path = SpriteConstants.SKILL_1_PNG;
         }
         try {
             return javax.imageio.ImageIO.read(Objects.requireNonNull(

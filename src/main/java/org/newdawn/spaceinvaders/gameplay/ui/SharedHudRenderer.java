@@ -1,5 +1,7 @@
 package org.newdawn.spaceinvaders.gameplay.ui;
 
+import org.newdawn.spaceinvaders.common.sprite.SpriteConstants;
+
 import java.awt.BasicStroke;
 import java.awt.Color;
 import java.awt.Font;
@@ -228,7 +230,7 @@ public final class SharedHudRenderer {
         if (cachedHpImage != null) {
             return cachedHpImage;
         }
-        try (InputStream is = getClass().getClassLoader().getResourceAsStream("sprites/ships/Hp.png")) {
+        try (InputStream is = getClass().getClassLoader().getResourceAsStream(SpriteConstants.SHIPS_HP_PNG)) {
             if (is != null) {
                 cachedHpImage = ImageIO.read(is);
             }
@@ -241,7 +243,7 @@ public final class SharedHudRenderer {
         if (cachedCoinImage != null) {
             return cachedCoinImage;
         }
-        try (InputStream is = getClass().getClassLoader().getResourceAsStream("sprites/star coin normal.png")) {
+        try (InputStream is = getClass().getClassLoader().getResourceAsStream(SpriteConstants.STAR_COIN_NORMAL_PNG)) {
             if (is != null) {
                 cachedCoinImage = ImageIO.read(is);
             }
@@ -254,16 +256,16 @@ public final class SharedHudRenderer {
         String path;
         switch (skillType) {
             case 0:
-                path = "sprites/Skill/1.png";
+                path = SpriteConstants.SKILL_1_PNG;
                 break;
             case 2:
-                path = "sprites/Skill/3.png";
+                path = SpriteConstants.SKILL_3_PNG;
                 break;
             case 3:
-                path = "sprites/Skill/4.png";
+                path = SpriteConstants.SKILL_4_PNG;
                 break;
             default:
-                path = "sprites/Skill/1.png";
+                path = SpriteConstants.SKILL_1_PNG;
                 break;
         }
         try (InputStream is = getClass().getClassLoader().getResourceAsStream(path)) {

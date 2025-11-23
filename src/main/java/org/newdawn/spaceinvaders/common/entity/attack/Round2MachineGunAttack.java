@@ -1,5 +1,6 @@
 package org.newdawn.spaceinvaders.common.entity.attack;
 
+import org.newdawn.spaceinvaders.common.sprite.SpriteConstants;
 import java.awt.Graphics;
 import java.awt.Image;
 import java.awt.MediaTracker;
@@ -16,7 +17,7 @@ public class Round2MachineGunAttack extends BaseAttackEntity {
     private Image attackImage;
 
     public Round2MachineGunAttack(GameContext game, int x, int y) {
-        super(game, "sprites/Boss_Attack/2round1.gif", x, y);
+        super(game, SpriteConstants.ROUND_2_ATTACK_1_GIF, x, y);
         this.x = x;
         this.y = 0;
         this.dx = 0;
@@ -25,7 +26,7 @@ public class Round2MachineGunAttack extends BaseAttackEntity {
     }
 
     private void loadAttackImage() {
-        attackImage = loadImageWithMediaTracker("sprites/Boss_Attack/2round1.gif");
+        attackImage = loadImageWithMediaTracker(SpriteConstants.ROUND_2_ATTACK_1_GIF);
     }
 
     @Override

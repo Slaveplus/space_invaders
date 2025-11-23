@@ -1,5 +1,6 @@
 package org.newdawn.spaceinvaders.common.entity.attack;
 
+import org.newdawn.spaceinvaders.common.sprite.SpriteConstants;
 import java.awt.Graphics;
 import java.awt.Image;
 import org.newdawn.spaceinvaders.common.GameContext;
@@ -17,10 +18,10 @@ public class Round2Phase1Attack extends BaseAttackEntity {
     private final Image projectileImage;
 
     public Round2Phase1Attack(GameContext game, int x, int y) {
-        super(game, "sprites/Boss_Attack/2round3.gif", x, y);
+        super(game, SpriteConstants.BOSS_ATTACK_2ROUND3_GIF, x, y);
         this.dy = 250;
         this.dx = 0;
-        this.projectileImage = loadImage("sprites/Boss_Attack/2round3.gif");
+        this.projectileImage = loadImage(SpriteConstants.BOSS_ATTACK_2ROUND3_GIF);
     }
 
     private Image loadImage(String ref) {

@@ -1,5 +1,6 @@
 package org.newdawn.spaceinvaders.common.entity.attack;
 
+import org.newdawn.spaceinvaders.common.sprite.SpriteConstants;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
 import java.awt.Image;
@@ -21,13 +22,13 @@ public class Round2LaserAttack extends BaseAttackEntity {
     private final long startTime;
 
     public Round2LaserAttack(GameContext game, int x, int y) {
-        super(game, "sprites/Boss_Attack/2round.gif", x, y);
+        super(game, SpriteConstants.BOSS_ATTACK_2ROUND_GIF, x, y);
         this.startTime = System.currentTimeMillis();
         loadLaserImage();
     }
 
     private void loadLaserImage() {
-        laserImage = loadImageFromToolkit("sprites/Boss_Attack/2round.gif");
+        laserImage = loadImageFromToolkit(SpriteConstants.BOSS_ATTACK_2ROUND_GIF);
     }
 
     @Override

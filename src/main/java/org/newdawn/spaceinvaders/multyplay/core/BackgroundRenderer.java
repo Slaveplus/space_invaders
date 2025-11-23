@@ -1,5 +1,6 @@
 package org.newdawn.spaceinvaders.multyplay.core;
 
+import org.newdawn.spaceinvaders.common.sprite.SpriteConstants;
 import javax.imageio.ImageIO;
 import java.awt.*;
 import java.awt.image.BufferedImage;
@@ -13,7 +14,7 @@ public class BackgroundRenderer {
     private static final int HEIGHT = 600;
 
     private volatile Image cachedBackground; // 가속화된 이미지
-    private String resourcePath = "sprites/backgrounds/Background-2.jpg";
+    private String resourcePath = SpriteConstants.BACKGROUND_2_JPG;
 
     public BackgroundRenderer() { }
 

@@ -1,5 +1,6 @@
 package org.newdawn.spaceinvaders.common.entity.ui;
 
+import org.newdawn.spaceinvaders.common.sprite.SpriteConstants;
 import java.awt.AlphaComposite;
 import java.awt.BasicStroke;
 import java.awt.Color;
@@ -31,7 +32,7 @@ public class CoinDisplayEntity extends Entity {
     private final BufferedImage coinImage;
 
     public CoinDisplayEntity(GameContext game, int x, int y, int coinAmount) {
-        super("sprites/star coin normal.png", x, y);
+        super(SpriteConstants.STAR_COIN_NORMAL_PNG, x, y);
         this.game = game;
         this.coinAmount = coinAmount;
         this.creationTime = System.currentTimeMillis();
@@ -41,7 +42,7 @@ public class CoinDisplayEntity extends Entity {
     }
 
     private BufferedImage loadCoinImage() {
-        try (InputStream is = getClass().getClassLoader().getResourceAsStream("sprites/star coin normal.png")) {
+        try (InputStream is = getClass().getClassLoader().getResourceAsStream(SpriteConstants.STAR_COIN_NORMAL_PNG)) {
             return is != null ? ImageIO.read(is) : null;
         } catch (IOException e) {
             org.newdawn.spaceinvaders.common.util.Logger logger = 

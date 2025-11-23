@@ -1,5 +1,6 @@
 package org.newdawn.spaceinvaders.common.entity.effect;
 
+import org.newdawn.spaceinvaders.common.sprite.SpriteConstants;
 import java.awt.Color;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
@@ -88,7 +89,7 @@ public class ExplosionEntity extends Entity {
     }
 
     private void loadExplosionImage() {
-        try (InputStream is = getClass().getClassLoader().getResourceAsStream("sprites/Explosion/explosion.png")) {
+        try (InputStream is = getClass().getClassLoader().getResourceAsStream(SpriteConstants.EXPLOSION_PNG)) {
             if (is != null) {
                 explosionImage = ImageIO.read(is);
             }

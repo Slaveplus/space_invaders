@@ -1,5 +1,6 @@
 package org.newdawn.spaceinvaders.common.entity.skill;
 
+import org.newdawn.spaceinvaders.common.sprite.SpriteConstants;
 import java.awt.Color;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
@@ -81,13 +82,13 @@ public abstract class BaseSkillEntity extends Entity {
     protected String iconForSkill(int skillType) {
         switch (skillType) {
             case 0:
-                return "sprites/Skill/Icon.1_45.png";
+                return SpriteConstants.SKILL_ICON_1_45_PNG;
             case 2:
-                return "sprites/Skill/Icon.7_11.png";
+                return SpriteConstants.SKILL_ICON_7_11_PNG;
             case 3:
-                return "sprites/Skill/Missile.png";
+                return SpriteConstants.SKILL_MISSILE_PNG;
             default:
-                return "sprites/Skill/Icon.1_45.png";
+                return SpriteConstants.SKILL_ICON_1_45_PNG;
         }
     }
 

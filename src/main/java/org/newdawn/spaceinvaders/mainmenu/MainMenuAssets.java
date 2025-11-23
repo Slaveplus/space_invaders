@@ -1,5 +1,7 @@
 package org.newdawn.spaceinvaders.mainmenu;
 
+import org.newdawn.spaceinvaders.common.sprite.SpriteConstants;
+
 import java.awt.Color;
 import java.awt.Font;
 import java.awt.Graphics2D;
@@ -14,7 +16,7 @@ import javax.imageio.ImageIO;
  */
 public final class MainMenuAssets {
     private static final String FONT_RESOURCE = "fonts/Kostar.ttf";
-    private static final String BACKGROUND_RESOURCE = "sprites/backgrounds/Background-0.jpg";
+    private static final String BACKGROUND_RESOURCE = SpriteConstants.BACKGROUND_0_JPG;
     private static final Font SHARED_BASE_FONT = loadBaseFont();
 
     private final BufferedImage backgroundImage;

@@ -1,5 +1,6 @@
 package org.newdawn.spaceinvaders.common.entity.attack;
 
+import org.newdawn.spaceinvaders.common.sprite.SpriteConstants;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
 import java.awt.Image;
@@ -20,13 +21,13 @@ public class IceAttack extends BaseAttackEntity {
     private Image iceImage;
 
     public IceAttack(GameContext game, int x, int y) {
-        super(game, "sprites/Boss_Attack/ice.gif", x, y);
+        super(game, SpriteConstants.BOSS_ATTACK_ICE_GIF, x, y);
         this.dy = moveSpeed;
         loadIceImage();
     }
 
     private void loadIceImage() {
-        iceImage = loadImageFromToolkit("sprites/Boss_Attack/ice.gif");
+        iceImage = loadImageFromToolkit(SpriteConstants.BOSS_ATTACK_ICE_GIF);
     }
 
     @Override

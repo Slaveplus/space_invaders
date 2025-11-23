@@ -1,5 +1,6 @@
 package org.newdawn.spaceinvaders.common.entity.attack;
 
+import org.newdawn.spaceinvaders.common.sprite.SpriteConstants;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
 import java.awt.Image;
@@ -20,7 +21,7 @@ public class Round4GreenSphereAttack extends BaseAttackEntity {
     private Image sphereImage;
 
     public Round4GreenSphereAttack(GameContext game, int x, int y, double dirX, double dirY) {
-        super(game, "sprites/Boss_Attack/5round1.gif", x, y);
+        super(game, SpriteConstants.BOSS_ATTACK_5ROUND1_GIF, x, y);
         this.startTime = System.currentTimeMillis();
         this.dx = dirX * 200;
         this.dy = dirY * 200;
@@ -28,7 +29,7 @@ public class Round4GreenSphereAttack extends BaseAttackEntity {
     }
 
     private void loadSphereImage() {
-        sphereImage = loadImageFromToolkit("sprites/Boss_Attack/5round1.gif");
+        sphereImage = loadImageFromToolkit(SpriteConstants.BOSS_ATTACK_5ROUND1_GIF);
     }
 
     @Override

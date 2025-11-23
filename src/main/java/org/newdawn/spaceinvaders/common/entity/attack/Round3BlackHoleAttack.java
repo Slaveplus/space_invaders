@@ -1,5 +1,6 @@
 package org.newdawn.spaceinvaders.common.entity.attack;
 
+import org.newdawn.spaceinvaders.common.sprite.SpriteConstants;
 import java.awt.Color;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
@@ -23,7 +24,7 @@ public class Round3BlackHoleAttack extends BaseAttackEntity {
     private Image attackImage;
 
     public Round3BlackHoleAttack(GameContext game, int startX, int startY) {
-        super(game, "sprites/Boss_Attack/3round.gif", startX, startY);
+        super(game, SpriteConstants.BOSS_ATTACK_3ROUND_GIF, startX, startY);
         this.startTime = System.currentTimeMillis();
         this.targetX = startX;
         this.targetY = startY;
@@ -40,7 +41,7 @@ public class Round3BlackHoleAttack extends BaseAttackEntity {
     }
 
     private void loadAttackImage() {
-        attackImage = loadImageWithMediaTracker("sprites/Boss_Attack/3round.gif");
+        attackImage = loadImageWithMediaTracker(SpriteConstants.BOSS_ATTACK_3ROUND_GIF);
     }
 
     @Override

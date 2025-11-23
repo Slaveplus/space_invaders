@@ -1,5 +1,6 @@
 package org.newdawn.spaceinvaders.gameplay.entity;
 
+import org.newdawn.spaceinvaders.common.sprite.SpriteConstants;
 import java.util.List;
 import org.newdawn.spaceinvaders.common.entity.Entity;
 import org.newdawn.spaceinvaders.common.entity.effect.ExplosionEntity;
@@ -19,7 +20,7 @@ public class GameplayMissileEnvironment implements MissileEnvironment {
 
     @Override
     public Entity createExplosion(double targetX, double targetY) {
-        return new ExplosionEntity(game, "sprites/Skill/Explosion.png",
+        return new ExplosionEntity(game, SpriteConstants.EXPLOSION_PNG,
                 (int) targetX - 25, (int) targetY - 25, 100.0);
     }
 

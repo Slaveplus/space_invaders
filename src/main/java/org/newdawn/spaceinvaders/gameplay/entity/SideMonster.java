@@ -1,5 +1,6 @@
 package org.newdawn.spaceinvaders.gameplay.entity;
 
+import org.newdawn.spaceinvaders.common.sprite.SpriteConstants;
 import org.newdawn.spaceinvaders.common.entity.Entity;
 import org.newdawn.spaceinvaders.common.entity.attack.IceAttack;
 import org.newdawn.spaceinvaders.common.entity.effect.ExplosionEntity;
@@ -60,17 +61,17 @@ public class SideMonster extends Entity {
 	private static String getSideMonsterSpriteForRound(int round) {
 		switch (round) {
 			case 1:
-				return "sprites/Boss/1near.png";
+				return SpriteConstants.BOSS_1_NEAR_PNG;
 			case 2:
-				return "sprites/Boss/2near.png";
+				return SpriteConstants.BOSS_2_NEAR_PNG;
 			case 3:
-				return "sprites/Boss/3near.png";
+				return SpriteConstants.BOSS_3_NEAR_PNG;
 			case 4:
-				return "sprites/Boss/4near.png";
+				return SpriteConstants.BOSS_4_NEAR_PNG;
 			case 5:
-				return "sprites/Boss/5near.png";
+				return SpriteConstants.BOSS_5_NEAR_PNG;
 			default:
-				return "sprites/Boss/1near.png";
+				return SpriteConstants.BOSS_1_NEAR_PNG;
 		}
 	}
 	
@@ -196,7 +197,7 @@ public class SideMonster extends Entity {
 		if (currentHP <= 0) {
 			logger.debug("SideMonster destroyed!");
 			// Create explosion
-			ExplosionEntity explosion = new ExplosionEntity(game, "sprites/Skill/Explosion.png", (int)x, (int)y, 1000);
+			ExplosionEntity explosion = new ExplosionEntity(game, SpriteConstants.EXPLOSION_PNG, (int)x, (int)y, 1000);
 			game.addEntity(explosion);
 			
 			// Remove this entity - 위치 정보 저장 (제거 전에)

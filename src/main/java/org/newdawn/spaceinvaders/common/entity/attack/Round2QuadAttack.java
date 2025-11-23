@@ -1,5 +1,6 @@
 package org.newdawn.spaceinvaders.common.entity.attack;
 
+import org.newdawn.spaceinvaders.common.sprite.SpriteConstants;
 import java.awt.Graphics;
 import java.awt.Image;
 import java.awt.MediaTracker;
@@ -18,7 +19,7 @@ public class Round2QuadAttack extends BaseAttackEntity {
     private Image attackImage;
 
     public Round2QuadAttack(GameContext game, int x, int y, int direction) {
-        super(game, "sprites/Boss_Attack/2round1.gif", x, y);
+        super(game, SpriteConstants.ROUND_2_ATTACK_1_GIF, x, y);
         this.direction = direction;
         this.startTime = System.currentTimeMillis();
         double moveSpeed = 150;
@@ -45,7 +46,7 @@ public class Round2QuadAttack extends BaseAttackEntity {
     }
 
     private void loadAttackImage() {
-        attackImage = loadImageWithMediaTracker("sprites/Boss_Attack/2round1.gif");
+        attackImage = loadImageWithMediaTracker(SpriteConstants.ROUND_2_ATTACK_1_GIF);
     }
 
     @Override

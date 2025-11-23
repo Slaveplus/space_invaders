@@ -173,7 +173,7 @@ public class MultiplayerGameCanvas extends Canvas implements Screen, Multiplayer
 		uiRenderer = new MultiplayerUIRenderer(this);
 
 		// background & overlays
-		backgroundRenderer = new BackgroundRenderer("sprites/backgrounds/Background-2.jpg");
+		backgroundRenderer = new BackgroundRenderer(SpriteConstants.BACKGROUND_2_JPG);
 		
 		// initialize the input manager
 		inputManager = new MultiplayerInputManager(gameStateManager, this);
@@ -758,7 +758,7 @@ public class MultiplayerGameCanvas extends Canvas implements Screen, Multiplayer
 			}
 			MissileEntity missile = new MissileEntity(
 					new MultiplayerMissileEnvironment(this),
-					"sprites/Skill/Missile.png",
+					SpriteConstants.SKILL_MISSILE_PNG,
 					(int) source.getX() + 15,
 					(int) source.getY(),
 					targetX,
@@ -1114,7 +1114,7 @@ public class MultiplayerGameCanvas extends Canvas implements Screen, Multiplayer
 	private Entity createAlienEntityFromSnapshot(EntitySnapshot snapshot) {
 		String spritePath = snapshot.sprite != null && !snapshot.sprite.isEmpty()
 				? snapshot.sprite
-				: "sprites/Boss/1near.png";
+				: SpriteConstants.BOSS_1_NEAR_PNG;
 		return new RemoteAlienEntity(spritePath, snapshot.x, snapshot.y);
 	}
 
@@ -1125,7 +1125,7 @@ public class MultiplayerGameCanvas extends Canvas implements Screen, Multiplayer
 			if ("ShipEntity".equals(type)) {
 				spritePath = currentSpaceshipSkin;
 			} else if ("AlienEntity".equals(type)) {
-				spritePath = "sprites/Boss/1near.png";
+				spritePath = SpriteConstants.BOSS_1_NEAR_PNG;
 			} else {
 				spritePath = currentWeaponSkin;
 			}
@@ -1224,7 +1224,7 @@ public class MultiplayerGameCanvas extends Canvas implements Screen, Multiplayer
 		private int phase = 1;
 
 		RemoteBossEntity(EntitySnapshot snapshot, Map<String, String> meta) {
-			super(snapshot.sprite != null && !snapshot.sprite.isEmpty() ? snapshot.sprite : "sprites/Boss/1Boss.png",
+			super(snapshot.sprite != null && !snapshot.sprite.isEmpty() ? snapshot.sprite : SpriteConstants.BOSS_1_BOSS_PNG,
 				(int) Math.round(snapshot.x), (int) Math.round(snapshot.y));
 			this.x = snapshot.x;
 			this.y = snapshot.y;
@@ -1803,11 +1803,11 @@ public class MultiplayerGameCanvas extends Canvas implements Screen, Multiplayer
 			}
 			String imagePath;
 			switch (type) {
-				case 0: imagePath = "sprites/Skill/1.png"; break;
-				case 1: imagePath = "sprites/Skill/2.png"; break;
-				case 2: imagePath = "sprites/Skill/3.png"; break;
-				case 3: imagePath = "sprites/Skill/4.png"; break;
-				default: imagePath = "sprites/Skill/1.png"; break;
+				case 0: imagePath = SpriteConstants.SKILL_1_PNG; break;
+				case 1: imagePath = SpriteConstants.SKILL_2_PNG; break;
+				case 2: imagePath = SpriteConstants.SKILL_3_PNG; break;
+				case 3: imagePath = SpriteConstants.SKILL_4_PNG; break;
+				default: imagePath = SpriteConstants.SKILL_1_PNG; break;
 			}
 			try (java.io.InputStream is = MultiplayerGameCanvas.class.getClassLoader().getResourceAsStream(imagePath)) {
 				if (is != null) {
@@ -1926,10 +1926,10 @@ public class MultiplayerGameCanvas extends Canvas implements Screen, Multiplayer
 		private final int height;
 
 		RemoteIceAttack(EntitySnapshot snapshot) {
-			super("sprites/Boss_Attack/ice.gif", (int) Math.round(snapshot.x), (int) Math.round(snapshot.y));
+			super(SpriteConstants.BOSS_ATTACK_ICE_GIF, (int) Math.round(snapshot.x), (int) Math.round(snapshot.y));
 			this.x = snapshot.x;
 			this.y = snapshot.y;
-			this.animated = loadAnimatedImage("sprites/Boss_Attack/ice.gif");
+			this.animated = loadAnimatedImage(SpriteConstants.BOSS_ATTACK_ICE_GIF);
 			this.width = snapshot.w > 0 ? snapshot.w : 48;
 			this.height = snapshot.h > 0 ? snapshot.h : 48;
 		}
@@ -2086,10 +2086,10 @@ public class MultiplayerGameCanvas extends Canvas implements Screen, Multiplayer
 		private final int height;
 
 		RemoteRound2Laser(EntitySnapshot snapshot) {
-			super("sprites/Boss_Attack/2round.gif", (int) Math.round(snapshot.x), (int) Math.round(snapshot.y));
+			super(SpriteConstants.BOSS_ATTACK_2ROUND_GIF, (int) Math.round(snapshot.x), (int) Math.round(snapshot.y));
 			this.x = snapshot.x;
 			this.y = snapshot.y;
-			this.animated = loadAnimatedImage("sprites/Boss_Attack/2round.gif");
+			this.animated = loadAnimatedImage(SpriteConstants.BOSS_ATTACK_2ROUND_GIF);
 			this.width = snapshot.w > 0 ? snapshot.w : 700;
 			this.height = snapshot.h > 0 ? snapshot.h : 300;
 		}
@@ -2133,10 +2133,10 @@ public class MultiplayerGameCanvas extends Canvas implements Screen, Multiplayer
 		private final int size;
 
 		RemoteRound2Phase1(EntitySnapshot snapshot) {
-			super("sprites/Boss_Attack/2round3.gif", (int) Math.round(snapshot.x), (int) Math.round(snapshot.y));
+			super(SpriteConstants.BOSS_ATTACK_2ROUND3_GIF, (int) Math.round(snapshot.x), (int) Math.round(snapshot.y));
 			this.x = snapshot.x;
 			this.y = snapshot.y;
-			this.animated = loadAnimatedImage("sprites/Boss_Attack/2round3.gif");
+			this.animated = loadAnimatedImage(SpriteConstants.BOSS_ATTACK_2ROUND3_GIF);
 			this.size = snapshot.w > 0 ? snapshot.w : 80;
 		}
 
@@ -2214,10 +2214,10 @@ public class MultiplayerGameCanvas extends Canvas implements Screen, Multiplayer
 		private final int height;
 
 		RemoteRound2Random(EntitySnapshot snapshot) {
-			super("sprites/Boss_Attack/2round2.gif", (int) Math.round(snapshot.x), 150);
+			super(SpriteConstants.BOSS_ATTACK_2ROUND2_GIF, (int) Math.round(snapshot.x), 150);
 			this.x = snapshot.x;
 			this.y = 150;
-			this.animated = loadAnimatedImage("sprites/Boss_Attack/2round2.gif");
+			this.animated = loadAnimatedImage(SpriteConstants.BOSS_ATTACK_2ROUND2_GIF);
 			this.width = snapshot.w > 0 ? snapshot.w : 300;
 			this.height = snapshot.h > 0 ? snapshot.h : 400;
 		}
@@ -2333,10 +2333,10 @@ public class MultiplayerGameCanvas extends Canvas implements Screen, Multiplayer
 		private final int height;
 
 		RemoteRound3Straight(EntitySnapshot snapshot) {
-			super("sprites/Boss_Attack/3round4.gif", (int) Math.round(snapshot.x), (int) Math.round(snapshot.y));
+			super(SpriteConstants.BOSS_ATTACK_3ROUND4_GIF, (int) Math.round(snapshot.x), (int) Math.round(snapshot.y));
 			this.x = snapshot.x;
 			this.y = snapshot.y;
-			this.animated = loadAnimatedImage("sprites/Boss_Attack/3round4.gif");
+			this.animated = loadAnimatedImage(SpriteConstants.BOSS_ATTACK_3ROUND4_GIF);
 			this.width = snapshot.w > 0 ? snapshot.w : 600;
 			this.height = snapshot.h > 0 ? snapshot.h : 300;
 		}
@@ -2375,10 +2375,10 @@ public class MultiplayerGameCanvas extends Canvas implements Screen, Multiplayer
 		private final int height;
 
 		RemoteRound3Random(EntitySnapshot snapshot) {
-			super("sprites/Boss_Attack/3round2.gif", (int) Math.round(snapshot.x), (int) Math.round(snapshot.y));
+			super(SpriteConstants.BOSS_ATTACK_3ROUND2_GIF, (int) Math.round(snapshot.x), (int) Math.round(snapshot.y));
 			this.x = snapshot.x;
 			this.y = snapshot.y;
-			this.animated = loadAnimatedImage("sprites/Boss_Attack/3round2.gif");
+			this.animated = loadAnimatedImage(SpriteConstants.BOSS_ATTACK_3ROUND2_GIF);
 			this.width = snapshot.w > 0 ? snapshot.w : 400;
 			this.height = snapshot.h > 0 ? snapshot.h : 1400;
 		}
@@ -2417,10 +2417,10 @@ public class MultiplayerGameCanvas extends Canvas implements Screen, Multiplayer
 		private final int height;
 
 		RemoteRound3Pull(EntitySnapshot snapshot) {
-			super("sprites/Boss_Attack/3round3.gif", (int) Math.round(snapshot.x), (int) Math.round(snapshot.y));
+			super(SpriteConstants.BOSS_ATTACK_3ROUND3_GIF, (int) Math.round(snapshot.x), (int) Math.round(snapshot.y));
 			this.x = snapshot.x;
 			this.y = snapshot.y;
-			this.animated = loadAnimatedImage("sprites/Boss_Attack/3round3.gif");
+			this.animated = loadAnimatedImage(SpriteConstants.BOSS_ATTACK_3ROUND3_GIF);
 			this.width = snapshot.w > 0 ? snapshot.w : 300;
 			this.height = snapshot.h > 0 ? snapshot.h : 400;
 		}
@@ -2458,10 +2458,10 @@ public class MultiplayerGameCanvas extends Canvas implements Screen, Multiplayer
 		private final Image animated;
 
 		RemoteRound3BlackHole(EntitySnapshot snapshot) {
-			super("sprites/Boss_Attack/3round.gif", (int) Math.round(snapshot.x), (int) Math.round(snapshot.y));
+			super(SpriteConstants.BOSS_ATTACK_3ROUND_GIF, (int) Math.round(snapshot.x), (int) Math.round(snapshot.y));
 			this.x = snapshot.x;
 			this.y = snapshot.y;
-			this.animated = loadAnimatedImage("sprites/Boss_Attack/3round.gif");
+			this.animated = loadAnimatedImage(SpriteConstants.BOSS_ATTACK_3ROUND_GIF);
 		}
 
 		@Override
@@ -2497,10 +2497,10 @@ public class MultiplayerGameCanvas extends Canvas implements Screen, Multiplayer
 		private final Image animated;
 
 		RemoteRound4Heal(EntitySnapshot snapshot) {
-			super("sprites/Boss_Attack/4round.gif", (int) Math.round(snapshot.x), (int) Math.round(snapshot.y));
+			super(SpriteConstants.BOSS_ATTACK_4ROUND_GIF, (int) Math.round(snapshot.x), (int) Math.round(snapshot.y));
 			this.x = snapshot.x;
 			this.y = snapshot.y;
-			this.animated = loadAnimatedImage("sprites/Boss_Attack/4round.gif");
+			this.animated = loadAnimatedImage(SpriteConstants.BOSS_ATTACK_4ROUND_GIF);
 		}
 
 		@Override
@@ -2537,10 +2537,10 @@ public class MultiplayerGameCanvas extends Canvas implements Screen, Multiplayer
 		private final int height;
 
 		RemoteRound4GreenSphere(EntitySnapshot snapshot) {
-			super("sprites/Boss_Attack/5round1.gif", (int) Math.round(snapshot.x), (int) Math.round(snapshot.y));
+			super(SpriteConstants.BOSS_ATTACK_5ROUND1_GIF, (int) Math.round(snapshot.x), (int) Math.round(snapshot.y));
 			this.x = snapshot.x;
 			this.y = snapshot.y;
-			this.animated = loadAnimatedImage("sprites/Boss_Attack/5round1.gif");
+			this.animated = loadAnimatedImage(SpriteConstants.BOSS_ATTACK_5ROUND1_GIF);
 			int fallback = 24;
 			this.width = snapshot.w > 0 ? snapshot.w : fallback;
 			this.height = snapshot.h > 0 ? snapshot.h : fallback;
@@ -2588,10 +2588,10 @@ public class MultiplayerGameCanvas extends Canvas implements Screen, Multiplayer
 		private final Image animated;
 
 		RemoteRound4PlayerLine(EntitySnapshot snapshot) {
-			super("sprites/Boss_Attack/4round3.gif", (int) Math.round(snapshot.x), (int) Math.round(snapshot.y));
+			super(SpriteConstants.BOSS_ATTACK_4ROUND3_GIF, (int) Math.round(snapshot.x), (int) Math.round(snapshot.y));
 			this.x = snapshot.x;
 			this.y = snapshot.y;
-			this.animated = loadAnimatedImage("sprites/Boss_Attack/4round3.gif");
+			this.animated = loadAnimatedImage(SpriteConstants.BOSS_ATTACK_4ROUND3_GIF);
 		}
 
 		@Override

@@ -1,5 +1,6 @@
 package org.newdawn.spaceinvaders.common.entity.attack;
 
+import org.newdawn.spaceinvaders.common.sprite.SpriteConstants;
 import java.awt.Color;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
@@ -19,13 +20,13 @@ public class Round4HealAttack extends BaseAttackEntity {
     private Image healImage;
 
     public Round4HealAttack(GameContext game, int x, int y) {
-        super(game, "sprites/Boss_Attack/4round.gif", x, y);
+        super(game, SpriteConstants.BOSS_ATTACK_4ROUND_GIF, x, y);
         this.startTime = System.currentTimeMillis();
         loadHealImage();
     }
 
     private void loadHealImage() {
-        healImage = loadImageWithMediaTracker("sprites/Boss_Attack/4round.gif");
+        healImage = loadImageWithMediaTracker(SpriteConstants.BOSS_ATTACK_4ROUND_GIF);
     }
 
     @Override
