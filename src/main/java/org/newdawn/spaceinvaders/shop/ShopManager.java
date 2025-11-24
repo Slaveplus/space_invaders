@@ -123,7 +123,7 @@ public class ShopManager {
         battleship.setIconPath("sprites/ships/spaceship_blue.png");
         shopManager.addItem(battleship);
         
-        ShopItem professor = new ShopItem("professor", "평생지도교수님", "초초초희귀 킹갓제너럴 프로페서", 1500, 
+        ShopItem professor = new ShopItem("professor", "평생지도교수님", "^_^ ~~교수님 사랑합니다~~ ^_^", 1500, 
                                        ShopCategory.SPACESHIPS, ItemRarity.LEGENDARY);
         professor.setIconPath("sprites/ships/professor.png");
         shopManager.addItem(professor);

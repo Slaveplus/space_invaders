@@ -258,33 +258,33 @@ public class MainMenu {
     }
     
     private void handleEscapeKey() {
-        if (currentState == MenuState.INVENTORY) {
-            currentState = MenuState.MAIN;
+                if (currentState == MenuState.INVENTORY) {
+                    currentState = MenuState.MAIN;
             selectedOption = 3;
-        } else if (currentState == MenuState.RESOLUTION) {
-            if (settingsAnimation != null) {
-                settingsAnimation.startAnimation(ShopAnimation.AnimationType.SLIDE_IN);
-            }
-            currentState = MenuState.SETTINGS;
-            selectedOption = 0;
-        } else if (currentState == MenuState.SETTINGS) {
-            if (settingsAnimation != null) {
-                settingsAnimation.startAnimation(ShopAnimation.AnimationType.SLIDE_OUT);
-            }
-            currentState = MenuState.MAIN;
+                } else if (currentState == MenuState.RESOLUTION) {
+                    if (settingsAnimation != null) {
+                        settingsAnimation.startAnimation(ShopAnimation.AnimationType.SLIDE_IN);
+                    }
+                    currentState = MenuState.SETTINGS;
+                    selectedOption = 0;
+                } else if (currentState == MenuState.SETTINGS) {
+                    if (settingsAnimation != null) {
+                        settingsAnimation.startAnimation(ShopAnimation.AnimationType.SLIDE_OUT);
+                    }
+                    currentState = MenuState.MAIN;
             selectedOption = 4;
-        } else if (currentState == MenuState.ACCOUNT) {
-            if (accountAnimation != null) {
-                accountAnimation.startAnimation(ShopAnimation.AnimationType.SLIDE_OUT);
-            }
-            currentState = MenuState.MAIN;
+                } else if (currentState == MenuState.ACCOUNT) {
+                    if (accountAnimation != null) {
+                        accountAnimation.startAnimation(ShopAnimation.AnimationType.SLIDE_OUT);
+                    }
+                    currentState = MenuState.MAIN;
             selectedOption = 5;
-        } else if (currentState == MenuState.GAMEPLAY) {
-            currentState = MenuState.MAIN;
-            selectedOption = 0;
-        } else if (currentState != MenuState.MAIN) {
-            currentState = MenuState.MAIN;
-            selectedOption = 0;
+                } else if (currentState == MenuState.GAMEPLAY) {
+                    currentState = MenuState.MAIN;
+                    selectedOption = 0;
+                } else if (currentState != MenuState.MAIN) {
+                    currentState = MenuState.MAIN;
+                    selectedOption = 0;
         }
     }
     
@@ -391,29 +391,29 @@ public class MainMenu {
     }
     
     private void enterInventory() {
-        currentState = MenuState.INVENTORY;
-        selectedOption = 0;
-        if (shop != null && shop.getShopManager() != null) {
-            shop.getShopManager().clearWarningDialog();
-        }
-        if (shop != null) {
-            shop.startInventoryEntryAnimation();
-        }
+                currentState = MenuState.INVENTORY;
+                selectedOption = 0;
+                if (shop != null && shop.getShopManager() != null) {
+                    shop.getShopManager().clearWarningDialog();
+                }
+                if (shop != null) {
+                    shop.startInventoryEntryAnimation();
+                }
     }
     
     private void enterSettings() {
-        currentState = MenuState.SETTINGS;
-        selectedOption = 0;
-        if (settingsAnimation != null) {
-            settingsAnimation.startAnimation(ShopAnimation.AnimationType.SLIDE_IN);
-        }
+                currentState = MenuState.SETTINGS;
+                selectedOption = 0;
+                if (settingsAnimation != null) {
+                    settingsAnimation.startAnimation(ShopAnimation.AnimationType.SLIDE_IN);
+                }
     }
     
     private void enterAccount() {
-        currentState = MenuState.ACCOUNT;
-        selectedOption = 0;
-        if (accountAnimation != null) {
-            accountAnimation.startAnimation(ShopAnimation.AnimationType.SLIDE_IN);
+                currentState = MenuState.ACCOUNT;
+                selectedOption = 0;
+                if (accountAnimation != null) {
+                    accountAnimation.startAnimation(ShopAnimation.AnimationType.SLIDE_IN);
         }
     }
     
@@ -1031,41 +1031,41 @@ public class MainMenu {
     }
     
     private void handleServerBackspace() {
-        if (serverAddressFocus && serverAddressInput.length() > 0) {
+                if (serverAddressFocus && serverAddressInput.length() > 0) {
             serverAddressInput = serverAddressInput.substring(0, serverAddressInput.length() - 1);
-        } else if (!serverAddressFocus && serverPortInput.length() > 0) {
+                } else if (!serverAddressFocus && serverPortInput.length() > 0) {
             serverPortInput = serverPortInput.substring(0, serverPortInput.length() - 1);
-        }
+                }
     }
     
     private void handleServerEnter() {
-        if (serverAddressFocus) {
+                if (serverAddressFocus) {
             serverAddressFocus = false;
-        } else {
-            if (serverSelectedButton == 0) {
-                attemptServerConnection();
-            } else {
-                currentState = MenuState.GAMEPLAY;
-                selectedOption = 0;
-            }
-        }
+                } else {
+                    if (serverSelectedButton == 0) {
+                        attemptServerConnection();
+                    } else {
+                        currentState = MenuState.GAMEPLAY;
+                        selectedOption = 0;
+                    }
+                }
     }
     
     private void handleServerCharacterInput(int keyCode) {
-        if (keyCode >= KeyEvent.VK_A && keyCode <= KeyEvent.VK_Z && serverAddressFocus) {
-            char c = (char)('a' + (keyCode - KeyEvent.VK_A));
-            serverAddressInput += c;
-        } else if (keyCode >= KeyEvent.VK_0 && keyCode <= KeyEvent.VK_9) {
-            char c = (char)('0' + (keyCode - KeyEvent.VK_0));
+                if (keyCode >= KeyEvent.VK_A && keyCode <= KeyEvent.VK_Z && serverAddressFocus) {
+                    char c = (char)('a' + (keyCode - KeyEvent.VK_A));
+                    serverAddressInput += c;
+                } else if (keyCode >= KeyEvent.VK_0 && keyCode <= KeyEvent.VK_9) {
+                    char c = (char)('0' + (keyCode - KeyEvent.VK_0));
             if (serverAddressFocus) {
                 serverAddressInput += c;
             } else {
                 serverPortInput += c;
             }
-        } else if (keyCode == KeyEvent.VK_PERIOD && serverAddressFocus) {
-            serverAddressInput += '.';
-        } else if (keyCode == KeyEvent.VK_MINUS && serverAddressFocus) {
-            serverAddressInput += '-';
+                } else if (keyCode == KeyEvent.VK_PERIOD && serverAddressFocus) {
+                    serverAddressInput += '.';
+                } else if (keyCode == KeyEvent.VK_MINUS && serverAddressFocus) {
+                    serverAddressInput += '-';
         }
     }
 
