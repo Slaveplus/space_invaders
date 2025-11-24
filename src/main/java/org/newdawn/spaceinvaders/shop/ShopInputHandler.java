@@ -346,10 +346,10 @@ public class ShopInputHandler {
             return;
         }
         
-        ShopItem item = currentPageItems.get(selectedItem);
-        ShopCategory category = item.getCategory();
-        
-        if (shopManager.isItemEquipped(item)) {
+            ShopItem item = currentPageItems.get(selectedItem);
+            ShopCategory category = item.getCategory();
+            
+            if (shopManager.isItemEquipped(item)) {
             unequipItem(item, category);
         } else {
             equipItem(item);
@@ -357,20 +357,20 @@ public class ShopInputHandler {
     }
     
     private void unequipItem(ShopItem item, ShopCategory category) {
-        if (shopManager.unequipItem(category)) {
-            System.out.println("아이템 해제: " + item.getName());
-        }
+                if (shopManager.unequipItem(category)) {
+                    System.out.println("아이템 해제: " + item.getName());
+                }
     }
     
     private void equipItem(ShopItem item) {
         if (item.getCategory() == ShopCategory.WEAPONS && !isWeaponCompatible(item)) {
-            return;
-        }
-        
-        if (shopManager.equipItem(item)) {
-            System.out.println("아이템 장착: " + item.getName());
-        }
-    }
+                        return;
+                }
+                
+                if (shopManager.equipItem(item)) {
+                    System.out.println("아이템 장착: " + item.getName());
+                }
+            }
     
     private boolean isWeaponCompatible(ShopItem weapon) {
         ShopItem currentSpaceship = shopManager.getEquippedItem(ShopCategory.SPACESHIPS);

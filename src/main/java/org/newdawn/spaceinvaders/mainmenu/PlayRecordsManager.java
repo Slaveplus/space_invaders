@@ -77,7 +77,7 @@ public class PlayRecordsManager {
             }
             java.util.Map<String, Object> recordMap = (java.util.Map<String, Object>) recordObj;
             GameRecord record = parseRecord(recordMap, fallbackMode);
-            gameRecords.add(record);
+                gameRecords.add(record);
         }
     }
 
@@ -102,7 +102,7 @@ public class PlayRecordsManager {
         record.setUserId((String) recordMap.get("userId"));
         record.setUsername((String) recordMap.get("username"));
     }
-    
+
     private void parseNumericFields(GameRecord record, java.util.Map<String, Object> recordMap) {
         Object playTimeMsObj = recordMap.get("playTimeMs");
         if (playTimeMsObj instanceof Number) {
@@ -128,8 +128,8 @@ public class PlayRecordsManager {
         if (playDateObj instanceof String) {
             record.setPlayDateString((String) playDateObj);
         }
-    }
-    
+        }
+
     private void parseCoPlayers(GameRecord record, java.util.Map<String, Object> recordMap) {
         Object coPlayersObj = recordMap.get("coPlayers");
         if (coPlayersObj instanceof java.util.Collection) {
@@ -140,15 +140,15 @@ public class PlayRecordsManager {
     }
     
     private java.util.List<String> parseCoPlayersFromCollection(java.util.Collection<?> collection) {
-        java.util.List<String> list = new java.util.ArrayList<>();
+            java.util.List<String> list = new java.util.ArrayList<>();
         for (Object item : collection) {
-            if (item != null) {
-                String name = item.toString().trim();
-                if (!name.isEmpty()) {
-                    list.add(name);
+                if (item != null) {
+                    String name = item.toString().trim();
+                    if (!name.isEmpty()) {
+                        list.add(name);
+                    }
                 }
             }
-        }
         return list;
     }
     
@@ -159,13 +159,13 @@ public class PlayRecordsManager {
         }
         
         String[] parts = trimmed.split(",");
-        java.util.List<String> list = new java.util.ArrayList<>();
-        for (String part : parts) {
+                java.util.List<String> list = new java.util.ArrayList<>();
+                for (String part : parts) {
             String partTrimmed = part.trim();
             if (!partTrimmed.isEmpty()) {
                 list.add(partTrimmed);
-            }
-        }
+                    }
+                }
         return list;
     }
     
@@ -235,10 +235,10 @@ public class PlayRecordsManager {
             return;
         }
         
-        int startIndex = leaderboardScrollOffset;
+            int startIndex = leaderboardScrollOffset;
         int maxRecords = 10;
-        int endIndex = Math.min(startIndex + maxRecords, gameRecords.size());
-        int rowSpacing = 32;
+            int endIndex = Math.min(startIndex + maxRecords, gameRecords.size());
+            int rowSpacing = 32;
         
         int rankCol = tableX + 20;
         int modeCol = tableX + 70;
@@ -247,11 +247,11 @@ public class PlayRecordsManager {
         int statusCol = tableX + 330;
         int coinCol = tableX + 380;
         int dateCol = tableX + 450;
-        
-        for (int i = startIndex; i < endIndex; i++) {
-            GameRecord record = gameRecords.get(i);
-            int baseRowY = tableY + 50 + (i - startIndex) * rowSpacing;
             
+            for (int i = startIndex; i < endIndex; i++) {
+                GameRecord record = gameRecords.get(i);
+                int baseRowY = tableY + 50 + (i - startIndex) * rowSpacing;
+                
             drawRecordRow(g2d, record, i, baseRowY, rankCol, modeCol, nameCol, timeCol, statusCol, coinCol, dateCol, tableX, tableWidth);
         }
         
@@ -263,55 +263,55 @@ public class PlayRecordsManager {
     private void drawRecordRow(Graphics2D g2d, GameRecord record, int index, int baseRowY, 
                                int rankCol, int modeCol, int nameCol, int timeCol, int statusCol, int coinCol, int dateCol,
                                int tableX, int tableWidth) {
-        g2d.setColor(Color.WHITE);
-        g2d.setFont(getKostarFont(14));
+                g2d.setColor(Color.WHITE);
+                g2d.setFont(getKostarFont(14));
         
         g2d.drawString(String.valueOf(index + 1), rankCol, baseRowY);
-        
-        String modeLabel = record.getMode() == GameRecord.GameMode.MULTI ? "멀티" : "싱글";
-        g2d.drawString(modeLabel, modeCol, baseRowY);
-        
-        String username = record.getUsername() != null ? record.getUsername() : "-";
-        if (username.length() > 12) {
-            username = username.substring(0, 12) + "...";
-        }
-        g2d.drawString(username, nameCol, baseRowY);
-        
-        g2d.drawString(record.getPlayTime(), timeCol, baseRowY);
-        
-        String status = record.isCompleted() ? "클리어" : "실패";
-        g2d.setColor(record.isCompleted() ? Color.GREEN : Color.RED);
-        g2d.drawString(status, statusCol, baseRowY);
-        g2d.setColor(Color.WHITE);
-        
-        g2d.drawString(String.valueOf(record.getEarnedCoins()), coinCol, baseRowY);
-        
-        String date = record.getPlayDateString();
-        if (date != null && date.length() >= 16) {
-            date = date.substring(5, 16);
-        }
-        g2d.drawString(date != null ? date : "-", dateCol, baseRowY);
-        
-        if (record.getMode() == GameRecord.GameMode.MULTI && record.hasCoPlayers()) {
+                
+                String modeLabel = record.getMode() == GameRecord.GameMode.MULTI ? "멀티" : "싱글";
+                g2d.drawString(modeLabel, modeCol, baseRowY);
+                
+                String username = record.getUsername() != null ? record.getUsername() : "-";
+                if (username.length() > 12) {
+                    username = username.substring(0, 12) + "...";
+                }
+                g2d.drawString(username, nameCol, baseRowY);
+                
+                g2d.drawString(record.getPlayTime(), timeCol, baseRowY);
+                
+                String status = record.isCompleted() ? "클리어" : "실패";
+                g2d.setColor(record.isCompleted() ? Color.GREEN : Color.RED);
+                g2d.drawString(status, statusCol, baseRowY);
+                g2d.setColor(Color.WHITE);
+                
+                g2d.drawString(String.valueOf(record.getEarnedCoins()), coinCol, baseRowY);
+                
+                String date = record.getPlayDateString();
+                if (date != null && date.length() >= 16) {
+                    date = date.substring(5, 16);
+                }
+                g2d.drawString(date != null ? date : "-", dateCol, baseRowY);
+                
+                if (record.getMode() == GameRecord.GameMode.MULTI && record.hasCoPlayers()) {
             drawCoPlayersInfo(g2d, record, nameCol, baseRowY, tableX, tableWidth);
         }
     }
     
     private void drawCoPlayersInfo(Graphics2D g2d, GameRecord record, int nameCol, int baseRowY, int tableX, int tableWidth) {
-        g2d.setFont(getKostarFont(12));
-        g2d.setColor(new Color(180, 220, 255));
-        String teammates = "동료: " + record.getCoPlayersLabel();
+                    g2d.setFont(getKostarFont(12));
+                    g2d.setColor(new Color(180, 220, 255));
+                    String teammates = "동료: " + record.getCoPlayersLabel();
         FontMetrics fontMetrics = g2d.getFontMetrics();
-        int maxWidth = tableX + tableWidth - nameCol - 20;
+                    int maxWidth = tableX + tableWidth - nameCol - 20;
         
         if (fontMetrics.stringWidth(teammates) > maxWidth) {
             teammates = truncateTeammatesText(g2d, teammates, maxWidth);
-        }
+                        }
         
-        g2d.drawString(teammates, nameCol, baseRowY + 14);
-        g2d.setFont(getKostarFont(14));
-        g2d.setColor(Color.WHITE);
-    }
+                    g2d.drawString(teammates, nameCol, baseRowY + 14);
+                    g2d.setFont(getKostarFont(14));
+                    g2d.setColor(Color.WHITE);
+                }
     
     private String truncateTeammatesText(Graphics2D g2d, String teammates, int maxWidth) {
         FontMetrics fontMetrics = g2d.getFontMetrics();
@@ -323,14 +323,14 @@ public class PlayRecordsManager {
     }
     
     private void drawNoRecordsMessage(Graphics2D g2d, int tableX, int tableY, int tableWidth, int tableHeight) {
-        g2d.setColor(Color.GRAY);
-        g2d.setFont(getKostarFont(16));
-        String noRecords = "플레이 기록이 없습니다.";
-        FontMetrics noRecordsMetrics = g2d.getFontMetrics();
-        int noRecordsX = tableX + (tableWidth - noRecordsMetrics.stringWidth(noRecords)) / 2;
-        g2d.drawString(noRecords, noRecordsX, tableY + tableHeight / 2);
-    }
-    
+            g2d.setColor(Color.GRAY);
+            g2d.setFont(getKostarFont(16));
+            String noRecords = "플레이 기록이 없습니다.";
+            FontMetrics noRecordsMetrics = g2d.getFontMetrics();
+            int noRecordsX = tableX + (tableWidth - noRecordsMetrics.stringWidth(noRecords)) / 2;
+            g2d.drawString(noRecords, noRecordsX, tableY + tableHeight / 2);
+        }
+        
     private void drawScrollInfo(Graphics2D g2d, int tableX, int tableY, int tableWidth, int tableHeight) {
         g2d.setColor(Color.CYAN);
         g2d.setFont(getKostarFont(12));

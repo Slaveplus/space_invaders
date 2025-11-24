@@ -3533,7 +3533,37 @@ public class MultiplayerGameCanvas extends Canvas implements Screen, Multiplayer
 		
 		ShopItem equippedWeapon = userManager.getShopManager().getEquippedItem(ShopCategory.WEAPONS);
 		if (equippedWeapon != null) {
-			currentWeaponSkin = "sprites/weapons/" + equippedWeapon.getId() + ".png";
+			String weaponFileName = mapWeaponIdToSkinFile(equippedWeapon.getId());
+			currentWeaponSkin = "sprites/weapons/" + weaponFileName;
+			System.out.println("멀티플레이어 무기 스킨 적용: " + equippedWeapon.getName() + " -> " + currentWeaponSkin);
+		} else {
+			currentWeaponSkin = SpriteConstants.SHOT_GIF;
+			System.out.println("멀티플레이어 기본 무기 스킨 사용: " + currentWeaponSkin);
+		}
+	}
+	
+	/**
+	 * 무기 아이템 ID를 스킨 파일명으로 매핑
+	 */
+	private String mapWeaponIdToSkinFile(String itemId) {
+		switch (itemId) {
+			case "laser_gun":
+				return "green_laser.png";
+			case "plasma_gun":
+				return "plasma.png";
+			case "missile_launcher":
+				return "missile.png";
+			case "report":
+				return "report.jpg"; // 확장자가 .jpg
+			case "school_logo":
+				return "school_logo.png";
+			case "kimbap_code":
+				return "kimbap_code.png";
+			case "breakfast_1000":
+				return "breakfast_1000.png";
+			default:
+				// 기본값으로 아이템 ID + .png 사용
+				return itemId + ".png";
 		}
 	}
 	

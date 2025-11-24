@@ -181,13 +181,23 @@ public class Game extends Canvas implements Screen, GameplayContext, BossEnviron
 			userManager.getShopManager().loadEquipmentFromDB();
 		}
 		
+		// 장착 정보 로드 후 스킨 경로를 먼저 설정 (ship 생성 전에)
+		// 이렇게 하면 createPlayerShip()에서 올바른 스킨을 사용할 수 있습니다
+		if (itemApplier != null) {
+			itemApplier.applySpaceshipSkin(null); // ship은 아직 생성되지 않았으므로 null
+			itemApplier.applyWeaponSkin();
+			currentSpaceshipSkin = itemApplier.getCurrentSpaceshipSkin();
+			currentWeaponSkin = itemApplier.getCurrentWeaponSkin();
+			logger.debug("스킨 경로 미리 설정: " + currentSpaceshipSkin);
+		}
+		
 		// 게임플레이 상태 초기화 및 라운드 준비
 		String playerId = gameStateManager.getLocalPlayerId();
 		gameplayCoordinator.startNewGame(playerId);
 		ship = getShip(playerId);
 		
-		// 장착된 아이템 적용 (ship 생성 후)
-		if (itemApplier != null) {
+		// 장착된 아이템 적용 (ship 생성 후, 확실하게 하기 위해)
+		if (itemApplier != null && ship != null) {
 			itemApplier.applyEquippedItems(ship);
 			// ItemApplier에서 스킨 경로 가져오기
 			currentSpaceshipSkin = itemApplier.getCurrentSpaceshipSkin();
@@ -1081,6 +1091,9 @@ public class Game extends Canvas implements Screen, GameplayContext, BossEnviron
 		// ItemApplier 업데이트
 		if (itemApplier == null) {
 			itemApplier = new ItemApplier(userManager);
+		} else {
+			// 이미 존재하는 경우 UserManager만 업데이트
+			itemApplier.setUserManager(userManager);
 		}
 		// ShopManager의 장착 정보 동기화
 		if (userManager != null && userManager.isLoggedIn()) {

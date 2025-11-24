@@ -150,8 +150,8 @@ public class LoginScreen {
         if (isUsernameInput && showCursor) {
             drawCursor(g2d, displayUsername, 305, startY - 20, startY - 10);
         }
-    }
-    
+        }
+        
     private void drawPasswordField(Graphics2D g2d, int startY, int lineHeight) {
         g2d.setColor(Color.WHITE);
         g2d.setFont(menuFont);
@@ -175,7 +175,7 @@ public class LoginScreen {
         g2d.setColor(Color.BLACK);
         g2d.fillRect(x + 1, y + 1, width - 2, height - 2);
     }
-    
+        
     private void drawInputText(Graphics2D g2d, String text, int x, int y, boolean isEmpty, String placeholder) {
         g2d.setFont(inputFont);
         if (isEmpty) {
@@ -194,14 +194,14 @@ public class LoginScreen {
         StringBuilder masked = new StringBuilder();
         for (int i = 0; i < password.length(); i++) {
             masked.append("*");
-        }
+            }
         return masked.toString();
-    }
-    
+        }
+        
     private void drawCursor(Graphics2D g2d, String text, int baseX, int topY, int bottomY) {
-        FontMetrics inputMetrics = g2d.getFontMetrics();
+            FontMetrics inputMetrics = g2d.getFontMetrics();
         int cursorX = baseX + inputMetrics.stringWidth(text);
-        g2d.setColor(Color.WHITE);
+            g2d.setColor(Color.WHITE);
         g2d.drawLine(cursorX, topY, cursorX, bottomY);
     }
     

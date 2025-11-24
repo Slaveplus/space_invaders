@@ -12,7 +12,7 @@ import org.newdawn.spaceinvaders.common.util.LoggerFactory;
  * Game.java의 applyEquippedItems 책임을 분리
  */
 public class ItemApplier {
-    private final UserManager userManager;
+    private UserManager userManager;
     private String currentSpaceshipSkin = "sprites/ship.gif";
     private String currentWeaponSkin = "sprites/shot.gif";
     
@@ -21,6 +21,14 @@ public class ItemApplier {
     
     public ItemApplier(UserManager userManager) {
         this.userManager = userManager;
+    }
+    
+    /**
+     * UserManager 설정 (나중에 설정되는 경우를 위해)
+     */
+    public void setUserManager(UserManager userManager) {
+        this.userManager = userManager;
+        logger.debug("ItemApplier: UserManager 업데이트됨");
     }
     
     /**
@@ -65,7 +73,12 @@ public class ItemApplier {
         
         ShopItem equippedWeapon = userManager.getShopManager().getEquippedItem(ShopCategory.WEAPONS);
         if (equippedWeapon != null) {
-            currentWeaponSkin = "sprites/weapons/" + equippedWeapon.getId() + ".png";
+            String weaponFileName = mapWeaponIdToSkinFile(equippedWeapon.getId());
+            currentWeaponSkin = "sprites/weapons/" + weaponFileName;
+            logger.debug("무기 스킨 적용: " + equippedWeapon.getName() + " -> " + currentWeaponSkin);
+        } else {
+            currentWeaponSkin = "sprites/shot.gif";
+            logger.debug("기본 무기 스킨 사용: " + currentWeaponSkin);
         }
     }
     
@@ -93,6 +106,31 @@ public class ItemApplier {
             case "software_king":
                 return "software_king.png";
             default:
+                return itemId + ".png";
+        }
+    }
+    
+    /**
+     * 무기 아이템 ID를 스킨 파일명으로 매핑
+     */
+    private String mapWeaponIdToSkinFile(String itemId) {
+        switch (itemId) {
+            case "laser_gun":
+                return "green_laser.png";
+            case "plasma_gun":
+                return "plasma.png";
+            case "missile_launcher":
+                return "missile.png";
+            case "report":
+                return "report.jpg"; // 확장자가 .jpg
+            case "school_logo":
+                return "school_logo.png";
+            case "kimbap_code":
+                return "kimbap_code.png";
+            case "breakfast_1000":
+                return "breakfast_1000.png";
+            default:
+                // 기본값으로 아이템 ID + .png 사용
                 return itemId + ".png";
         }
     }
