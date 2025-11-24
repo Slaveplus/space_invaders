@@ -367,13 +367,6 @@ public class ShopRenderer {
         // 플레이어 코인 표시 (코인 이미지 + 숫자) - 실시간 데이터
         int currentCoins = getCurrentCoins();
         
-        // 디버깅 정보 표시
-        g2d.setColor(Color.CYAN);
-        g2d.setFont(new Font(DEFAULT_FONT_NAME, Font.PLAIN, 10));
-        g2d.drawString("UserManager: " + (userManager != null ? "있음" : "없음"), 50, 30);
-        g2d.drawString("로그인: " + (userManager != null ? userManager.isLoggedIn() : "false"), 50, 45);
-        g2d.drawString("사용자: " + (userManager != null && userManager.getCurrentUser() != null ? userManager.getCurrentUser().getUsername() : "null"), 50, 60);
-        
         if (coinImage != null) {
             // 코인 이미지 그리기 (24x24 크기)
             g2d.drawImage(coinImage, startX, startY - 20, 24, 24, null);
