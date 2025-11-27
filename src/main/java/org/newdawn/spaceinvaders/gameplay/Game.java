@@ -146,7 +146,7 @@ public class Game extends Canvas implements Screen, GameplayContext, BossEnviron
 
         // 책임 분리된 클래스들 초기화
         this.entityFactory = new EntityFactory(this, alienEnvironment, alienHpResolver);
-        this.gameRenderer = new GameRenderer(backgroundRenderer, uiRenderer, resolutionManager);
+        // gameRenderer는 resolutionManager가 설정된 후 초기화됨
         this.itemApplier = new ItemApplier(userManager);
         // gameUpdater는 ship이 생성된 후 초기화 (startGame 또는 initEntities 후)
 		
@@ -164,6 +164,13 @@ public class Game extends Canvas implements Screen, GameplayContext, BossEnviron
 	 */
 	public void setResolutionManager(ResolutionManager resolutionManager) {
 		this.resolutionManager = resolutionManager;
+		// GameRenderer 초기화 (ResolutionManager가 설정된 후)
+		if (this.gameRenderer == null && backgroundRenderer != null && uiRenderer != null) {
+			this.gameRenderer = new GameRenderer(backgroundRenderer, uiRenderer, resolutionManager);
+		} else if (this.gameRenderer != null) {
+			// 기존 GameRenderer가 있으면 새로 생성
+			this.gameRenderer = new GameRenderer(backgroundRenderer, uiRenderer, resolutionManager);
+		}
 	}
 	
 	/**

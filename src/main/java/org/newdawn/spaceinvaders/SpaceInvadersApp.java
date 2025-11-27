@@ -385,6 +385,12 @@ public class SpaceInvadersApp extends JFrame implements ScreenNavigator {
             gameScreen.setBounds(0, 0, width, height);  
         }
         
+        // MultiplayerGameCanvas 해상도도 업데이트
+        if (multiplayerGameCanvas != null) {
+            multiplayerGameCanvas.setBounds(0, 0, width, height);
+            multiplayerGameCanvas.setResolutionManager(resolutionManager);
+        }
+        
         // 창 크기 재조정
         pack();
         setLocationRelativeTo(null);

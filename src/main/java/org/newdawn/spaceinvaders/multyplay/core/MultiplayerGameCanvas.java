@@ -2684,16 +2684,25 @@ public class MultiplayerGameCanvas extends Canvas implements Screen, Multiplayer
 	}
 
 	public void render(Graphics2D g) {
+		AffineTransform original = g.getTransform();
+		
 		applyResolutionScaling(g);
 		drawGameElements(g);
 		drawOverlays(g);
+		
+		// 원래 Transform 복원
+		if (resolutionManager != null) {
+			g.setTransform(original);
+		}
 	}
 
 	private void applyResolutionScaling(Graphics2D g) {
 		if (resolutionManager != null) {
-			double scaleX = resolutionManager.getScaleX();
-			double scaleY = resolutionManager.getScaleY();
-			g.scale(scaleX, scaleY);
+			double offsetX = resolutionManager.getOffsetX();
+			double offsetY = resolutionManager.getOffsetY();
+			double scale = resolutionManager.getUniformScale();
+			g.translate(offsetX, offsetY);
+			g.scale(scale, scale);
 		}
 	}
 
