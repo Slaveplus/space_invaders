@@ -148,7 +148,7 @@ public class SharedGameplayCoordinator {
     }
 
     public boolean isNearRound(int round) {
-        return round % 2 == 1;
+        return (round & 1) == 1;
     }
 
     public int getBossRoundFromNearRound(int round) {

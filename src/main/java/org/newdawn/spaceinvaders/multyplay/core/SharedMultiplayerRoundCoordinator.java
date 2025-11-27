@@ -59,7 +59,7 @@ public final class SharedMultiplayerRoundCoordinator {
 
         if (isNearRound(round)) {
             spawnNearMonsters(context, round);
-            gsm.setMessage("🎯 NEAR MONSTERS APPEARED! 🎯");
+//            gsm.setMessage("🎯 NEAR MONSTERS APPEARED! 🎯");
         } else {
             spawnBoss(context, round);
             gsm.setMessage("⚠️ BOSS APPEARED! ⚠️");
@@ -77,7 +77,7 @@ public final class SharedMultiplayerRoundCoordinator {
             }
         }
         gsm.setAlienCount(NEAR_MONSTER_COUNT);
-        gsm.setMessage("🎯 NEAR MONSTERS APPEARED! 🎯");
+//        gsm.setMessage("🎯 NEAR MONSTERS APPEARED! 🎯");
         gsm.setWaitingForKeyPress(false);
         context.onRoundBackgroundChanged(round);
     }
