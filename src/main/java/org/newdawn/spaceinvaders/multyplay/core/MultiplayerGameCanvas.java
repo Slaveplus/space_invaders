@@ -3,7 +3,6 @@ package org.newdawn.spaceinvaders.multyplay.core;
 import java.awt.Canvas;
 import java.awt.Color;
 import java.awt.Font;
-import java.awt.FontMetrics;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
 import java.awt.Image;
@@ -26,21 +25,21 @@ import java.util.Map;
 import java.util.Iterator;
 import java.util.Set;
 import java.net.URL;
-
 import javax.imageio.ImageIO;
-
 import java.awt.event.KeyEvent;
-
-import org.newdawn.spaceinvaders.multyplay.entity.AlienEntity;
-import org.newdawn.spaceinvaders.multyplay.entity.BossEntity;
-import org.newdawn.spaceinvaders.multyplay.entity.Entity;
-import org.newdawn.spaceinvaders.multyplay.entity.ExplosionEntity;
-import org.newdawn.spaceinvaders.multyplay.entity.MissileEntity;
-import org.newdawn.spaceinvaders.multyplay.entity.NearEntity;
-import org.newdawn.spaceinvaders.multyplay.entity.EntitySnapshot;
-import org.newdawn.spaceinvaders.multyplay.entity.CoinDisplayEntity;
-import org.newdawn.spaceinvaders.multyplay.entity.ShipEntity;
-import org.newdawn.spaceinvaders.multyplay.entity.ShotEntity;
+import org.newdawn.spaceinvaders.common.entity.alien.AlienEntity;
+import org.newdawn.spaceinvaders.common.entity.boss.BossEntity;
+import org.newdawn.spaceinvaders.common.entity.Entity;
+import org.newdawn.spaceinvaders.common.entity.EntitySnapshot;
+import org.newdawn.spaceinvaders.common.entity.ShipEntity;
+import org.newdawn.spaceinvaders.common.entity.ShotEntity;
+import org.newdawn.spaceinvaders.common.entity.effect.ExplosionEntity;
+import org.newdawn.spaceinvaders.common.entity.effect.HeatEffectEntity;
+import org.newdawn.spaceinvaders.common.entity.near.NearEntity;
+import org.newdawn.spaceinvaders.common.entity.projectile.MissileEntity;
+import org.newdawn.spaceinvaders.common.entity.ui.CoinDisplayEntity;
+import org.newdawn.spaceinvaders.common.sprite.SpriteConstants;
+import org.newdawn.spaceinvaders.multyplay.entity.MultiplayerMissileEnvironment;
 import org.newdawn.spaceinvaders.login.UserManager;
 import org.newdawn.spaceinvaders.database.GameRecord;
 import org.newdawn.spaceinvaders.shop.ShopCategory;
@@ -74,22 +73,27 @@ import org.newdawn.spaceinvaders.multyplay.net.client.RoomGameNetworkAdapter;
  */
 public class MultiplayerGameCanvas extends Canvas implements Screen, MultiplayerGameContext
 {
+	private static final String REMOTE_PLAYER_LABEL = "클라이언트: 원격 플레이어 ";
+	private static final String FONT_ARIAL = "Arial";
+	private static final String RADIUS_KEY = "radius";
+	private static final String GAME_COMPLETED_MESSAGE = "🏆 GAME COMPLETED! 🏆 Congratulations!";
+
 	/** 가속 페이지 플리핑을 사용할 수 있게 해주는 전략 */
 	// BufferStrategy는 상위 App에서 관리
 	// entities and removeList are now managed by MultiplayerGameStateManager
 	/** 플레이어를 나타내는 엔티티 */
-	private ShipEntity ship;
+	private transient ShipEntity ship;
 	/** 플레이어 우주선이 이동해야 하는 속도 (픽셀/초) */
 	private double moveSpeed = 300;
 	/** 장착된 아이템에 접근하기 위한 UserManager */
-	private UserManager userManager;
+	private transient UserManager userManager;
 	/** 해상도 스케일링을 처리하기 위한 ResolutionManager */
-	private ResolutionManager resolutionManager;
+	private transient ResolutionManager resolutionManager;
 	// lastFire and firingInterval are now managed by MultiplayerGameStateManager
 	/** 현재 장착된 우주선 스킨 경로 */
-	private String currentSpaceshipSkin = "sprites/ship.gif";
+	private String currentSpaceshipSkin = SpriteConstants.SHIP_GIF;
 	/** 현재 장착된 무기 스킨 경로 */
-	private String currentWeaponSkin = "sprites/shot.gif";
+	private String currentWeaponSkin = SpriteConstants.SHOT_GIF;
 	
 	// 플레이어별 스킨 정보 저장 (클라이언트)
 	private final Map<String, String> remotePlayerSkins = new HashMap<>();
@@ -98,22 +102,22 @@ public class MultiplayerGameCanvas extends Canvas implements Screen, Multiplayer
 	// FPS 표시 기능은 상위에서 처리 가능, 내부적으로는 카운트만 유지하지 않음
 	
 	/** The game state manager */
-	private MultiplayerGameStateManager gameStateManager;
+	private transient MultiplayerGameStateManager gameStateManager;
 	/** The input manager */
-	private MultiplayerInputManager inputManager;
+	private transient MultiplayerInputManager inputManager;
 	/** The skill manager */
-	private MultiplayerSkillManager skillManager;
+	private transient MultiplayerSkillManager skillManager;
 	/** The UI renderer */
-	private MultiplayerUIRenderer uiRenderer;
+	private transient MultiplayerUIRenderer uiRenderer;
 	/** Background renderer (cached) */
-	private BackgroundRenderer backgroundRenderer;
+	private transient BackgroundRenderer backgroundRenderer;
 	// gameplay는 mainmenu 패키지에 의존하지 않도록, 오버레이는 MultiplayerUIRenderer에서 처리
 	
 	/** 메인메뉴 전환 요청 플래그 */
 	private boolean requestMainMenu = false;
 
 	/** 네트워크 어댑터 (싱글: LocalLoopback 기본) */
-	private GameNetworkAdapter networkAdapter;
+	private transient GameNetworkAdapter networkAdapter;
 	private boolean remoteMode = false;
 	private String localPlayerId;
 	private long inputSequence;
@@ -141,19 +145,29 @@ public class MultiplayerGameCanvas extends Canvas implements Screen, Multiplayer
 	 * Construct our game and set it running.
 	 */
 	public MultiplayerGameCanvas() {
+		initCanvas();
+		initComponents();
+		initInputHandlers();
+		initializeEntityFactories();
+		initEntities();
+	}
+
+	private void initCanvas() {
 		setIgnoreRepaint(true);
 		setBounds(0,0,800,600);
 		setFocusable(true);
+	}
+
+	private void initComponents() {
+		// initialize the game state manager
+		gameStateManager = new MultiplayerGameStateManager();
+		localPlayerId = gameStateManager.getLocalPlayerId();
+		gameStateManager.ensurePlayer(localPlayerId);
+		gameStateManager.setLocalPlayerId(localPlayerId);
 		
-	// initialize the game state manager
-	gameStateManager = new MultiplayerGameStateManager();
-	localPlayerId = gameStateManager.getLocalPlayerId();
-	gameStateManager.ensurePlayer(localPlayerId);
-	gameStateManager.setLocalPlayerId(localPlayerId);
-	
-	// initialize the skill manager
-	skillManager = new MultiplayerSkillManager(this, localPlayerId);
-		
+		// initialize the skill manager
+		skillManager = new MultiplayerSkillManager(this, localPlayerId);
+			
 		// initialize the UI renderer
 		uiRenderer = new MultiplayerUIRenderer(this);
 
@@ -163,16 +177,14 @@ public class MultiplayerGameCanvas extends Canvas implements Screen, Multiplayer
 		// initialize the input manager
 		inputManager = new MultiplayerInputManager(gameStateManager, this);
 		
+		// 기본 로컬 네트워크 어댑터 설정 (멀티 환경에서는 외부에서 교체)
+		this.networkAdapter = new LocalLoopbackNetworkAdapter(gameStateManager);
+	}
+
+	private void initInputHandlers() {
 		// add input handlers (after inputManager is initialized)
 		addKeyListener(inputManager.new KeyInputHandler());
 		addMouseListener(inputManager.new MouseInputHandler());
-		
-		// initialise the entities in our game so there's something
-		// to see at startup
-		initEntities();
-
-		// 기본 로컬 네트워크 어댑터 설정 (멀티 환경에서는 외부에서 교체)
-		this.networkAdapter = new LocalLoopbackNetworkAdapter(gameStateManager);
 	}
 
 	public void setNetworkAdapter(GameNetworkAdapter adapter) {
@@ -324,7 +336,7 @@ public class MultiplayerGameCanvas extends Canvas implements Screen, Multiplayer
 		initEntities();
 		
 		// ship 생성 후 다시 한번 스킨 적용 (확실하게 하기 위해)
-		if (ship != null && currentSpaceshipSkin != null && !currentSpaceshipSkin.equals("sprites/ship.gif")) {
+		if (ship != null && currentSpaceshipSkin != null && !currentSpaceshipSkin.equals(SpriteConstants.SHIP_GIF)) {
 			ship.changeSkin(currentSpaceshipSkin);
 			System.out.println("멀티플레이어 startGame에서 최종 스킨 적용: " + currentSpaceshipSkin);
 		}
@@ -359,7 +371,7 @@ public class MultiplayerGameCanvas extends Canvas implements Screen, Multiplayer
 			entities.add(ship);
 			
 			// ship 생성 후 스킨 적용
-			if (currentSpaceshipSkin != null && !currentSpaceshipSkin.equals("sprites/ship.gif")) {
+			if (currentSpaceshipSkin != null && !currentSpaceshipSkin.equals(SpriteConstants.SHIP_GIF)) {
 				ship.changeSkin(currentSpaceshipSkin);
 				System.out.println("멀티플레이어 initEntities에서 스킨 적용: " + currentSpaceshipSkin);
 			}
@@ -454,7 +466,7 @@ public class MultiplayerGameCanvas extends Canvas implements Screen, Multiplayer
 		if (roundAdvanced) {
 			SharedMultiplayerRoundCoordinator.setupRound(this, gameStateManager.getCurrentRound());
 		} else {
-			gameStateManager.setMessage("🏆 GAME COMPLETED! 🏆 Congratulations!");
+			gameStateManager.setMessage(GAME_COMPLETED_MESSAGE);
 			gameStateManager.setWaitingForKeyPress(true);
 			persistMultiplayerResults(true);
 		}
@@ -558,7 +570,7 @@ public class MultiplayerGameCanvas extends Canvas implements Screen, Multiplayer
 	 * @param y The y location of the shot
 	 */
 	public void addAlienShot(int x, int y) {
-		ShotEntity shot = new ShotEntity(this, "sprites/shot.gif", x, y, true);
+		ShotEntity shot = new ShotEntity(this, SpriteConstants.SHOT_GIF, x, y, true);
 		gameStateManager.getEntities().add(shot);
 	}
 
@@ -589,7 +601,7 @@ public class MultiplayerGameCanvas extends Canvas implements Screen, Multiplayer
 		int aimOffset = (int)((playerX - alienX) * 0.15); // 15% of distance towards player
 		aimOffset = Math.max(-15, Math.min(15, aimOffset)); // Clamp to player-sized range
 		
-		ShotEntity shot = new ShotEntity(this, "sprites/shot.gif", x + aimOffset, y, true);
+		ShotEntity shot = new ShotEntity(this, SpriteConstants.SHOT_GIF, x + aimOffset, y, true);
 		gameStateManager.getEntities().add(shot);
 	}
 	
@@ -604,7 +616,7 @@ public class MultiplayerGameCanvas extends Canvas implements Screen, Multiplayer
 	@Override
 	public void createSkillDrop(int x, int y, int skillType, int skillValue) {
 		// Create skill drop using ShotEntity with skill drop functionality
-		ShotEntity skillDrop = new ShotEntity(this, "sprites/shot.gif", x, y, false, skillType, skillValue);
+		ShotEntity skillDrop = new ShotEntity(this, SpriteConstants.SHOT_GIF, x, y, skillType, skillValue);
 		gameStateManager.getEntities().add(skillDrop);
 	}
 
@@ -743,8 +755,13 @@ public class MultiplayerGameCanvas extends Canvas implements Screen, Multiplayer
 			if (source == null) {
 				return;
 			}
-			MissileEntity missile = new MissileEntity(this, "sprites/Skill/Missile.png",
-					source.getX() + 15, source.getY(), targetX, targetY);
+			MissileEntity missile = new MissileEntity(
+					new MultiplayerMissileEnvironment(this),
+					"sprites/Skill/Missile.png",
+					(int) source.getX() + 15,
+					(int) source.getY(),
+					targetX,
+					targetY);
 			if (playerId != null) {
 				missile.setOwnerId(playerId);
 			}
@@ -783,43 +800,71 @@ public class MultiplayerGameCanvas extends Canvas implements Screen, Multiplayer
 		}
 
 		if (remoteMode) {
-			handleRemoteInput(now);
-			GameSnapshot snapshot = networkAdapter != null ? networkAdapter.pollLatestSnapshot() : null;
-			if (snapshot != null) {
-				applyRemoteSnapshot(snapshot);
+			updateRemote(now, delta);
+		} else {
+			updateLocal(delta);
+		}
+	}
+
+	private void updateRemote(long now, long delta) {
+		handleRemoteInput(now);
+		GameSnapshot snapshot = networkAdapter != null ? networkAdapter.pollLatestSnapshot() : null;
+		if (snapshot != null) {
+			applyRemoteSnapshot(snapshot);
+		}
+		if (networkAdapter != null) {
+			List<GameEvent> events = networkAdapter.drainEvents();
+			if (events != null && !events.isEmpty()) {
+				handleRemoteEvents(events);
 			}
-			if (networkAdapter != null) {
-				List<GameEvent> events = networkAdapter.drainEvents();
-				if (events != null && !events.isEmpty()) {
-					handleRemoteEvents(events);
-				}
-			}
-			updateRemoteCoinPopups(delta);
-			skillManager.updateSkillEffects();
+		}
+		updateRemoteCoinPopups(delta);
+		skillManager.updateSkillEffects();
+	}
+
+	private void updateLocal(long delta) {
+		if (gameStateManager.isGamePaused()) {
 			return;
 		}
 
-		if (!gameStateManager.isWaitingForKeyPress() &&
-			!gameStateManager.isShowingPauseMenu() &&
-			!gameStateManager.isShowingSkillMenu()) {
-			skillManager.updateSkillEffects();
-			ArrayList<Entity> entities = new ArrayList<>(gameStateManager.getEntities());
-			for (Entity entity : entities) {
-				entity.move(delta);
-			}
-			tryAlienFire();
-		}
+		moveEntities(delta);
+		updateShipReference();
+		updateShipMovement();
+		checkCollisions();
+		cleanupEntities();
 
-		if (!remoteMode) {
-			if ((ship == null || !gameStateManager.getEntities().contains(ship)) && localPlayerId != null) {
-				ShipEntity candidate = getShip(localPlayerId);
-				if (candidate != null) {
-					ship = candidate;
-				}
+		if (gameStateManager.isLogicRequiredThisLoop()) {
+			for (Entity e : gameStateManager.getEntities()) {
+				e.doLogic();
 			}
+			gameStateManager.setLogicRequiredThisLoop(false);
 		}
+	}
 
-		if (ship != null && !gameStateManager.isShowingPauseMenu() && !gameStateManager.isShowingSkillMenu()) {
+	private void moveEntities(long delta) {
+		skillManager.updateSkillEffects();
+		for (Entity entity : new ArrayList<>(gameStateManager.getEntities())) {
+			entity.move(delta);
+		}
+		tryAlienFire();
+	}
+
+	private void updateShipReference() {
+		if (localPlayerId == null) {
+			return;
+		}
+		if (ship != null && gameStateManager.getEntities().contains(ship)) {
+			return;
+		}
+		
+		ShipEntity candidate = getShip(localPlayerId);
+		if (candidate != null) {
+			ship = candidate;
+		}
+	}
+
+	private void updateShipMovement() {
+		if (ship != null) {
 			ship.setHorizontalMovement(0);
 			if (inputManager.isLeftPressed() && !inputManager.isRightPressed()) {
 				ship.setHorizontalMovement(-moveSpeed);
@@ -830,26 +875,25 @@ public class MultiplayerGameCanvas extends Canvas implements Screen, Multiplayer
 				tryToFire();
 			}
 		}
+	}
 
+	private void checkCollisions() {
 		ArrayList<Entity> entities = gameStateManager.getEntities();
-		if (!gameStateManager.isShowingPauseMenu() && !gameStateManager.isShowingSkillMenu()) {
-			for (int i=0;i<entities.size();i++) {
+		for (int i = 0; i < entities.size(); i++) {
+			for (int j = i + 1; j < entities.size(); j++) {
 				Entity e1 = entities.get(i);
-				for (int j=i+1;j<entities.size();j++) {
-					Entity e2 = entities.get(j);
-					if (e1.collidesWith(e2)) {
-						e1.collidedWith(e2);
-						e2.collidedWith(e1);
-					}
+				Entity e2 = entities.get(j);
+				if (e1.collidesWith(e2)) {
+					e1.collidedWith(e2);
+					e2.collidedWith(e1);
 				}
 			}
-			entities.removeAll(gameStateManager.getRemoveList());
-			gameStateManager.getRemoveList().clear();
-			if (gameStateManager.isLogicRequiredThisLoop()) {
-				for (Entity e : entities) e.doLogic();
-				gameStateManager.setLogicRequiredThisLoop(false);
-			}
 		}
+	}
+
+	private void cleanupEntities() {
+		gameStateManager.getEntities().removeAll(gameStateManager.getRemoveList());
+		gameStateManager.getRemoveList().clear();
 	}
 
 
@@ -890,29 +934,25 @@ public class MultiplayerGameCanvas extends Canvas implements Screen, Multiplayer
 		if (gameStateManager.getGameStartTime() == 0) {
 			gameStateManager.setGameStartTime(System.currentTimeMillis());
 		}
+
+		boolean localShipVisible = applyEntitySnapshots(snapshot);
+		applyPlayerStateSnapshots(snapshot);
+		applyGamePhaseAndState(snapshot);
+		updateLocalPlayerStatus(localShipVisible);
+
+		if (!resultsPersisted && remotePhase == GameSnapshot.Phase.COMPLETED) {
+			persistMultiplayerResults(false);
+		}
+	}
+
+	private boolean applyEntitySnapshots(GameSnapshot snapshot) {
 		Map<Long, Entity> next = new HashMap<>();
 		snapshotEntitiesBuffer.clear();
 		Entity localShipCandidate = null;
 		boolean localShipVisible = false;
+
 		for (EntitySnapshot snap : snapshot.entities) {
-			Entity entity = remoteEntities.get(snap.id);
-			if (entity == null) {
-				entity = createRemoteEntity(snap);
-			}
-			entity.applySnapshot(snap);
-			
-			// 원격 플레이어의 스킨 적용
-			if (entity instanceof ShipEntity && snap.ownerId != null && !snap.ownerId.equals(localPlayerId)) {
-				// 저장된 스킨 정보가 있으면 사용, 없으면 추정
-				String savedSkin = remotePlayerSkins.get(snap.ownerId);
-				if (savedSkin != null) {
-					System.out.println("저장된 스킨 사용: " + snap.ownerId + " -> " + savedSkin);
-					((ShipEntity) entity).changeSkin(savedSkin);
-				} else {
-					applyRemotePlayerSkin((ShipEntity) entity, snap.ownerId);
-				}
-			}
-			
+			Entity entity = processEntitySnapshot(snap);
 			next.put(snap.id, entity);
 			snapshotEntitiesBuffer.add(entity);
 			if (localPlayerId != null && localPlayerId.equals(snap.ownerId) && "ShipEntity".equals(snap.type)) {
@@ -920,60 +960,85 @@ public class MultiplayerGameCanvas extends Canvas implements Screen, Multiplayer
 				localShipVisible = true;
 			}
 		}
+
 		remoteEntities.clear();
 		remoteEntities.putAll(next);
 		gameStateManager.getEntities().clear();
 		gameStateManager.getEntities().addAll(snapshotEntitiesBuffer);
 		gameStateManager.getRemoveList().clear();
 		onRoundBackgroundChanged(snapshot.round);
+
 		if (localShipCandidate instanceof ShipEntity) {
 			ship = (ShipEntity) localShipCandidate;
 		} else if (ship != null && !remoteEntities.containsValue(ship)) {
 			ship = null;
 		}
-		if (snapshot.players != null) {
-			for (Map.Entry<String, GameSnapshot.PlayerScalarState> entry : snapshot.players.entrySet()) {
-				PlayerState ps = gameStateManager.ensurePlayer(entry.getKey());
-				GameSnapshot.PlayerScalarState state = entry.getValue();
-				ps.setCurrentHP(state.hp);
-				ps.setMaxHP(state.maxHp);
-				ps.setAttackPower(state.atk);
-				ps.setAttackSpeed(state.aspd);
-				ps.setSkillPoints(state.skillPts);
-                ps.setEarnedCoins(state.coins);
-                if (entry.getKey() != null && entry.getKey().equals(localPlayerId)) {
-                    gameStateManager.setEarnedCoins(state.coins);
-					skillManager.setInvincibleSkills(state.invincibleCharges);
-					skillManager.setTripleShotSkills(state.tripleShotCharges);
-					skillManager.setMissileSkills(state.missileCharges);
-					skillManager.setAttackPowerLevel(state.attackPowerLevel);
-					skillManager.setAttackSpeedLevel(state.attackSpeedLevel);
-					skillManager.setHpUpLevel(state.hpUpLevel);
-					long now = System.currentTimeMillis();
-					if (state.invincibleRemainingMs > 0) {
-						skillManager.setInvincible(true);
-						skillManager.setInvincibleEndTime(now + state.invincibleRemainingMs);
-					} else {
-						skillManager.setInvincible(false);
-						skillManager.setInvincibleEndTime(0);
-					}
-					if (state.tripleShotRemainingMs > 0) {
-						skillManager.setHasTripleShot(true);
-						skillManager.setTripleShotEndTime(now + state.tripleShotRemainingMs);
-					} else {
-						skillManager.setHasTripleShot(false);
-						skillManager.setTripleShotEndTime(0);
-					}
-				}
-				playerDisplayNames.putIfAbsent(entry.getKey(), entry.getKey());
+
+		return localShipVisible;
+	}
+
+	private Entity processEntitySnapshot(EntitySnapshot snap) {
+		Entity entity = remoteEntities.get(snap.id);
+		if (entity == null) {
+			entity = createRemoteEntity(snap);
+		}
+		entity.applySnapshot(snap);
+
+		if (entity instanceof ShipEntity && snap.ownerId != null && !snap.ownerId.equals(localPlayerId)) {
+			String savedSkin = remotePlayerSkins.get(snap.ownerId);
+			if (savedSkin != null) {
+				((ShipEntity) entity).changeSkin(savedSkin);
+			} else {
+				applyRemotePlayerSkin((ShipEntity) entity, snap.ownerId);
 			}
 		}
+		return entity;
+	}
+
+	private void applyPlayerStateSnapshots(GameSnapshot snapshot) {
+		if (snapshot.players == null) {
+			return;
+		}
+		for (Map.Entry<String, GameSnapshot.PlayerScalarState> entry : snapshot.players.entrySet()) {
+			PlayerState ps = gameStateManager.ensurePlayer(entry.getKey());
+			GameSnapshot.PlayerScalarState state = entry.getValue();
+			ps.setCurrentHP(state.hp);
+			ps.setMaxHP(state.maxHp);
+			ps.setAttackPower(state.atk);
+			ps.setAttackSpeed(state.aspd);
+			ps.setSkillPoints(state.skillPts);
+			ps.setEarnedCoins(state.coins);
+
+			if (entry.getKey() != null && entry.getKey().equals(localPlayerId)) {
+				updateLocalPlayerSkills(state);
+			}
+			playerDisplayNames.putIfAbsent(entry.getKey(), entry.getKey());
+		}
+	}
+
+	private void updateLocalPlayerSkills(GameSnapshot.PlayerScalarState state) {
+		gameStateManager.setEarnedCoins(state.coins);
+		skillManager.setInvincibleSkills(state.invincibleCharges);
+		skillManager.setTripleShotSkills(state.tripleShotCharges);
+		skillManager.setMissileSkills(state.missileCharges);
+		skillManager.setAttackPowerLevel(state.attackPowerLevel);
+		skillManager.setAttackSpeedLevel(state.attackSpeedLevel);
+		skillManager.setHpUpLevel(state.hpUpLevel);
+		long now = System.currentTimeMillis();
+		skillManager.setInvincible(state.invincibleRemainingMs > 0);
+		skillManager.setInvincibleEndTime(state.invincibleRemainingMs > 0 ? now + state.invincibleRemainingMs : 0);
+		skillManager.setHasTripleShot(state.tripleShotRemainingMs > 0);
+		skillManager.setTripleShotEndTime(state.tripleShotRemainingMs > 0 ? now + state.tripleShotRemainingMs : 0);
+	}
+
+	private void applyGamePhaseAndState(GameSnapshot snapshot) {
 		gameStateManager.setCurrentRound(snapshot.round);
 		remotePhase = snapshot.phase != null ? snapshot.phase : GameSnapshot.Phase.ACTIVE;
 		remoteWaitingForPlayers = snapshot.waitingForPlayers;
 		intermissionMessage = snapshot.message != null ? snapshot.message : "";
 		remoteReadyStates.clear();
 		remoteReadyStates.putAll(snapshot.readyStates != null ? snapshot.readyStates : Collections.emptyMap());
+
 		if (localPlayerId != null && !remoteReadyStates.containsKey(localPlayerId)) {
 			remoteReadyStates.put(localPlayerId, localReady);
 		}
@@ -983,6 +1048,22 @@ public class MultiplayerGameCanvas extends Canvas implements Screen, Multiplayer
 				localReady = serverReady;
 			}
 		}
+
+		if (remotePhase != GameSnapshot.Phase.INTERMISSION) {
+			intermissionChatFocus = false;
+			intermissionChatInput = "";
+			if (remotePhase == GameSnapshot.Phase.ACTIVE) {
+				localReady = false;
+			}
+		}
+
+		boolean intermission = remotePhase == GameSnapshot.Phase.INTERMISSION;
+		boolean waiting = intermission || remoteWaitingForPlayers;
+		gameStateManager.setRoundTransition(intermission);
+		gameStateManager.setWaitingForKeyPress(waiting);
+	}
+
+	private void updateLocalPlayerStatus(boolean localShipVisible) {
 		if (localPlayerId != null && remotePhase == GameSnapshot.Phase.ACTIVE) {
 			PlayerState localState = gameStateManager.getPlayerState(localPlayerId);
 			boolean reportedDead = localState != null && localState.isDead();
@@ -990,97 +1071,74 @@ public class MultiplayerGameCanvas extends Canvas implements Screen, Multiplayer
 		} else {
 			localSpectating = false;
 		}
-	if (remotePhase != GameSnapshot.Phase.INTERMISSION) {
-		intermissionChatFocus = false;
-		intermissionChatInput = "";
-		if (remotePhase == GameSnapshot.Phase.ACTIVE) {
-			localReady = false;
-		}
 	}
-	boolean intermission = remotePhase == GameSnapshot.Phase.INTERMISSION;
-	boolean waiting = intermission || remoteWaitingForPlayers;
-		gameStateManager.setRoundTransition(intermission);
-		gameStateManager.setWaitingForKeyPress(waiting);
 
-		if (!resultsPersisted && remotePhase == GameSnapshot.Phase.COMPLETED) {
-			persistMultiplayerResults(false);
+	private final Map<String, java.util.function.Function<EntitySnapshot, Entity>> entityFactories = new HashMap<>();
+
+	private void initializeEntityFactories() {
+		entityFactories.put("ShotEntity", snapshot -> new RemoteShotEntity(snapshot, MetadataCodec.decode(snapshot.metadata)));
+		entityFactories.put("ExplosionEntity", snapshot -> new RemoteExplosionEntity(snapshot, MetadataCodec.decode(snapshot.metadata)));
+		entityFactories.put("IceAttack", RemoteIceAttack::new);
+		entityFactories.put("IceBallAttack", RemoteIceBallAttack::new);
+		entityFactories.put("MagneticFieldEntity", snapshot -> new RemoteMagneticField(snapshot, MetadataCodec.decode(snapshot.metadata)));
+		entityFactories.put("Round2LaserAttack", RemoteRound2Laser::new);
+		entityFactories.put("Round2Phase1Attack", RemoteRound2Phase1::new);
+		entityFactories.put("Round2Phase2Attack", RemoteRound2Phase2::new);
+		entityFactories.put("Round2RandomAttack", RemoteRound2Random::new);
+		entityFactories.put("Round2QuadAttack", RemoteRound2Quad::new);
+		entityFactories.put("Round2MachineGunAttack", RemoteRound2MachineGun::new);
+		entityFactories.put("Round3StraightAttack", RemoteRound3Straight::new);
+		entityFactories.put("Round3RandomAttack", RemoteRound3Random::new);
+		entityFactories.put("Round3PullAttack", RemoteRound3Pull::new);
+		entityFactories.put("Round3BlackHoleAttack", RemoteRound3BlackHole::new);
+		entityFactories.put("Round4HealAttack", RemoteRound4Heal::new);
+		entityFactories.put("Round4GreenSphereAttack", RemoteRound4GreenSphere::new);
+		entityFactories.put("Round4PlayerLineAttack", RemoteRound4PlayerLine::new);
+		entityFactories.put("BossEntity", snapshot -> new RemoteBossEntity(snapshot, MetadataCodec.decode(snapshot.metadata)));
+		entityFactories.put("BossShotEntity", snapshot -> new RemoteBossShotEntity(snapshot, MetadataCodec.decode(snapshot.metadata)));
+		entityFactories.put("HeatEffectEntity", snapshot -> new RemoteHeatEffectEntity(snapshot.x, snapshot.y));
+		entityFactories.put("NearEntity", this::createNearEntityFromSnapshot);
+		entityFactories.put("AlienEntity", this::createAlienEntityFromSnapshot);
+	}
+
+	private Entity createNearEntityFromSnapshot(EntitySnapshot snapshot) {
+		Map<String, String> meta = MetadataCodec.decode(snapshot.metadata);
+		int round = safeParseInt(meta.getOrDefault("round", "1"), 1);
+		int monster = safeParseInt(meta.getOrDefault("monster", "0"), 0);
+		NearEntity near = new NearEntity(this, (int) Math.round(snapshot.x), (int) Math.round(snapshot.y), round, monster);
+		near.setOwnerId(snapshot.ownerId);
+		return near;
+	}
+
+	private Entity createAlienEntityFromSnapshot(EntitySnapshot snapshot) {
+		String spritePath = snapshot.sprite != null && !snapshot.sprite.isEmpty()
+				? snapshot.sprite
+				: "sprites/Boss/1near.png";
+		return new RemoteAlienEntity(spritePath, snapshot.x, snapshot.y);
+	}
+
+	private Entity createDefaultEntity(EntitySnapshot snapshot) {
+		String type = snapshot.type != null ? snapshot.type : "";
+		String spritePath = snapshot.sprite != null && !snapshot.sprite.isEmpty() ? snapshot.sprite : null;
+		if (spritePath == null || spritePath.isEmpty()) {
+			if ("ShipEntity".equals(type)) {
+				spritePath = currentSpaceshipSkin;
+			} else if ("AlienEntity".equals(type)) {
+				spritePath = "sprites/Boss/1near.png";
+			} else {
+				spritePath = currentWeaponSkin;
+			}
 		}
+		return new RemoteSpriteEntity(spritePath, snapshot.x, snapshot.y);
 	}
 
 	private Entity createRemoteEntity(EntitySnapshot snapshot) {
-		Map<String, String> meta = MetadataCodec.decode(snapshot.metadata);
 		String type = snapshot.type != null ? snapshot.type : "";
-		switch (type) {
-			case "ShotEntity":
-				return new RemoteShotEntity(snapshot, meta);
-			case "ExplosionEntity":
-				return new RemoteExplosionEntity(snapshot, meta);
-			case "IceAttack":
-				return new RemoteIceAttack(snapshot);
-			case "IceBallAttack":
-				return new RemoteIceBallAttack(snapshot);
-			case "MagneticFieldEntity":
-				return new RemoteMagneticField(snapshot, meta);
-			case "Round2LaserAttack":
-				return new RemoteRound2Laser(snapshot);
-			case "Round2Phase1Attack":
-				return new RemoteRound2Phase1(snapshot);
-			case "Round2Phase2Attack":
-				return new RemoteRound2Phase2(snapshot);
-			case "Round2RandomAttack":
-				return new RemoteRound2Random(snapshot);
-		case "Round2QuadAttack":
-			return new RemoteRound2Quad(snapshot);
-			case "Round2MachineGunAttack":
-				return new RemoteRound2MachineGun(snapshot);
-			case "Round3StraightAttack":
-				return new RemoteRound3Straight(snapshot);
-			case "Round3RandomAttack":
-				return new RemoteRound3Random(snapshot);
-			case "Round3PullAttack":
-				return new RemoteRound3Pull(snapshot);
-			case "Round3BlackHoleAttack":
-				return new RemoteRound3BlackHole(snapshot);
-			case "Round4HealAttack":
-				return new RemoteRound4Heal(snapshot);
-			case "Round4GreenSphereAttack":
-				return new RemoteRound4GreenSphere(snapshot, meta);
-			case "Round4PlayerLineAttack":
-				return new RemoteRound4PlayerLine(snapshot);
-		case "BossEntity":
-			return new RemoteBossEntity(snapshot, meta);
-			case "BossShotEntity":
-				return new RemoteBossShotEntity(snapshot, meta);
-			case "HeatEffectEntity":
-				return new RemoteHeatEffectEntity(snapshot.x, snapshot.y);
-			case "NearEntity": {
-				int round = 1;
-				int monster = 0;
-				try { round = Integer.parseInt(meta.getOrDefault("round", "1")); } catch (NumberFormatException ignore) {}
-				try { monster = Integer.parseInt(meta.getOrDefault("monster", "0")); } catch (NumberFormatException ignore) {}
-				NearEntity near = new NearEntity(this, (int) Math.round(snapshot.x), (int) Math.round(snapshot.y), round, monster);
-				near.setOwnerId(snapshot.ownerId);
-				return near;
-			}
-		case "AlienEntity": {
-			String spritePath = snapshot.sprite != null && !snapshot.sprite.isEmpty()
-					? snapshot.sprite
-					: "sprites/Boss/1near.png";
-			return new RemoteAlienEntity(spritePath, snapshot.x, snapshot.y);
+		java.util.function.Function<EntitySnapshot, Entity> factory = entityFactories.get(type);
+		if (factory != null) {
+			return factory.apply(snapshot);
 		}
-			default:
-				String spritePath = snapshot.sprite != null && !snapshot.sprite.isEmpty() ? snapshot.sprite : null;
-				if (spritePath == null || spritePath.isEmpty()) {
-					if ("ShipEntity".equals(type)) {
-						spritePath = currentSpaceshipSkin;
-					} else if ("AlienEntity".equals(type)) {
-						spritePath = "sprites/Boss/1near.png";
-					} else {
-						spritePath = currentWeaponSkin;
-					}
-				}
-				return new RemoteSpriteEntity(spritePath, snapshot.x, snapshot.y);
-		}
+		return createDefaultEntity(snapshot);
 	}
 
 	private static Image loadAnimatedImage(String path) {
@@ -1252,7 +1310,7 @@ public class MultiplayerGameCanvas extends Canvas implements Screen, Multiplayer
 		private int splitCount;
 
 		RemoteBossShotEntity(EntitySnapshot snapshot, Map<String, String> meta) {
-			super(snapshot.sprite != null && !snapshot.sprite.isEmpty() ? snapshot.sprite : "sprites/shot.gif",
+			super(snapshot.sprite != null && !snapshot.sprite.isEmpty() ? snapshot.sprite : SpriteConstants.SHOT_GIF,
 				(int) Math.round(snapshot.x), (int) Math.round(snapshot.y));
 			this.x = snapshot.x;
 			this.y = snapshot.y;
@@ -1279,7 +1337,7 @@ public class MultiplayerGameCanvas extends Canvas implements Screen, Multiplayer
 				// keep previous value
 			}
 			try {
-				radius = Integer.parseInt(meta.getOrDefault("radius", Integer.toString(radius)));
+				radius = Integer.parseInt(meta.getOrDefault(RADIUS_KEY, Integer.toString(radius)));
 			} catch (NumberFormatException ignore) {
 				// keep previous value
 			}
@@ -1346,6 +1404,12 @@ public class MultiplayerGameCanvas extends Canvas implements Screen, Multiplayer
 		public void collidedWith(Entity other) {
 			// visuals only
 		}
+
+		@Override
+		public java.awt.Rectangle getBounds() {
+			int r = radius;
+			return new java.awt.Rectangle((int) Math.round(x) - r, (int) Math.round(y) - r, r * 2, r * 2);
+		}
 	}
 
 	private static class RemoteHeatEffectEntity extends Entity {
@@ -1354,7 +1418,7 @@ public class MultiplayerGameCanvas extends Canvas implements Screen, Multiplayer
 		private final long duration = 800;
 
 		RemoteHeatEffectEntity(double x, double y) {
-			super("sprites/Skill/Heat.gif", (int) Math.round(x), (int) Math.round(y));
+			super(SpriteConstants.HEAT_GIF, (int) Math.round(x), (int) Math.round(y));
 			this.x = x;
 			this.y = y;
 			ensureHeatImage();
@@ -1364,7 +1428,7 @@ public class MultiplayerGameCanvas extends Canvas implements Screen, Multiplayer
 			if (cachedHeat != null) {
 				return;
 			}
-			try (java.io.InputStream is = MultiplayerGameCanvas.class.getClassLoader().getResourceAsStream("sprites/Skill/Heat.gif")) {
+			try (java.io.InputStream is = MultiplayerGameCanvas.class.getClassLoader().getResourceAsStream(SpriteConstants.HEAT_GIF)) {
 				if (is != null) {
 					cachedHeat = ImageIO.read(is);
 				}
@@ -1431,69 +1495,83 @@ public class MultiplayerGameCanvas extends Canvas implements Screen, Multiplayer
 				continue;
 			}
 			switch (event.type) {
-				case CHAT: {
-					String senderId = event.fromPlayerId != null ? event.fromPlayerId : "";
-					String display = playerDisplayNames.getOrDefault(senderId, senderId.isEmpty() ? "" : senderId);
-					String line = (display == null || display.isEmpty() ? "" : display + ": ") + (event.message != null ? event.message : "");
-					appendIntermissionChat(line);
+				case CHAT:
+					handleChatEvent(event);
 					break;
-				}
-				case SYSTEM: {
-					String message = event.message != null ? event.message : "";
-					if (!message.isEmpty()) {
-						// 스킨 변경 이벤트 처리
-						if (message.startsWith("SKIN_CHANGED:")) {
-							String[] parts = message.split(":", 3);
-							if (parts.length == 3) {
-								String playerId = parts[1];
-								String skinPath = parts[2];
-								// 스킨 정보 저장
-								remotePlayerSkins.put(playerId, skinPath);
-								updateRemotePlayerSkin(playerId, skinPath);
-								System.out.println("클라이언트: 원격 플레이어 " + playerId + " 스킨 변경됨: " + skinPath);
-							}
-						} else if (event.fromPlayerId != null && event.fromPlayerId.equals(localPlayerId)) {
-							gameStateManager.setMessage(message);
-							gameStateManager.setWaitingForKeyPress(true);
-							gameStateManager.setRoundTransition(false);
-						}
-					}
+				case SYSTEM:
+					handleSystemEvent(event);
 					break;
-				}
-				case COIN_POPUP: {
-					if (!remoteMode) {
-						break;
-					}
-					String localId = localPlayerId != null ? localPlayerId : gameStateManager.getLocalPlayerId();
-					if (localId == null || event.fromPlayerId == null || !event.fromPlayerId.equals(localId)) {
-						break;
-					}
-					int popupX = 400;
-					int popupY = 200;
-					int reward = 0;
-					if (event.message != null && !event.message.isEmpty()) {
-						String[] parts = event.message.split("\\|", -1);
-						if (parts.length > 0) {
-							popupX = safeParseInt(parts[0], popupX);
-						}
-						if (parts.length > 1) {
-							popupY = safeParseInt(parts[1], popupY);
-						}
-						if (parts.length > 2) {
-							reward = safeParseInt(parts[2], reward);
-						}
-					}
-					if (reward > 0) {
-						showCoinEarned(localId, popupX, popupY, reward);
-					}
+				case COIN_POPUP:
+					handleCoinPopupEvent(event);
 					break;
-				}
 				case SKILL_UPDATE:
 					// Reserved for future skill synchronization events
 					break;
 				default:
 					break;
 			}
+		}
+	}
+
+	private void handleChatEvent(GameEvent event) {
+		String senderId = event.fromPlayerId != null ? event.fromPlayerId : "";
+		String display = playerDisplayNames.getOrDefault(senderId, senderId.isEmpty() ? "" : senderId);
+		String line = (display == null || display.isEmpty() ? "" : display + ": ") + (event.message != null ? event.message : "");
+		appendIntermissionChat(line);
+	}
+
+	private void handleSystemEvent(GameEvent event) {
+		String message = event.message != null ? event.message : "";
+		if (message.isEmpty()) {
+			return;
+		}
+
+		if (message.startsWith("SKIN_CHANGED:")) {
+			handleSkinChangedEvent(message);
+		} else if (event.fromPlayerId != null && event.fromPlayerId.equals(localPlayerId)) {
+			gameStateManager.setMessage(message);
+			gameStateManager.setWaitingForKeyPress(true);
+			gameStateManager.setRoundTransition(false);
+		}
+	}
+
+	private void handleSkinChangedEvent(String message) {
+		String[] parts = message.split(":", 3);
+		if (parts.length == 3) {
+			String playerId = parts[1];
+			String skinPath = parts[2];
+			remotePlayerSkins.put(playerId, skinPath);
+			updateRemotePlayerSkin(playerId, skinPath);
+			System.out.println(REMOTE_PLAYER_LABEL + playerId + " 스킨 변경됨: " + skinPath);
+		}
+	}
+
+	private void handleCoinPopupEvent(GameEvent event) {
+		if (!remoteMode) {
+			return;
+		}
+		String localId = localPlayerId != null ? localPlayerId : gameStateManager.getLocalPlayerId();
+		if (localId == null || event.fromPlayerId == null || !event.fromPlayerId.equals(localId)) {
+			return;
+		}
+
+		int popupX = 400;
+		int popupY = 200;
+		int reward = 0;
+		if (event.message != null && !event.message.isEmpty()) {
+			String[] parts = event.message.split("\\|", -1);
+			if (parts.length > 0) {
+				popupX = safeParseInt(parts[0], popupX);
+			}
+			if (parts.length > 1) {
+				popupY = safeParseInt(parts[1], popupY);
+			}
+			if (parts.length > 2) {
+				reward = safeParseInt(parts[2], reward);
+			}
+		}
+		if (reward > 0) {
+			showCoinEarned(localId, popupX, popupY, reward);
 		}
 	}
 
@@ -1668,7 +1746,7 @@ public class MultiplayerGameCanvas extends Canvas implements Screen, Multiplayer
 		}
 
 		private static String resolveShotSprite(EntitySnapshot snapshot) {
-			return snapshot.sprite != null && !snapshot.sprite.isEmpty() ? snapshot.sprite : "sprites/shot.gif";
+			return snapshot.sprite != null && !snapshot.sprite.isEmpty() ? snapshot.sprite : SpriteConstants.SHOT_GIF;
 		}
 
 		private void apply(Map<String, String> meta) {
@@ -1679,6 +1757,10 @@ public class MultiplayerGameCanvas extends Canvas implements Screen, Multiplayer
 			catch (NumberFormatException ignore) { skillType = -1; }
 			hasPiercing = "1".equals(meta.get("pierce"));
 			nearMonsterShot = "1".equals(meta.get("near"));
+			String spriteOverride = meta.get("sprite");
+			if (spriteOverride != null && !spriteOverride.isEmpty()) {
+				changeSkin(spriteOverride);
+			}
 		}
 
 		@Override
@@ -1704,7 +1786,7 @@ public class MultiplayerGameCanvas extends Canvas implements Screen, Multiplayer
 				g.setColor(Color.YELLOW);
 				g.fillRect((int) x - 2, (int) y - 10, 4, 20);
 			} else if (nearMonsterShot) {
-				drawScaledSprite(g, 50);
+				drawNearMonsterShot(g);
 			} else {
 				super.draw(g);
 			}
@@ -1729,7 +1811,9 @@ public class MultiplayerGameCanvas extends Canvas implements Screen, Multiplayer
 					SKILL_ICON_CACHE.put(type, img);
 					return img;
 				}
-			} catch (Exception ignored) {}
+			} catch (Exception ignored) {
+                // Method is intentionally empty.
+            }
 			return null;
 		}
 
@@ -1754,7 +1838,7 @@ public class MultiplayerGameCanvas extends Canvas implements Screen, Multiplayer
 				g2d.setColor(new Color(0, 0, 0, 180));
 				g2d.fillOval(circleX - radius, circleY - radius, radius * 2, radius * 2);
 				g2d.setColor(Color.YELLOW);
-				g2d.setFont(new Font("Arial", Font.BOLD, 8));
+				g2d.setFont(new Font(FONT_ARIAL, Font.BOLD, 8));
 				String text = "1";
 				int textWidth = g2d.getFontMetrics().stringWidth(text);
 				int textHeight = g2d.getFontMetrics().getHeight();
@@ -1767,54 +1851,99 @@ public class MultiplayerGameCanvas extends Canvas implements Screen, Multiplayer
 			}
 		}
 
-		private void drawScaledSprite(Graphics g, int size) {
-			if (sprite == null) {
-				super.draw(g);
+		private void drawNearMonsterShot(Graphics g) {
+			Graphics2D g2d = (Graphics2D) g;
+			if (SpriteConstants.HEAT_GIF.equals(spritePath)) {
+				int sphereSize = 20;
+				g2d.setColor(Color.GREEN);
+				g2d.fillOval((int) x - sphereSize / 2, (int) y - sphereSize / 2, sphereSize, sphereSize);
+				g2d.setColor(Color.WHITE);
+				g2d.drawOval((int) x - sphereSize / 2, (int) y - sphereSize / 2, sphereSize, sphereSize);
+				g2d.setColor(new Color(0, 255, 0, 100));
+				g2d.fillOval((int) x - sphereSize / 4, (int) y - sphereSize / 4, sphereSize / 2, sphereSize / 2);
 				return;
 			}
-			Graphics2D g2d = (Graphics2D) g;
-			int drawX = (int) Math.round(x) - size / 2;
-			int drawY = (int) Math.round(y) - size / 2;
-			g2d.drawImage(sprite.getImage(), drawX, drawY, drawX + size, drawY + size,
-					0, 0, sprite.getWidth(), sprite.getHeight(), null);
+			if (SpriteConstants.SHOT_GIF.equals(spritePath) || (spritePath != null && spritePath.endsWith("/shot.gif"))) {
+				int sphereSize = 20;
+				g2d.setColor(Color.BLACK);
+				g2d.fillOval((int) x - sphereSize / 2, (int) y - sphereSize / 2, sphereSize, sphereSize);
+				g2d.setColor(Color.DARK_GRAY);
+				g2d.drawOval((int) x - sphereSize / 2, (int) y - sphereSize / 2, sphereSize, sphereSize);
+				return;
+			}
+			if (SpriteConstants.ROUND_2_ATTACK_1_GIF.equals(spritePath)) {
+				sprite.draw(g, (int) x - 75, (int) y - 75, 150, 150);
+				return;
+			}
+			if (SpriteConstants.ICE_BALL_GIF.equals(spritePath)) {
+				sprite.draw(g, (int) x - 50, (int) y - 50, 100, 100);
+				return;
+			}
+			sprite.draw(g, (int) x - 10, (int) y - 10, 20, 20);
 		}
 
 		@Override
 		public java.awt.Rectangle getBounds() {
-			if (nearMonsterShot) {
-				int hitboxSize = 20;
-				return new java.awt.Rectangle((int) x - hitboxSize / 2, (int) y - hitboxSize / 2, hitboxSize, hitboxSize);
+			java.awt.Rectangle base = super.getBounds();
+			if (base == null) {
+				return new java.awt.Rectangle();
 			}
-			return super.getBounds();
+			if (isSkillDrop) {
+				return centeredSquare(24);
+			}
+			if (nearMonsterShot) {
+				java.awt.Rectangle shrunk = shrinkRect(base);
+				int centerX = (int) Math.round(x);
+				int centerY = (int) Math.round(y);
+				return new java.awt.Rectangle(centerX - shrunk.width / 2, centerY - shrunk.height / 2, shrunk.width, shrunk.height);
+			}
+			if (isAlienShot || hasPiercing) {
+				return shrinkRect(base);
+			}
+			return base;
+		}
+
+		private java.awt.Rectangle shrinkRect(java.awt.Rectangle base) {
+			int width = Math.max(4, (int) (base.width * 0.175));
+			int height = Math.max(4, (int) (base.height * 0.175));
+			int centerX = base.x + base.width / 2;
+			int centerY = base.y + base.height / 2;
+			return new java.awt.Rectangle(centerX - width / 2, centerY - height / 2, width, height);
+		}
+
+		private java.awt.Rectangle centeredSquare(int size) {
+			int centerX = (int) Math.round(x);
+			int centerY = (int) Math.round(y);
+			return new java.awt.Rectangle(centerX - size / 2, centerY - size / 2, size, size);
 		}
 	}
 
 	private static class RemoteIceAttack extends Entity {
-		private static final double SCALE = 0.8;
 		private final Image animated;
+		private final int width;
+		private final int height;
 
 		RemoteIceAttack(EntitySnapshot snapshot) {
 			super("sprites/Boss_Attack/ice.gif", (int) Math.round(snapshot.x), (int) Math.round(snapshot.y));
 			this.x = snapshot.x;
 			this.y = snapshot.y;
 			this.animated = loadAnimatedImage("sprites/Boss_Attack/ice.gif");
+			this.width = snapshot.w > 0 ? snapshot.w : 48;
+			this.height = snapshot.h > 0 ? snapshot.h : 48;
 		}
 
 		@Override
 		public void move(long delta) {
-			// remote entities are snapshot-driven
+			// Method is intentionally empty.
 		}
 
 		@Override
 		public void collidedWith(Entity other) {
-			// visuals only
+			// Method is intentionally empty.
 		}
 
 		@Override
 		public java.awt.Rectangle getBounds() {
-			Image image = animated != null ? animated : (sprite != null ? sprite.getImage() : null);
-			int width = image != null ? (int) Math.round(image.getWidth(null) * SCALE) : 48;
-			int height = image != null ? (int) Math.round(image.getHeight(null) * SCALE) : 48;
 			int drawX = (int) Math.round(x) - width / 2;
 			int drawY = (int) Math.round(y) - height / 2;
 			return new java.awt.Rectangle(drawX, drawY, width, height);
@@ -1825,8 +1954,6 @@ public class MultiplayerGameCanvas extends Canvas implements Screen, Multiplayer
 			Graphics2D g2d = (Graphics2D) g;
 			Image image = animated != null ? animated : (sprite != null ? sprite.getImage() : null);
 			if (image != null) {
-				int width = (int) Math.round(image.getWidth(null) * SCALE);
-				int height = (int) Math.round(image.getHeight(null) * SCALE);
 				int drawX = (int) Math.round(x) - width / 2;
 				int drawY = (int) Math.round(y) - height / 2;
 				g2d.drawImage(image, drawX, drawY, width, height, null);
@@ -1840,40 +1967,35 @@ public class MultiplayerGameCanvas extends Canvas implements Screen, Multiplayer
 	}
 
 	private static class RemoteIceBallAttack extends Entity {
-		private static final double SCALE = 0.6;
-		private static final int FALLBACK_RADIUS = 10;
- 		private final Image animated;
+		private final Image animated;
+		private final int width;
+		private final int height;
 
 		RemoteIceBallAttack(EntitySnapshot snapshot) {
-			super("sprites/Boss_Attack/ice ball.gif", (int) Math.round(snapshot.x), (int) Math.round(snapshot.y));
+			super(SpriteConstants.ICE_BALL_GIF, (int) Math.round(snapshot.x), (int) Math.round(snapshot.y));
 			this.x = snapshot.x;
 			this.y = snapshot.y;
- 			this.animated = loadAnimatedImage("sprites/Boss_Attack/ice ball.gif");
+ 			this.animated = loadAnimatedImage(SpriteConstants.ICE_BALL_GIF);
+			int fallback = 20;
+			this.width = snapshot.w > 0 ? snapshot.w : fallback;
+			this.height = snapshot.h > 0 ? snapshot.h : fallback;
 		}
 
 		@Override
 		public void move(long delta) {
-			// snapshot-driven visuals only
+			// Method is intentionally empty.
 		}
 
 		@Override
 		public void collidedWith(Entity other) {
-			// visuals only
+			// Method is intentionally empty.
 		}
 
 		@Override
 		public java.awt.Rectangle getBounds() {
-			Image image = animated != null ? animated : (sprite != null ? sprite.getImage() : null);
-			if (image != null) {
-				int width = (int) Math.round(image.getWidth(null) * SCALE);
-				int height = (int) Math.round(image.getHeight(null) * SCALE);
-				int drawX = (int) Math.round(x) - width / 2;
-				int drawY = (int) Math.round(y) - height / 2;
-				return new java.awt.Rectangle(drawX, drawY, width, height);
-			}
-			int drawX = (int) Math.round(x) - FALLBACK_RADIUS;
-			int drawY = (int) Math.round(y) - FALLBACK_RADIUS;
-			return new java.awt.Rectangle(drawX, drawY, FALLBACK_RADIUS * 2, FALLBACK_RADIUS * 2);
+			int drawX = (int) Math.round(x) - width / 2;
+			int drawY = (int) Math.round(y) - height / 2;
+			return new java.awt.Rectangle(drawX, drawY, width, height);
 		}
 
 		@Override
@@ -1881,20 +2003,18 @@ public class MultiplayerGameCanvas extends Canvas implements Screen, Multiplayer
 			Graphics2D g2d = (Graphics2D) g;
 			Image image = animated != null ? animated : (sprite != null ? sprite.getImage() : null);
 			if (image != null) {
-				int width = (int) Math.round(image.getWidth(null) * SCALE);
-				int height = (int) Math.round(image.getHeight(null) * SCALE);
 				int drawX = (int) Math.round(x) - width / 2;
 				int drawY = (int) Math.round(y) - height / 2;
 				g2d.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR);
 				g2d.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY);
 				g2d.drawImage(image, drawX, drawY, width, height, null);
 			} else {
-				int drawX = (int) Math.round(x) - FALLBACK_RADIUS;
-				int drawY = (int) Math.round(y) - FALLBACK_RADIUS;
+				int drawX = (int) Math.round(x) - width / 2;
+				int drawY = (int) Math.round(y) - height / 2;
 				g2d.setColor(new Color(120, 255, 255, 180));
-				g2d.fillOval(drawX, drawY, FALLBACK_RADIUS * 2, FALLBACK_RADIUS * 2);
+				g2d.fillOval(drawX, drawY, width, height);
 				g2d.setColor(new Color(210, 255, 255, 220));
-				g2d.fillOval(drawX + 3, drawY + 3, (FALLBACK_RADIUS - 3) * 2, (FALLBACK_RADIUS - 3) * 2);
+				g2d.fillOval(drawX + 3, drawY + 3, Math.max(0, width - 6), Math.max(0, height - 6));
 			}
 		}
 	}
@@ -1904,10 +2024,10 @@ public class MultiplayerGameCanvas extends Canvas implements Screen, Multiplayer
 		private final double strength;
 
 		RemoteMagneticField(EntitySnapshot snapshot, Map<String, String> meta) {
-			super("sprites/shot.gif", (int) Math.round(snapshot.x), (int) Math.round(snapshot.y));
+			super(SpriteConstants.SHOT_GIF, (int) Math.round(snapshot.x), (int) Math.round(snapshot.y));
 			this.x = snapshot.x;
 			this.y = snapshot.y;
-			this.radius = parseDouble(meta, "radius", 220.0);
+			this.radius = parseDouble(meta, RADIUS_KEY, 220.0);
 			this.strength = parseDouble(meta, "strength", 0.8);
 		}
 
@@ -1924,12 +2044,12 @@ public class MultiplayerGameCanvas extends Canvas implements Screen, Multiplayer
 
 		@Override
 		public void move(long delta) {
-			// visuals only
+			// Method is intentionally empty.
 		}
 
 		@Override
 		public void collidedWith(Entity other) {
-			// visuals only
+			// Method is intentionally empty.
 		}
 
 		@Override
@@ -1959,327 +2079,374 @@ public class MultiplayerGameCanvas extends Canvas implements Screen, Multiplayer
 	}
 
 	private static class RemoteRound2Laser extends Entity {
-		private static final double LENGTH = 700;
-		private static final double WIDTH = 300;
 		private final Image animated;
+		private final int width;
+		private final int height;
 
 		RemoteRound2Laser(EntitySnapshot snapshot) {
 			super("sprites/Boss_Attack/2round.gif", (int) Math.round(snapshot.x), (int) Math.round(snapshot.y));
 			this.x = snapshot.x;
 			this.y = snapshot.y;
 			this.animated = loadAnimatedImage("sprites/Boss_Attack/2round.gif");
+			this.width = snapshot.w > 0 ? snapshot.w : 700;
+			this.height = snapshot.h > 0 ? snapshot.h : 300;
 		}
 
 		@Override
 		public void move(long delta) {
-			// visuals only
+			// Method is intentionally empty.
 		}
 
 		@Override
 		public void collidedWith(Entity other) {
-			// visuals only
+			// Method is intentionally empty.
 		}
 
 		@Override
 		public java.awt.Rectangle getBounds() {
 			return new java.awt.Rectangle((int) Math.round(x),
-					(int) Math.round(y), (int) LENGTH, (int) WIDTH);
+					(int) Math.round(y), width, height);
 		}
 
 		@Override
 		public void draw(Graphics g) {
 			Graphics2D g2d = (Graphics2D) g;
 			AffineTransform original = g2d.getTransform();
-			g2d.translate(x + LENGTH / 2.0, y + WIDTH / 2.0);
+			g2d.translate(x + width / 2.0, y + height / 2.0);
 			g2d.rotate(Math.PI / 2);
 			Image image = animated != null ? animated : (sprite != null ? sprite.getImage() : null);
 			if (image != null) {
-				g2d.drawImage(image, (int) -(LENGTH / 2), (int) -(WIDTH / 2),
-						(int) LENGTH, (int) WIDTH, null);
+				g2d.drawImage(image, (int) -(width / 2), (int) -(height / 2),
+						width, height, null);
 			} else {
 				g2d.setColor(new Color(120, 200, 255, 180));
-				g2d.fillRect((int) -(LENGTH / 2), (int) -(WIDTH / 2), (int) LENGTH, (int) WIDTH);
+				g2d.fillRect((int) -(width / 2), (int) -(height / 2), width, height);
 			}
 			g2d.setTransform(original);
 		}
 	}
 
 	private static class RemoteRound2Phase1 extends Entity {
-		private static final int SIZE = 80;
 		private final Image animated;
+		private final int size;
 
 		RemoteRound2Phase1(EntitySnapshot snapshot) {
 			super("sprites/Boss_Attack/2round3.gif", (int) Math.round(snapshot.x), (int) Math.round(snapshot.y));
 			this.x = snapshot.x;
 			this.y = snapshot.y;
 			this.animated = loadAnimatedImage("sprites/Boss_Attack/2round3.gif");
+			this.size = snapshot.w > 0 ? snapshot.w : 80;
 		}
 
 		@Override
-		public void move(long delta) {}
+		public void move(long delta) {
+			// Method is intentionally empty.
+		}
 
 		@Override
-		public void collidedWith(Entity other) {}
+		public void collidedWith(Entity other) {
+			// Method is intentionally empty.
+		}
 
 		@Override
 		public java.awt.Rectangle getBounds() {
-			return new java.awt.Rectangle((int) Math.round(x) - SIZE / 2, (int) Math.round(y) - SIZE / 2, SIZE, SIZE);
+			return new java.awt.Rectangle((int) Math.round(x) - size / 2, (int) Math.round(y) - size / 2, size, size);
 		}
 
 		@Override
 		public void draw(Graphics g) {
 			Image image = animated != null ? animated : (sprite != null ? sprite.getImage() : null);
 			if (image != null) {
-				g.drawImage(image, (int) Math.round(x) - SIZE / 2, (int) Math.round(y) - SIZE / 2,
-						SIZE, SIZE, null);
+				g.drawImage(image, (int) Math.round(x) - size / 2, (int) Math.round(y) - size / 2,
+						size, size, null);
 			} else {
 				g.setColor(new Color(255, 150, 150, 200));
-				g.fillOval((int) Math.round(x) - SIZE / 2, (int) Math.round(y) - SIZE / 2, SIZE, SIZE);
+				g.fillOval((int) Math.round(x) - size / 2, (int) Math.round(y) - size / 2, size, size);
 			}
 		}
 	}
 
 	private static class RemoteRound2Phase2 extends Entity {
-		private static final int SIZE = 50;
 		private final Image animated;
+		private final int size;
 
 		RemoteRound2Phase2(EntitySnapshot snapshot) {
-			super("sprites/Boss_Attack/2round1.gif", (int) Math.round(snapshot.x), (int) Math.round(snapshot.y));
+			super(SpriteConstants.ROUND_2_ATTACK_1_GIF, (int) Math.round(snapshot.x), (int) Math.round(snapshot.y));
 			this.x = snapshot.x;
 			this.y = snapshot.y;
-			this.animated = loadAnimatedImage("sprites/Boss_Attack/2round1.gif");
+			this.animated = loadAnimatedImage(SpriteConstants.ROUND_2_ATTACK_1_GIF);
+			this.size = snapshot.w > 0 ? snapshot.w : 50;
 		}
 
 		@Override
-		public void move(long delta) {}
+		public void move(long delta) {
+			// Method is intentionally empty.
+		}
 
 		@Override
-		public void collidedWith(Entity other) {}
+		public void collidedWith(Entity other) {
+			// Method is intentionally empty.
+		}
 
 		@Override
 		public java.awt.Rectangle getBounds() {
-			return new java.awt.Rectangle((int) Math.round(x) - SIZE / 2, (int) Math.round(y) - SIZE / 2, SIZE, SIZE);
+			return new java.awt.Rectangle((int) Math.round(x) - size / 2, (int) Math.round(y) - size / 2, size, size);
 		}
 
 		@Override
 		public void draw(Graphics g) {
 			Image image = animated != null ? animated : (sprite != null ? sprite.getImage() : null);
 			if (image != null) {
-				g.drawImage(image, (int) Math.round(x) - SIZE / 2, (int) Math.round(y) - SIZE / 2,
-						SIZE, SIZE, null);
+				g.drawImage(image, (int) Math.round(x) - size / 2, (int) Math.round(y) - size / 2,
+						size, size, null);
 			} else {
 				g.setColor(new Color(255, 200, 120, 220));
-				g.fillOval((int) Math.round(x) - SIZE / 2, (int) Math.round(y) - SIZE / 2, SIZE, SIZE);
+				g.fillOval((int) Math.round(x) - size / 2, (int) Math.round(y) - size / 2, size, size);
 			}
 		}
 	}
 
 	private static class RemoteRound2Random extends Entity {
-		private static final int WIDTH = 300;
-		private static final int HEIGHT = 400;
 		private final Image animated;
+		private final int width;
+		private final int height;
 
 		RemoteRound2Random(EntitySnapshot snapshot) {
 			super("sprites/Boss_Attack/2round2.gif", (int) Math.round(snapshot.x), 150);
 			this.x = snapshot.x;
 			this.y = 150;
 			this.animated = loadAnimatedImage("sprites/Boss_Attack/2round2.gif");
+			this.width = snapshot.w > 0 ? snapshot.w : 300;
+			this.height = snapshot.h > 0 ? snapshot.h : 400;
 		}
 
 		@Override
-		public void move(long delta) {}
+		public void move(long delta) {
+			// Method is intentionally empty.
+		}
 
 		@Override
-		public void collidedWith(Entity other) {}
+		public void collidedWith(Entity other) {
+			// Method is intentionally empty.
+		}
 
 		@Override
 		public java.awt.Rectangle getBounds() {
-			return new java.awt.Rectangle((int) Math.round(x) - WIDTH / 2, (int) Math.round(y), WIDTH, HEIGHT);
+			return new java.awt.Rectangle((int) Math.round(x) - width / 2, (int) Math.round(y), width, height);
 		}
 
 		@Override
 		public void draw(Graphics g) {
 			Image image = animated != null ? animated : (sprite != null ? sprite.getImage() : null);
 			if (image != null) {
-				g.drawImage(image, (int) Math.round(x) - WIDTH / 2, 150, WIDTH, HEIGHT, null);
+				g.drawImage(image, (int) Math.round(x) - width / 2, 150, width, height, null);
 			} else {
 				g.setColor(new Color(255, 200, 0, 128));
-				g.fillRect((int) Math.round(x) - WIDTH / 2, 150, WIDTH, HEIGHT);
+				g.fillRect((int) Math.round(x) - width / 2, 150, width, height);
 			}
 		}
 	}
 
 	private static class RemoteRound2Quad extends Entity {
 		private final Image animated;
+		private final int size;
 
 		RemoteRound2Quad(EntitySnapshot snapshot) {
-			super("sprites/Boss_Attack/2round1.gif", (int) Math.round(snapshot.x), (int) Math.round(snapshot.y));
+			super(SpriteConstants.ROUND_2_ATTACK_1_GIF, (int) Math.round(snapshot.x), (int) Math.round(snapshot.y));
 			this.x = snapshot.x;
 			this.y = snapshot.y;
-			this.animated = loadAnimatedImage("sprites/Boss_Attack/2round1.gif");
+			this.animated = loadAnimatedImage(SpriteConstants.ROUND_2_ATTACK_1_GIF);
+			this.size = snapshot.w > 0 ? snapshot.w : 50;
 		}
 
 		@Override
-		public void move(long delta) {}
+		public void move(long delta) {
+			// Method is intentionally empty.
+		}
 
 		@Override
-		public void collidedWith(Entity other) {}
+		public void collidedWith(Entity other) {
+			// Method is intentionally empty.
+		}
 
 		@Override
 		public java.awt.Rectangle getBounds() {
-			return new java.awt.Rectangle((int) Math.round(x) - 25, (int) Math.round(y) - 25, 50, 50);
+			return new java.awt.Rectangle((int) Math.round(x) - size / 2, (int) Math.round(y) - size / 2, size, size);
 		}
 
 		@Override
 		public void draw(Graphics g) {
 			Image image = animated != null ? animated : (sprite != null ? sprite.getImage() : null);
 			if (image != null) {
-				g.drawImage(image, (int) Math.round(x) - 25, (int) Math.round(y) - 25, 50, 50, null);
+				g.drawImage(image, (int) Math.round(x) - size / 2, (int) Math.round(y) - size / 2, size, size, null);
 			} else {
 				g.setColor(new Color(255, 180, 120, 200));
-				g.fillOval((int) Math.round(x) - 25, (int) Math.round(y) - 25, 50, 50);
+				g.fillOval((int) Math.round(x) - size / 2, (int) Math.round(y) - size / 2, size, size);
 			}
 		}
 	}
 
 	private static class RemoteRound2MachineGun extends Entity {
-		private static final int SIZE = 30;
 		private final Image animated;
+		private final int size;
 
 		RemoteRound2MachineGun(EntitySnapshot snapshot) {
-			super("sprites/Boss_Attack/2round1.gif", (int) Math.round(snapshot.x), (int) Math.round(snapshot.y));
+			super(SpriteConstants.ROUND_2_ATTACK_1_GIF, (int) Math.round(snapshot.x), (int) Math.round(snapshot.y));
 			this.x = snapshot.x;
 			this.y = snapshot.y;
-			this.animated = loadAnimatedImage("sprites/Boss_Attack/2round1.gif");
+			this.animated = loadAnimatedImage(SpriteConstants.ROUND_2_ATTACK_1_GIF);
+			this.size = snapshot.w > 0 ? snapshot.w : 30;
 		}
 
 		@Override
-		public void move(long delta) {}
+		public void move(long delta) {
+			// Method is intentionally empty.
+		}
 
 		@Override
-		public void collidedWith(Entity other) {}
+		public void collidedWith(Entity other) {
+			// Method is intentionally empty.
+		}
 
 		@Override
 		public java.awt.Rectangle getBounds() {
-			return new java.awt.Rectangle((int) Math.round(x) - SIZE / 2, (int) Math.round(y) - SIZE / 2, SIZE, SIZE);
+			return new java.awt.Rectangle((int) Math.round(x) - size / 2, (int) Math.round(y) - size / 2, size, size);
 		}
 
 		@Override
 		public void draw(Graphics g) {
 			Image image = animated != null ? animated : (sprite != null ? sprite.getImage() : null);
 			if (image != null) {
-				g.drawImage(image, (int) Math.round(x) - SIZE / 2, (int) Math.round(y) - SIZE / 2, SIZE, SIZE, null);
+				g.drawImage(image, (int) Math.round(x) - size / 2, (int) Math.round(y) - size / 2, size, size, null);
 			} else {
 				g.setColor(new Color(255, 220, 120, 200));
-				g.fillOval((int) Math.round(x) - SIZE / 2, (int) Math.round(y) - SIZE / 2, SIZE, SIZE);
+				g.fillOval((int) Math.round(x) - size / 2, (int) Math.round(y) - size / 2, size, size);
 			}
 		}
 	}
 
 	private static class RemoteRound3Straight extends Entity {
-		private static final int WIDTH = 600;
-		private static final int HEIGHT = 300;
 		private final Image animated;
+		private final int width;
+		private final int height;
 
 		RemoteRound3Straight(EntitySnapshot snapshot) {
 			super("sprites/Boss_Attack/3round4.gif", (int) Math.round(snapshot.x), (int) Math.round(snapshot.y));
 			this.x = snapshot.x;
 			this.y = snapshot.y;
 			this.animated = loadAnimatedImage("sprites/Boss_Attack/3round4.gif");
+			this.width = snapshot.w > 0 ? snapshot.w : 600;
+			this.height = snapshot.h > 0 ? snapshot.h : 300;
 		}
 
 		@Override
-		public void move(long delta) {}
+		public void move(long delta) {
+			// Method is intentionally empty.
+		}
 
 		@Override
-		public void collidedWith(Entity other) {}
+		public void collidedWith(Entity other) {
+			// Method is intentionally empty.
+		}
 
 		@Override
 		public java.awt.Rectangle getBounds() {
-			return new java.awt.Rectangle((int) Math.round(x) - WIDTH / 2, (int) Math.round(y) - HEIGHT / 2, WIDTH, HEIGHT);
+			return new java.awt.Rectangle((int) Math.round(x) - width / 2, (int) Math.round(y) - height / 2, width, height);
 		}
 
 		@Override
 		public void draw(Graphics g) {
 			Image image = animated != null ? animated : (sprite != null ? sprite.getImage() : null);
 			if (image != null) {
-				g.drawImage(image, (int) Math.round(x) - WIDTH / 2, (int) Math.round(y) - HEIGHT / 2,
-						WIDTH, HEIGHT, null);
+				g.drawImage(image, (int) Math.round(x) - width / 2, (int) Math.round(y) - height / 2,
+						width, height, null);
 			} else {
 				g.setColor(new Color(200, 30, 30, 140));
-				g.fillRect((int) Math.round(x) - WIDTH / 2, (int) Math.round(y) - HEIGHT / 2, WIDTH, HEIGHT);
+				g.fillRect((int) Math.round(x) - width / 2, (int) Math.round(y) - height / 2, width, height);
 			}
 		}
 	}
 
 	private static class RemoteRound3Random extends Entity {
-		private static final int WIDTH = 400;
-		private static final int HEIGHT = 1400;
 		private final Image animated;
+		private final int width;
+		private final int height;
 
 		RemoteRound3Random(EntitySnapshot snapshot) {
 			super("sprites/Boss_Attack/3round2.gif", (int) Math.round(snapshot.x), (int) Math.round(snapshot.y));
 			this.x = snapshot.x;
 			this.y = snapshot.y;
 			this.animated = loadAnimatedImage("sprites/Boss_Attack/3round2.gif");
+			this.width = snapshot.w > 0 ? snapshot.w : 400;
+			this.height = snapshot.h > 0 ? snapshot.h : 1400;
 		}
 
 		@Override
-		public void move(long delta) {}
+		public void move(long delta) {
+			// Method is intentionally empty.
+		}
 
 		@Override
-		public void collidedWith(Entity other) {}
+		public void collidedWith(Entity other) {
+			// Method is intentionally empty.
+		}
 
 		@Override
 		public java.awt.Rectangle getBounds() {
-			return new java.awt.Rectangle((int) Math.round(x) - WIDTH / 2, (int) Math.round(y) - HEIGHT / 2, WIDTH, HEIGHT);
+			return new java.awt.Rectangle((int) Math.round(x) - width / 2, (int) Math.round(y) - height / 2, width, height);
 		}
 
 		@Override
 		public void draw(Graphics g) {
 			Image image = animated != null ? animated : (sprite != null ? sprite.getImage() : null);
 			if (image != null) {
-				g.drawImage(image, (int) Math.round(x) - WIDTH / 2, (int) Math.round(y) - HEIGHT / 2,
-						WIDTH, HEIGHT, null);
+				g.drawImage(image, (int) Math.round(x) - width / 2, (int) Math.round(y) - height / 2,
+						width, height, null);
 			} else {
 				g.setColor(new Color(255, 80, 80, 120));
-				g.fillRect((int) Math.round(x) - WIDTH / 2, (int) Math.round(y) - HEIGHT / 2, WIDTH, HEIGHT);
+				g.fillRect((int) Math.round(x) - width / 2, (int) Math.round(y) - height / 2, width, height);
 			}
 		}
 	}
 
 	private static class RemoteRound3Pull extends Entity {
-		private static final int WIDTH = 300;
-		private static final int HEIGHT = 400;
 		private final Image animated;
+		private final int width;
+		private final int height;
 
 		RemoteRound3Pull(EntitySnapshot snapshot) {
 			super("sprites/Boss_Attack/3round3.gif", (int) Math.round(snapshot.x), (int) Math.round(snapshot.y));
 			this.x = snapshot.x;
 			this.y = snapshot.y;
 			this.animated = loadAnimatedImage("sprites/Boss_Attack/3round3.gif");
+			this.width = snapshot.w > 0 ? snapshot.w : 300;
+			this.height = snapshot.h > 0 ? snapshot.h : 400;
 		}
 
 		@Override
-		public void move(long delta) {}
+		public void move(long delta) {
+			// Method is intentionally empty.
+		}
 
 		@Override
-		public void collidedWith(Entity other) {}
+		public void collidedWith(Entity other) {
+			// Method is intentionally empty.
+		}
 
 		@Override
 		public java.awt.Rectangle getBounds() {
-			return new java.awt.Rectangle((int) Math.round(x) - WIDTH / 2, (int) Math.round(y) - HEIGHT / 2, WIDTH, HEIGHT);
+			return new java.awt.Rectangle((int) Math.round(x) - width / 2, (int) Math.round(y) - height / 2, width, height);
 		}
 
 		@Override
 		public void draw(Graphics g) {
 			Image image = animated != null ? animated : (sprite != null ? sprite.getImage() : null);
 			if (image != null) {
-				g.drawImage(image, (int) Math.round(x) - WIDTH / 2, (int) Math.round(y) - HEIGHT / 2,
-						WIDTH, HEIGHT, null);
+				g.drawImage(image, (int) Math.round(x) - width / 2, (int) Math.round(y) - height / 2,
+						width, height, null);
 			} else {
 				g.setColor(new Color(80, 120, 255, 120));
-				g.fillRect((int) Math.round(x) - WIDTH / 2, (int) Math.round(y) - HEIGHT / 2, WIDTH, HEIGHT);
+				g.fillRect((int) Math.round(x) - width / 2, (int) Math.round(y) - height / 2, width, height);
 			}
 		}
 	}
@@ -2296,10 +2463,14 @@ public class MultiplayerGameCanvas extends Canvas implements Screen, Multiplayer
 		}
 
 		@Override
-		public void move(long delta) {}
+		public void move(long delta) {
+			// Method is intentionally empty.
+		}
 
 		@Override
-		public void collidedWith(Entity other) {}
+		public void collidedWith(Entity other) {
+			// Method is intentionally empty.
+		}
 
 		@Override
 		public java.awt.Rectangle getBounds() {
@@ -2331,10 +2502,14 @@ public class MultiplayerGameCanvas extends Canvas implements Screen, Multiplayer
 		}
 
 		@Override
-		public void move(long delta) {}
+		public void move(long delta) {
+			// Method is intentionally empty.
+		}
 
 		@Override
-		public void collidedWith(Entity other) {}
+		public void collidedWith(Entity other) {
+			// Method is intentionally empty.
+		}
 
 		@Override
 		public java.awt.Rectangle getBounds() {
@@ -2355,35 +2530,35 @@ public class MultiplayerGameCanvas extends Canvas implements Screen, Multiplayer
 	}
 
 	private static class RemoteRound4GreenSphere extends Entity {
-		private static final double SCALE = 0.6;
-		private static final int FALLBACK_SIZE = 24;
 		private final Image animated;
+		private final int width;
+		private final int height;
 
-		RemoteRound4GreenSphere(EntitySnapshot snapshot, Map<String, String> meta) {
+		RemoteRound4GreenSphere(EntitySnapshot snapshot) {
 			super("sprites/Boss_Attack/5round1.gif", (int) Math.round(snapshot.x), (int) Math.round(snapshot.y));
 			this.x = snapshot.x;
 			this.y = snapshot.y;
 			this.animated = loadAnimatedImage("sprites/Boss_Attack/5round1.gif");
+			int fallback = 24;
+			this.width = snapshot.w > 0 ? snapshot.w : fallback;
+			this.height = snapshot.h > 0 ? snapshot.h : fallback;
 		}
 
 		@Override
-		public void move(long delta) {}
+		public void move(long delta) {
+			// Method is intentionally empty.
+		}
 
 		@Override
-		public void collidedWith(Entity other) {}
+		public void collidedWith(Entity other) {
+			// Method is intentionally empty.
+		}
 
 		@Override
 		public java.awt.Rectangle getBounds() {
-			Image image = animated != null ? animated : (sprite != null ? sprite.getImage() : null);
-			if (image != null) {
-				int width = (int) Math.round(image.getWidth(null) * SCALE);
-				int height = (int) Math.round(image.getHeight(null) * SCALE);
-				int drawX = (int) Math.round(x) - width / 2;
-				int drawY = (int) Math.round(y) - height / 2;
-				return new java.awt.Rectangle(drawX, drawY, width, height);
-			}
-			return new java.awt.Rectangle((int) Math.round(x) - FALLBACK_SIZE / 2,
-					(int) Math.round(y) - FALLBACK_SIZE / 2, FALLBACK_SIZE, FALLBACK_SIZE);
+			int drawX = (int) Math.round(x) - width / 2;
+			int drawY = (int) Math.round(y) - height / 2;
+			return new java.awt.Rectangle(drawX, drawY, width, height);
 		}
 
 		@Override
@@ -2391,21 +2566,20 @@ public class MultiplayerGameCanvas extends Canvas implements Screen, Multiplayer
 			Graphics2D g2d = (Graphics2D) g;
 			Image image = animated != null ? animated : (sprite != null ? sprite.getImage() : null);
 			if (image != null) {
-				int width = (int) Math.round(image.getWidth(null) * SCALE);
-				int height = (int) Math.round(image.getHeight(null) * SCALE);
 				int drawX = (int) Math.round(x) - width / 2;
 				int drawY = (int) Math.round(y) - height / 2;
 				g2d.drawImage(image, drawX, drawY, width, height, null);
 			} else {
-				int drawX = (int) Math.round(x) - FALLBACK_SIZE / 2;
-				int drawY = (int) Math.round(y) - FALLBACK_SIZE / 2;
+				int drawX = (int) Math.round(x) - width / 2;
+				int drawY = (int) Math.round(y) - height / 2;
 				g2d.setColor(new Color(120, 255, 120, 220));
-				g2d.fillOval(drawX, drawY, FALLBACK_SIZE, FALLBACK_SIZE);
+				g2d.fillOval(drawX, drawY, width, height);
 				g2d.setColor(new Color(200, 255, 200, 160));
-				g2d.fillOval(drawX + 2, drawY + 2, FALLBACK_SIZE - 4, FALLBACK_SIZE - 4);
+				g2d.drawOval(drawX, drawY, width, height);
 			}
 		}
 	}
+
 
 	private static class RemoteRound4PlayerLine extends Entity {
 		private static final int SIZE = 160;
@@ -2419,10 +2593,14 @@ public class MultiplayerGameCanvas extends Canvas implements Screen, Multiplayer
 		}
 
 		@Override
-		public void move(long delta) {}
+		public void move(long delta) {
+			// Method is intentionally empty.
+		}
 
 		@Override
-		public void collidedWith(Entity other) {}
+		public void collidedWith(Entity other) {
+			// Method is intentionally empty.
+		}
 
 		@Override
 		public java.awt.Rectangle getBounds() {
@@ -2447,14 +2625,14 @@ public class MultiplayerGameCanvas extends Canvas implements Screen, Multiplayer
 		private double currentRadius;
 
 		RemoteExplosionEntity(EntitySnapshot snapshot, Map<String, String> meta) {
-			super(snapshot.sprite != null && !snapshot.sprite.isEmpty() ? snapshot.sprite : "sprites/Skill/Explosion.png", (int) snapshot.x, (int) snapshot.y);
+			super(snapshot.sprite != null && !snapshot.sprite.isEmpty() ? snapshot.sprite : SpriteConstants.EXPLOSION_PNG, (int) snapshot.x, (int) snapshot.y);
 			loadImage();
 			apply(meta);
 		}
 
 		private void apply(Map<String, String> meta) {
 			if (meta == null) return;
-			try { currentRadius = Double.parseDouble(meta.getOrDefault("radius", "0")); }
+			try { currentRadius = Double.parseDouble(meta.getOrDefault(RADIUS_KEY, "0")); }
 			catch (NumberFormatException ignore) { currentRadius = 0; }
 		}
 
@@ -2465,12 +2643,12 @@ public class MultiplayerGameCanvas extends Canvas implements Screen, Multiplayer
 
 		@Override
 		public void move(long delta) {
-			// no-op
+			// Method is intentionally empty.
 		}
 
 		@Override
 		public void collidedWith(Entity other) {
-			// no-op
+			// Method is intentionally empty.
 		}
 
 		@Override
@@ -2495,9 +2673,9 @@ public class MultiplayerGameCanvas extends Canvas implements Screen, Multiplayer
 					(int)(innerRadius * 2), (int)(innerRadius * 2));
 		}
 
-		private void loadImage() {
+		private static void loadImage() {
 			if (cachedImage != null) return;
-			try (java.io.InputStream is = MultiplayerGameCanvas.class.getClassLoader().getResourceAsStream("sprites/Skill/Explosion.png")) {
+			try (java.io.InputStream is = MultiplayerGameCanvas.class.getClassLoader().getResourceAsStream(SpriteConstants.EXPLOSION_PNG)) {
 				if (is != null) {
 					cachedImage = ImageIO.read(is);
 				}
@@ -2506,32 +2684,56 @@ public class MultiplayerGameCanvas extends Canvas implements Screen, Multiplayer
 	}
 
 	public void render(Graphics2D g) {
-		// 해상도 스케일링 적용
-		if (resolutionManager != null) {
-			double scaleX = resolutionManager.getScaleX();
-			double scaleY = resolutionManager.getScaleY();
-			g.scale(scaleX, scaleY);
-		}
+		AffineTransform original = g.getTransform();
 		
-		// 배경 (cached)
+		applyResolutionScaling(g);
+		drawGameElements(g);
+		drawOverlays(g);
+		
+		// 원래 Transform 복원
+		if (resolutionManager != null) {
+			g.setTransform(original);
+		}
+	}
+
+	private void applyResolutionScaling(Graphics2D g) {
+		if (resolutionManager != null) {
+			double offsetX = resolutionManager.getOffsetX();
+			double offsetY = resolutionManager.getOffsetY();
+			double scale = resolutionManager.getUniformScale();
+			g.translate(offsetX, offsetY);
+			g.scale(scale, scale);
+		}
+	}
+
+	private void drawGameElements(Graphics2D g) {
 		backgroundRenderer.draw(g);
-		// entities
-		ArrayList<Entity> entities = gameStateManager.getEntities();
-		for (Entity entity : entities) entity.draw(g);
+		for (Entity entity : gameStateManager.getEntities()) {
+			entity.draw(g);
+		}
 		drawRemoteCoinPopups(g);
-		// UI & overlays
-	uiRenderer.drawGameUI(g, gameStateManager, skillManager);
-	if (isLocalSpectatorActive()) {
-		drawSpectatorOverlay(g);
+		uiRenderer.drawGameUI(g, gameStateManager, skillManager);
 	}
-	if (gameStateManager.isShowingPauseMenu()) { drawPauseMenu(g); }
-	if (isIntermissionOverlayVisible()) {
-		drawIntermissionOverlay(g);
-	}
-	if (gameStateManager.isWaitingForKeyPress()) {
-		uiRenderer.drawMessage(g, gameStateManager.getMessage());
-	}
-	if (gameStateManager.isShowingSkillMenu()) { drawSkillMenu(g); }
+
+	private void drawOverlays(Graphics2D g) {
+		if (isLocalSpectatorActive()) {
+			drawSpectatorOverlay(g);
+		}
+		if (gameStateManager.isShowingPauseMenu()) {
+			drawPauseMenu(g);
+		}
+		if (isIntermissionOverlayVisible()) {
+			drawIntermissionOverlay(g);
+		}
+		if (gameStateManager.isWaitingForKeyPress()) {
+			uiRenderer.drawMessage(g, gameStateManager.getMessage());
+		}
+		if (gameStateManager.isShowingSkillMenu()) {
+			drawSkillMenu(g);
+		}
+		if (gameStateManager.isDebugDrawHitboxes()) {
+			drawHitboxOverlay(g);
+		}
 	}
 	
 	private void drawRemoteCoinPopups(Graphics2D g) {
@@ -2540,6 +2742,35 @@ public class MultiplayerGameCanvas extends Canvas implements Screen, Multiplayer
 		}
 		for (CoinDisplayEntity popup : remoteCoinPopups) {
 			popup.draw(g);
+		}
+	}
+	
+	private void drawHitboxOverlay(Graphics2D g) {
+		java.awt.Stroke previous = g.getStroke();
+		g.setStroke(new BasicStroke(1f));
+		for (Entity entity : gameStateManager.getEntities()) {
+			if (entity == null) {
+				continue;
+			}
+			java.awt.Rectangle rect = entity.getBounds();
+			if (rect == null) {
+				continue;
+			}
+			g.setColor(getHitboxColor(entity));
+			g.drawRect(rect.x, rect.y, rect.width, rect.height);
+		}
+		g.setStroke(previous);
+	}
+
+	private Color getHitboxColor(Entity entity) {
+		if (entity instanceof ShipEntity) {
+			return new Color(0, 200, 0, 160);
+		} else if (entity instanceof ShotEntity) {
+			return ((ShotEntity) entity).isAlienShot() ? new Color(255, 0, 0, 160) : new Color(0, 200, 255, 160);
+		} else if (entity instanceof RemoteShotEntity) {
+			return ((RemoteShotEntity) entity).isAlienShot ? new Color(255, 0, 0, 160) : new Color(0, 200, 255, 160);
+		} else {
+			return new Color(255, 255, 0, 120);
 		}
 	}
 
@@ -2590,20 +2821,43 @@ public class MultiplayerGameCanvas extends Canvas implements Screen, Multiplayer
 		int panelX = (getWidth() - panelWidth) / 2;
 		int panelY = (getHeight() - panelHeight) / 2;
 
+		drawSpectatorPanelBackground(g, panelX, panelY, panelWidth, panelHeight);
+		drawPlayerLists(g, panelX, panelY);
+
+		g.setFont(new Font(FONT_ARIAL, Font.PLAIN, 12));
+		g.setColor(new Color(200, 200, 200));
+		g.drawString("Enter: 채팅  ESC: 로비로 돌아가기", panelX + 24, panelY + panelHeight - 28);
+	}
+
+	private void drawSpectatorPanelBackground(Graphics2D g, int panelX, int panelY, int panelWidth, int panelHeight) {
 		g.setColor(new Color(0, 0, 0, 180));
 		g.fillRoundRect(panelX, panelY, panelWidth, panelHeight, 16, 16);
 		g.setColor(new Color(255, 255, 255, 90));
 		g.drawRoundRect(panelX, panelY, panelWidth, panelHeight, 16, 16);
+		drawSpectatorText(g, panelX, panelY);
+	}
 
-		g.setFont(new Font("Arial", Font.BOLD, 22));
+	private void drawSpectatorText(Graphics2D g, int panelX, int panelY) {
+		g.setFont(new Font(FONT_ARIAL, Font.BOLD, 22));
 		g.setColor(Color.WHITE);
 		g.drawString("관전 모드", panelX + 24, panelY + 36);
 
-		g.setFont(new Font("Arial", Font.PLAIN, 14));
+		g.setFont(new Font(FONT_ARIAL, Font.PLAIN, 14));
 		g.setColor(new Color(225, 225, 225));
 		g.drawString("당신의 함선이 파괴되었습니다.", panelX + 24, panelY + 64);
 		g.drawString("라운드 종료까지 관전을 계속합니다.", panelX + 24, panelY + 82);
+	}
 
+	private void drawPlayerLists(Graphics2D g, int panelX, int panelY) {
+		PlayerCategorizationResult categorization = categorizePlayers();
+
+		int listY = panelY + 110;
+		drawPlayerList(g, "생존 플레이어", categorization.alivePlayers, panelX, listY, new Color(120, 255, 160), new Color(200, 255, 200));
+		listY += (categorization.alivePlayers.isEmpty() ? 1 : categorization.alivePlayers.size()) * 18 + 4;
+		drawPlayerList(g, "전투 불능", categorization.defeatedPlayers, panelX, listY, new Color(255, 200, 160), new Color(240, 200, 200));
+	}
+
+	private PlayerCategorizationResult categorizePlayers() {
 		List<String> alive = new ArrayList<>();
 		List<String> defeated = new ArrayList<>();
 		for (PlayerState state : gameStateManager.getPlayerStates()) {
@@ -2624,46 +2878,35 @@ public class MultiplayerGameCanvas extends Canvas implements Screen, Multiplayer
 				alive.add(display);
 			}
 		}
+		return new PlayerCategorizationResult(alive, defeated);
+	}
 
-		int listY = panelY + 110;
-		g.setFont(new Font("Arial", Font.BOLD, 14));
-		g.setColor(new Color(120, 255, 160));
-		g.drawString("생존 플레이어", panelX + 24, listY);
-		listY += 18;
-		g.setFont(new Font("Arial", Font.PLAIN, 13));
-		if (alive.isEmpty()) {
+	private static class PlayerCategorizationResult {
+		public final List<String> alivePlayers;
+		public final List<String> defeatedPlayers;
+
+		public PlayerCategorizationResult(List<String> alivePlayers, List<String> defeatedPlayers) {
+			this.alivePlayers = alivePlayers;
+			this.defeatedPlayers = defeatedPlayers;
+		}
+	}
+
+	private void drawPlayerList(Graphics2D g, String title, List<String> players, int x, int y, Color titleColor, Color playerColor) {
+		g.setFont(new Font(FONT_ARIAL, Font.BOLD, 14));
+		g.setColor(titleColor);
+		g.drawString(title, x + 24, y);
+		y += 18;
+		g.setFont(new Font(FONT_ARIAL, Font.PLAIN, 13));
+		if (players.isEmpty()) {
 			g.setColor(new Color(200, 200, 200));
-			g.drawString("• 없음", panelX + 24, listY);
-			listY += 18;
+			g.drawString("• 없음", x + 24, y);
 		} else {
-			g.setColor(new Color(200, 255, 200));
-			for (String label : alive) {
-				g.drawString("• " + label, panelX + 24, listY);
-				listY += 18;
+			g.setColor(playerColor);
+			for (String label : players) {
+				g.drawString("• " + label, x + 24, y);
+				y += 18;
 			}
 		}
-
-		listY += 4;
-		g.setFont(new Font("Arial", Font.BOLD, 14));
-		g.setColor(new Color(255, 200, 160));
-		g.drawString("전투 불능", panelX + 24, listY);
-		listY += 18;
-		g.setFont(new Font("Arial", Font.PLAIN, 13));
-		if (defeated.isEmpty()) {
-			g.setColor(new Color(200, 200, 200));
-			g.drawString("• 없음", panelX + 24, listY);
-			listY += 18;
-		} else {
-			g.setColor(new Color(240, 200, 200));
-			for (String label : defeated) {
-				g.drawString("• " + label, panelX + 24, listY);
-				listY += 18;
-			}
-		}
-
-		g.setFont(new Font("Arial", Font.PLAIN, 12));
-		g.setColor(new Color(200, 200, 200));
-		g.drawString("Enter: 채팅  ESC: 로비로 돌아가기", panelX + 24, panelY + panelHeight - 28);
 	}
 
 	private boolean shouldDisplayInSpectatorList(String playerId) {
@@ -2683,26 +2926,42 @@ public class MultiplayerGameCanvas extends Canvas implements Screen, Multiplayer
 		int panelX = (getWidth() - panelWidth) / 2;
 		int panelY = (getHeight() - panelHeight) / 2;
 
+		drawIntermissionPanel(g, panelX, panelY, panelWidth, panelHeight);
+		drawPlayerReadyStatus(g, panelX, panelY);
+		drawIntermissionChat(g, panelX, panelY, panelWidth, panelHeight);
+		drawIntermissionInfo(g, panelX, panelY, panelHeight);
+	}
+
+	private void drawIntermissionPanel(Graphics2D g, int panelX, int panelY, int panelWidth, int panelHeight) {
 		g.setColor(new Color(0, 0, 0, 180));
 		g.fillRoundRect(panelX, panelY, panelWidth, panelHeight, 18, 18);
 		g.setColor(new Color(255, 255, 255, 90));
 		g.drawRoundRect(panelX, panelY, panelWidth, panelHeight, 18, 18);
 
+		drawIntermissionTitle(g, panelX, panelY);
+		drawIntermissionMessage(g, panelX, panelY);
+	}
+
+	private void drawIntermissionTitle(Graphics2D g, int panelX, int panelY) {
 		String title = remotePhase == GameSnapshot.Phase.COMPLETED ? "게임 종료" : "라운드 준비";
-		Font titleFont = new Font("Arial", Font.BOLD, 24);
+		Font titleFont = new Font(FONT_ARIAL, Font.BOLD, 24);
 		g.setFont(titleFont);
 		g.setColor(Color.WHITE);
 		g.drawString(title, panelX + 24, panelY + 40);
+	}
 
+	private void drawIntermissionMessage(Graphics2D g, int panelX, int panelY) {
 		if (intermissionMessage != null && !intermissionMessage.isEmpty()) {
-			g.setFont(new Font("Arial", Font.PLAIN, 16));
+			g.setFont(new Font(FONT_ARIAL, Font.PLAIN, 16));
 			g.setColor(new Color(220, 220, 220));
 			g.drawString(intermissionMessage, panelX + 24, panelY + 70);
 		}
+	}
 
+	private void drawPlayerReadyStatus(Graphics2D g, int panelX, int panelY) {
 		int listX = panelX + 24;
 		int listY = panelY + 100;
-		g.setFont(new Font("Arial", Font.BOLD, 16));
+		g.setFont(new Font(FONT_ARIAL, Font.BOLD, 16));
 		int lineHeight = 24;
 		Map<String, String> displayMap = new LinkedHashMap<>(playerDisplayNames);
 		for (String id : remoteReadyStates.keySet()) {
@@ -2724,7 +2983,9 @@ public class MultiplayerGameCanvas extends Canvas implements Screen, Multiplayer
 			}
 			i++;
 		}
+	}
 
+	private void drawIntermissionChat(Graphics2D g, int panelX, int panelY, int panelWidth, int panelHeight) {
 		int chatX = panelX + panelWidth / 2 + 10;
 		int chatY = panelY + 100;
 		int chatWidth = panelWidth / 2 - 34;
@@ -2755,8 +3016,10 @@ public class MultiplayerGameCanvas extends Canvas implements Screen, Multiplayer
 		}
 		g.setColor(Color.WHITE);
 		g.drawString(inputDisplay, chatX + 12, inputY + 21);
+	}
 
-		g.setFont(new Font("Arial", Font.PLAIN, 13));
+	private void drawIntermissionInfo(Graphics2D g, int panelX, int panelY, int panelHeight) {
+		g.setFont(new Font(FONT_ARIAL, Font.PLAIN, 13));
 		g.setColor(new Color(200, 200, 200));
 		int infoY = panelY + panelHeight - 40;
 		if (remotePhase == GameSnapshot.Phase.INTERMISSION) {
@@ -2846,12 +3109,22 @@ public class MultiplayerGameCanvas extends Canvas implements Screen, Multiplayer
 	@Override
 	public void createExplosion(int x, int y, double radius) {
 		try {
-			ExplosionEntity explosion = new ExplosionEntity(this, "sprites/Skill/Explosion.png", x, y, radius);
+			ExplosionEntity explosion = new ExplosionEntity(this, SpriteConstants.EXPLOSION_PNG, x, y, radius);
 			explosion.setOwnerId(localPlayerId);
 			gameStateManager.getEntities().add(explosion);
 		} catch (Exception e) {
 			System.err.println("Error creating explosion: " + e.getMessage());
 			e.printStackTrace();
+		}
+	}
+
+	@Override
+	public void createHeatEffect(int x, int y, double radius) {
+		try {
+			HeatEffectEntity heat = new HeatEffectEntity(this, x, y);
+			gameStateManager.getEntities().add(heat);
+		} catch (Exception e) {
+			System.err.println("Error creating heat effect: " + e.getMessage());
 		}
 	}
 	
@@ -2862,7 +3135,7 @@ public class MultiplayerGameCanvas extends Canvas implements Screen, Multiplayer
 	 */
 	@Override
 	public void addScore(String playerId, int points) {
-		// 점수 추가
+		// Method is intentionally empty.
 	}
 	
 	/**
@@ -2946,7 +3219,7 @@ public class MultiplayerGameCanvas extends Canvas implements Screen, Multiplayer
 			SharedMultiplayerRoundCoordinator.setupRound(this, gameStateManager.getCurrentRound());
 			gameStateManager.setWaitingForKeyPress(false);
 		} else {
-			gameStateManager.setMessage("🏆 GAME COMPLETED! 🏆 Congratulations!");
+			gameStateManager.setMessage(GAME_COMPLETED_MESSAGE);
 			gameStateManager.setWaitingForKeyPress(true);
 			persistMultiplayerResults(true);
 		}
@@ -2966,7 +3239,7 @@ public class MultiplayerGameCanvas extends Canvas implements Screen, Multiplayer
 		if (roundAdvanced) {
 			SharedMultiplayerRoundCoordinator.setupRound(this, gameStateManager.getCurrentRound());
 		} else {
-			gameStateManager.setMessage("🏆 GAME COMPLETED! 🏆 Congratulations!");
+			gameStateManager.setMessage(GAME_COMPLETED_MESSAGE);
 			gameStateManager.setWaitingForKeyPress(true);
 			persistMultiplayerResults(true);
 		}
@@ -3010,8 +3283,17 @@ public class MultiplayerGameCanvas extends Canvas implements Screen, Multiplayer
 
 	private List<String> collectTeammateNames() {
 		LinkedHashSet<String> names = new LinkedHashSet<>();
-		String localId = localPlayerId;
+		addTeammateNamesFromDisplayNames(names);
 
+		if (names.isEmpty()) {
+			addTeammateNamesFromPlayerStates(names);
+		}
+
+		return new ArrayList<>(names);
+	}
+
+	private void addTeammateNamesFromDisplayNames(Set<String> names) {
+		String localId = localPlayerId;
 		for (Map.Entry<String, String> entry : playerDisplayNames.entrySet()) {
 			String playerId = entry.getKey();
 			String display = entry.getValue();
@@ -3023,18 +3305,17 @@ public class MultiplayerGameCanvas extends Canvas implements Screen, Multiplayer
 				names.add(trimmed);
 			}
 		}
+	}
 
-		if (names.isEmpty()) {
-			for (PlayerState ps : gameStateManager.getPlayerStates()) {
-				String playerId = ps.getPlayerId();
-				if (playerId == null || (localId != null && localId.equals(playerId))) {
-					continue;
-				}
-				names.add(playerId);
+	private void addTeammateNamesFromPlayerStates(Set<String> names) {
+		String localId = localPlayerId;
+		for (PlayerState ps : gameStateManager.getPlayerStates()) {
+			String playerId = ps.getPlayerId();
+			if (playerId == null || (localId != null && localId.equals(playerId))) {
+				continue;
 			}
+			names.add(playerId);
 		}
-
-		return new ArrayList<>(names);
 	}
 
 	private void saveMultiplayerRecord(GameRecord record) {
@@ -3073,7 +3354,7 @@ public class MultiplayerGameCanvas extends Canvas implements Screen, Multiplayer
 	 */
 	public void addBossShot(int x, int y) {
 		try {
-			ShotEntity shot = new ShotEntity(this, "sprites/shot.gif", x, y, true); // true = alien shot
+			ShotEntity shot = new ShotEntity(this, SpriteConstants.SHOT_GIF, x, y, true); // true = alien shot
 			gameStateManager.getEntities().add(shot);
 		} catch (Exception e) {
 			System.err.println("Error adding boss shot: " + e.getMessage());
@@ -3117,13 +3398,8 @@ public class MultiplayerGameCanvas extends Canvas implements Screen, Multiplayer
 			return;
 		}
 		
-		// Apply spaceship skin
 		applySpaceshipSkin();
-		
-		// Apply weapon skin
 		applyWeaponSkin();
-		
-		// Apply powerup effects
 		applyPowerupEffects();
 	}
 	
@@ -3146,7 +3422,7 @@ public class MultiplayerGameCanvas extends Canvas implements Screen, Multiplayer
 			}
 		} else {
 			// 장착된 스킨이 없으면 기본 스킨 사용
-			currentSpaceshipSkin = "sprites/ship.gif";
+			currentSpaceshipSkin = SpriteConstants.SHIP_GIF;
 			System.out.println("멀티플레이어 기본 스킨 사용: " + currentSpaceshipSkin);
 		}
 	}
@@ -3216,7 +3492,7 @@ public class MultiplayerGameCanvas extends Canvas implements Screen, Multiplayer
 			// 원격 플레이어의 스킨을 추정하여 적용
 			// 실제로는 서버에서 스킨 정보를 받아야 하지만, 
 			// 현재는 기본 스킨을 사용하거나 플레이어 ID 기반으로 추정
-			String remoteSkin = "sprites/ship.gif"; // 기본값
+			String remoteSkin = SpriteConstants.SHIP_GIF; // 기본값
 			
 			// 플레이어 ID 기반으로 스킨 추정 (임시 로직)
 			if (playerId.contains("player1") || playerId.contains("1")) {
@@ -3229,7 +3505,7 @@ public class MultiplayerGameCanvas extends Canvas implements Screen, Multiplayer
 			
 			System.out.println("  - 추정된 스킨: " + remoteSkin);
 			shipEntity.changeSkin(remoteSkin);
-			System.out.println("클라이언트: 원격 플레이어 " + playerId + " 스킨 적용: " + remoteSkin);
+			System.out.println(REMOTE_PLAYER_LABEL + playerId + " 스킨 적용: " + remoteSkin);
 		}
 	}
 	
@@ -3250,7 +3526,7 @@ public class MultiplayerGameCanvas extends Canvas implements Screen, Multiplayer
 						foundEntities++;
 						System.out.println("  - 매칭되는 플레이어 배 발견! 스킨 변경 시도...");
 						shipEntity.changeSkin(skinPath);
-						System.out.println("클라이언트: 원격 플레이어 " + playerId + " 스킨 업데이트: " + skinPath);
+						System.out.println(REMOTE_PLAYER_LABEL + playerId + " 스킨 업데이트: " + skinPath);
 					}
 				}
 			}
@@ -3266,7 +3542,37 @@ public class MultiplayerGameCanvas extends Canvas implements Screen, Multiplayer
 		
 		ShopItem equippedWeapon = userManager.getShopManager().getEquippedItem(ShopCategory.WEAPONS);
 		if (equippedWeapon != null) {
-			currentWeaponSkin = "sprites/weapons/" + equippedWeapon.getId() + ".png";
+			String weaponFileName = mapWeaponIdToSkinFile(equippedWeapon.getId());
+			currentWeaponSkin = "sprites/weapons/" + weaponFileName;
+			System.out.println("멀티플레이어 무기 스킨 적용: " + equippedWeapon.getName() + " -> " + currentWeaponSkin);
+		} else {
+			currentWeaponSkin = SpriteConstants.SHOT_GIF;
+			System.out.println("멀티플레이어 기본 무기 스킨 사용: " + currentWeaponSkin);
+		}
+	}
+	
+	/**
+	 * 무기 아이템 ID를 스킨 파일명으로 매핑
+	 */
+	private String mapWeaponIdToSkinFile(String itemId) {
+		switch (itemId) {
+			case "laser_gun":
+				return "green_laser.png";
+			case "plasma_gun":
+				return "plasma.png";
+			case "missile_launcher":
+				return "missile.png";
+			case "report":
+				return "report.jpg"; // 확장자가 .jpg
+			case "school_logo":
+				return "school_logo.png";
+			case "kimbap_code":
+				return "kimbap_code.png";
+			case "breakfast_1000":
+				return "breakfast_1000.png";
+			default:
+				// 기본값으로 아이템 ID + .png 사용
+				return itemId + ".png";
 		}
 	}
 	

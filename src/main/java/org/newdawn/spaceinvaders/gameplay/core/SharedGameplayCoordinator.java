@@ -2,14 +2,13 @@ package org.newdawn.spaceinvaders.gameplay.core;
 
 import java.util.List;
 import java.util.Objects;
-
 import org.newdawn.spaceinvaders.gameplay.GameStateManager;
 import org.newdawn.spaceinvaders.gameplay.SkillManager;
-import org.newdawn.spaceinvaders.gameplay.entity.AlienEntity;
-import org.newdawn.spaceinvaders.gameplay.entity.BossEntity;
-import org.newdawn.spaceinvaders.gameplay.entity.Entity;
-import org.newdawn.spaceinvaders.gameplay.entity.NearEntity;
-import org.newdawn.spaceinvaders.gameplay.entity.ShipEntity;
+import org.newdawn.spaceinvaders.common.entity.Entity;
+import org.newdawn.spaceinvaders.common.entity.ShipEntity;
+import org.newdawn.spaceinvaders.common.entity.alien.AlienEntity;
+import org.newdawn.spaceinvaders.common.entity.boss.BossEntity;
+import org.newdawn.spaceinvaders.common.entity.near.NearEntity;
 
 /**
  * Shared gameplay coordinator consolidating round progression and reward logic.
@@ -55,6 +54,10 @@ public class SharedGameplayCoordinator {
     }
 
     public void handleAlienKilled(String playerId) {
+        handleAlienKilled(playerId, 400, 100); // 기본 위치로 호출 (레거시 호환)
+    }
+    
+    public void handleAlienKilled(String playerId, int x, int y) {
         GameStateManager gsm = getGameStateManager();
         String targetId = playerId != null ? playerId : gsm.getLocalPlayerId();
         SkillManager skillManager = context.getSkillManager(targetId);
@@ -62,7 +65,7 @@ public class SharedGameplayCoordinator {
         gsm.addSkillPoints(skillManager.getRandomSkillPoints(gsm.getCurrentRound()));
         double dropChance = skillManager.getSkillDropChance(gsm.getCurrentRound());
         if (Math.random() < dropChance) {
-            skillManager.dropSkill(gsm.getCurrentRound());
+            skillManager.dropSkill(gsm.getCurrentRound(), x, y);
         }
 
         int remainingHostiles = 0;
@@ -145,7 +148,7 @@ public class SharedGameplayCoordinator {
     }
 
     public boolean isNearRound(int round) {
-        return round % 2 == 1;
+        return (round & 1) == 1;
     }
 
     public int getBossRoundFromNearRound(int round) {

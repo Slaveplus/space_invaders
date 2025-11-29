@@ -3,10 +3,8 @@ package org.newdawn.spaceinvaders.mainmenu;
 import java.awt.*;
 import java.awt.image.BufferedImage;
 import javax.imageio.ImageIO;
-
 import org.newdawn.spaceinvaders.multyplay.core.MultiplayerSkillManager;
 import org.newdawn.spaceinvaders.gameplay.SkillManager;
-
 import java.io.IOException;
 import java.io.InputStream;
 
@@ -15,6 +13,8 @@ import java.io.InputStream;
  * MenuManager.java에서 스킬 메뉴 관련 UI만 추출
  */
 public class SkillMenuRenderer {
+    private static final String DEFAULT_FONT_NAME = "Arial";
+    private static final String NEXT_LEVEL_TEXT = "다음 단계";
     
     /**
      * 스킬 메뉴 그리기
@@ -29,14 +29,14 @@ public class SkillMenuRenderer {
         
         // Title
         g.setColor(Color.WHITE);
-        g.setFont(new Font("Arial", Font.BOLD, 36));
+        g.setFont(new Font(DEFAULT_FONT_NAME, Font.BOLD, 36));
         FontMetrics fm = g.getFontMetrics();
         String title = "강화 선택";
         int titleX = (800 - fm.stringWidth(title)) / 2;
         g.drawString(title, titleX, 60);
         
         // Skill points display (bottom center, small text)
-        g.setFont(new Font("Arial", Font.PLAIN, 14));
+        g.setFont(new Font(DEFAULT_FONT_NAME, Font.PLAIN, 14));
         fm = g.getFontMetrics();
         String pointsText = "강화 포인트: " + skillPoints;
         int pointsX = (800 - fm.stringWidth(pointsText)) / 2;
@@ -74,13 +74,13 @@ public class SkillMenuRenderer {
             
             // Skill name
             g.setColor(Color.WHITE);
-            g.setFont(new Font("Arial", Font.BOLD, 16));
+            g.setFont(new Font(DEFAULT_FONT_NAME, Font.BOLD, 16));
             fm = g.getFontMetrics();
             int nameX = panelX + (panelWidth - fm.stringWidth(skillNames[i])) / 2;
             g.drawString(skillNames[i], nameX, panelY + 105);
             
             // Skill description
-            g.setFont(new Font("Arial", Font.PLAIN, 12));
+            g.setFont(new Font(DEFAULT_FONT_NAME, Font.PLAIN, 12));
             fm = g.getFontMetrics();
             int descX = panelX + (panelWidth - fm.stringWidth(skillDescriptions[i])) / 2;
             g.drawString(skillDescriptions[i], descX, panelY + 125);
@@ -92,7 +92,7 @@ public class SkillMenuRenderer {
         
         // Instructions
         g.setColor(Color.WHITE);
-        g.setFont(new Font("Arial", Font.PLAIN, 16));
+        g.setFont(new Font(DEFAULT_FONT_NAME, Font.PLAIN, 16));
         fm = g.getFontMetrics();
         String instruction = "Q로 닫기";
         int instX = (800 - fm.stringWidth(instruction)) / 2;
@@ -142,6 +142,12 @@ public class SkillMenuRenderer {
                     int[] yPoints = {heartY + 10, heartY + 10, heartY + 30};
                     g.fillPolygon(xPoints, yPoints, 3);
                     break;
+                default: // Default case to handle unexpected skillType
+                    // Optionally draw a placeholder or log a warning
+                    g.setColor(Color.RED);
+                    g.drawRect(iconX, iconY, iconSize, iconSize);
+                    g.drawString("?", iconX + iconSize / 2, iconY + iconSize / 2);
+                    break;
             }
         }
     }
@@ -158,6 +164,22 @@ public class SkillMenuRenderer {
         }
     }
     
+    private boolean isSkillEnhanced(org.newdawn.spaceinvaders.gameplay.SkillManager skillManager, int skillIndex) {
+        if (skillManager == null) {
+            return false;
+        }
+        switch (skillIndex) {
+            case 0: // 공격력
+                return skillManager.getAttackPowerLevel() > 0;
+            case 1: // 공격속도
+                return skillManager.getAttackSpeedLevel() > 0;
+            case 2: // HP 증가
+                return skillManager.getHpUpLevel() > 0;
+            default:
+                return false;
+        }
+    }
+
     /**
      * Draw skill border based on affordability
      */
@@ -165,20 +187,7 @@ public class SkillMenuRenderer {
         BufferedImage borderImage;
         
         // 스킬 강화 상태 확인
-        boolean isEnhanced = false;
-        if (skillManager != null) {
-            switch (skillIndex) {
-                case 0: // 공격력
-                    isEnhanced = skillManager.getAttackPowerLevel() > 0;
-                    break;
-                case 1: // 공격속도
-                    isEnhanced = skillManager.getAttackSpeedLevel() > 0;
-                    break;
-                case 2: // HP 증가
-                    isEnhanced = skillManager.getHpUpLevel() > 0;
-                    break;
-            }
-        }
+        boolean isEnhanced = isSkillEnhanced(skillManager, skillIndex);
         
         if (isEnhanced) {
             // 스킬이 강화되었으면 Force True.png 사용
@@ -189,35 +198,42 @@ public class SkillMenuRenderer {
         }
         
         if (borderImage != null) {
-            // Create border by drawing the image as a frame around the panel
-            int borderThickness = isSelected ? 8 : 4;
-            
-            // Top border
-            g.drawImage(borderImage, panelX - borderThickness, panelY - borderThickness, 
-                       panelX + panelWidth + borderThickness, panelY, 
-                       0, 0, borderImage.getWidth(), borderImage.getHeight() / 4, null);
-            
-            // Bottom border
-            g.drawImage(borderImage, panelX - borderThickness, panelY + panelHeight, 
-                       panelX + panelWidth + borderThickness, panelY + panelHeight + borderThickness, 
-                       0, borderImage.getHeight() * 3 / 4, borderImage.getWidth(), borderImage.getHeight(), null);
-            
-            // Left border
-            g.drawImage(borderImage, panelX - borderThickness, panelY - borderThickness, 
-                       panelX, panelY + panelHeight + borderThickness, 
-                       0, 0, borderImage.getWidth() / 4, borderImage.getHeight(), null);
-            
-            // Right border
-            g.drawImage(borderImage, panelX + panelWidth, panelY - borderThickness, 
-                       panelX + panelWidth + borderThickness, panelY + panelHeight + borderThickness, 
-                       borderImage.getWidth() * 3 / 4, 0, borderImage.getWidth(), borderImage.getHeight(), null);
+            drawBorderImageFrame(g, borderImage, panelX, panelY, panelWidth, panelHeight, isSelected);
         } else {
             // Fallback to simple colored border if image fails to load
-            Color borderColor = isSelected ? Color.YELLOW : (canAfford ? Color.GREEN : Color.RED);
-            g.setColor(borderColor);
-            g.setStroke(new BasicStroke(isSelected ? 4 : 2));
-            g.drawRect(panelX, panelY, panelWidth, panelHeight);
+            drawFallbackBorder(g, panelX, panelY, panelWidth, panelHeight, isSelected, canAfford);
         }
+    }
+    
+    private void drawBorderImageFrame(Graphics2D g, BufferedImage borderImage, int panelX, int panelY, int panelWidth, int panelHeight, boolean isSelected) {
+        int borderThickness = isSelected ? 8 : 4;
+        
+        // Top border
+        g.drawImage(borderImage, panelX - borderThickness, panelY - borderThickness, 
+                   panelX + panelWidth + borderThickness, panelY, 
+                   0, 0, borderImage.getWidth(), borderImage.getHeight() / 4, null);
+        
+        // Bottom border
+        g.drawImage(borderImage, panelX - borderThickness, panelY + panelHeight, 
+                   panelX + panelWidth + borderThickness, panelY + panelHeight + borderThickness, 
+                   0, borderImage.getHeight() * 3 / 4, borderImage.getWidth(), borderImage.getHeight(), null);
+        
+        // Left border
+        g.drawImage(borderImage, panelX - borderThickness, panelY - borderThickness, 
+                   panelX, panelY + panelHeight + borderThickness, 
+                   0, 0, borderImage.getWidth() / 4, borderImage.getHeight(), null);
+        
+        // Right border
+        g.drawImage(borderImage, panelX + panelWidth, panelY - borderThickness, 
+                   panelX + panelWidth + borderThickness, panelY + panelHeight + borderThickness, 
+                   borderImage.getWidth() * 3 / 4, 0, borderImage.getWidth(), borderImage.getHeight(), null);
+    }
+    
+    private void drawFallbackBorder(Graphics2D g, int panelX, int panelY, int panelWidth, int panelHeight, boolean isSelected, boolean canAfford) {
+        Color borderColor = isSelected ? Color.YELLOW : (canAfford ? Color.GREEN : Color.RED);
+        g.setColor(borderColor);
+        g.setStroke(new BasicStroke(isSelected ? 4 : 2));
+        g.drawRect(panelX, panelY, panelWidth, panelHeight);
     }
 
     /* ================= Overloads for single-player SkillManager ================= */
@@ -390,7 +406,7 @@ public class SkillMenuRenderer {
     private void drawSkillStats(Graphics2D g, int skillType, int panelX, int panelY, int panelWidth,
                                int attackPower, double attackSpeed, int maxHP,
                                int attackPowerCost, int attackSpeedCost, int hpUpCost, int skillPoints) {
-        g.setFont(new Font("Arial", Font.PLAIN, 13));
+        g.setFont(new Font(DEFAULT_FONT_NAME, Font.PLAIN, 13));
         FontMetrics fm = g.getFontMetrics();
         
     String currentText = "";
@@ -400,21 +416,26 @@ public class SkillMenuRenderer {
         switch (skillType) {
             case 0: 
                 currentText = "현재: " + (100 + attackPower * 20) + "%";
-                nextText = "다음 단계: " + (100 + (attackPower + 1) * 20) + "%";
+                nextText = NEXT_LEVEL_TEXT + ": " + (100 + (attackPower + 1) * 20) + "%";
                 costText = "비용: " + attackPowerCost + "포인트";
                 break;
             case 1: 
                 currentText = "현재: " + String.format("%.1f", attackSpeed) + "x";
-                nextText = "다음 단계: " + String.format("%.1f", attackSpeed + 0.2) + "x";
+                nextText = NEXT_LEVEL_TEXT + ": " + String.format("%.1f", attackSpeed + 0.2) + "x";
                 costText = "비용: " + attackSpeedCost + "포인트";
                 break;
-            case 2: 
-                currentText = "현재: " + maxHP + " HP";
-                nextText = "다음 단계: " + (maxHP + 3) + " HP";
-                costText = "비용: " + hpUpCost + "포인트";
-                break;
-        }
-        
+                        case 2:
+                            currentText = "현재: " + maxHP + " HP";
+                            nextText = NEXT_LEVEL_TEXT + ": " + (maxHP + 3) + " HP";
+                            costText = "비용: " + hpUpCost + "포인트";
+                            break;
+                        default:
+                            // Handle unexpected skillType gracefully
+                            currentText = "현재: N/A";
+                            nextText = "다음 단계: N/A";
+                            costText = "비용: N/A";
+                            break;
+                    }        
         // Current level
         int currentX = panelX + (panelWidth - fm.stringWidth(currentText)) / 2;
         g.drawString(currentText, currentX, panelY + 150);
@@ -424,7 +445,7 @@ public class SkillMenuRenderer {
         g.drawString(nextText, nextX, panelY + 170);
         
         // Cost
-        g.setFont(new Font("Arial", Font.PLAIN, 12));
+        g.setFont(new Font(DEFAULT_FONT_NAME, Font.PLAIN, 12));
         fm = g.getFontMetrics();
         int costX = panelX + (panelWidth - fm.stringWidth(costText)) / 2;
         g.drawString(costText, costX, panelY + 195);

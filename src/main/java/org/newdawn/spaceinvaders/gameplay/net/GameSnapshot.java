@@ -1,6 +1,6 @@
 package org.newdawn.spaceinvaders.gameplay.net;
 
-import org.newdawn.spaceinvaders.gameplay.entity.EntitySnapshot;
+import org.newdawn.spaceinvaders.common.entity.EntitySnapshot;
 import java.util.List;
 import java.util.Map;
 

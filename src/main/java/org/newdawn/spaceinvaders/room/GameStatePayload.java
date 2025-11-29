@@ -4,8 +4,7 @@ import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import org.newdawn.spaceinvaders.multyplay.entity.EntitySnapshot;
-
+import org.newdawn.spaceinvaders.common.entity.EntitySnapshot;
 import org.newdawn.spaceinvaders.multyplay.net.GameSnapshot;
 import org.newdawn.spaceinvaders.multyplay.net.protocol.GameSnapshotCodec;
 import org.newdawn.spaceinvaders.multyplay.net.protocol.ProtocolKeys;

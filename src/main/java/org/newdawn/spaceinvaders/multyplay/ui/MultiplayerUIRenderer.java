@@ -5,7 +5,6 @@ import java.awt.Color;
 import java.awt.Font;
 import java.awt.FontMetrics;
 import java.awt.Graphics2D;
-
 import org.newdawn.spaceinvaders.gameplay.UIRenderer;
 import org.newdawn.spaceinvaders.gameplay.ui.HudContext;
 import org.newdawn.spaceinvaders.gameplay.ui.SharedHudRenderer;
@@ -121,23 +120,6 @@ public class MultiplayerUIRenderer {
         g.drawString(text, tx, ty);
     }
 
-    private void drawCard(Graphics2D g, int x, int y, int w, int h, String title, String sub, boolean selected) {
-        g.setColor(selected ? new Color(60, 60, 140) : new Color(40, 40, 100));
-        g.fillRoundRect(x, y, w, h, 10, 10);
-        g.setColor(new Color(120, 120, 200));
-        g.setStroke(STROKE_2PX);
-        g.drawRoundRect(x, y, w, h, 10, 10);
-
-        g.setColor(Color.WHITE);
-        g.setFont(UIRenderer.getKostarFont(Font.BOLD, 14));
-        int tx = x + (w - g.getFontMetrics().stringWidth(title)) / 2;
-        g.drawString(title, tx, y + 55);
-
-        g.setFont(UIRenderer.getKostarFont(Font.PLAIN, 12));
-        int sx = x + (w - g.getFontMetrics().stringWidth(sub)) / 2;
-        g.setColor(Color.YELLOW);
-        g.drawString(sub, sx, y + 80);
-    }
 
     private static final class MultiplayerHudContext implements HudContext {
         private final MultiplayerGameStateManager gameStateManager;

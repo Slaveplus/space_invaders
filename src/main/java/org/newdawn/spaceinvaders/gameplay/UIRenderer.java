@@ -5,65 +5,46 @@ import java.awt.Color;
 import java.awt.Font;
 import java.awt.Graphics2D;
 import java.awt.FontMetrics;
-import java.io.InputStream;
-
-/**
- * UI 렌더링을 담당하는 클래스
- * 게임 UI, 메시지 등을 그리는 역할
- */
 import org.newdawn.spaceinvaders.gameplay.ui.HudContext;
 import org.newdawn.spaceinvaders.gameplay.ui.SharedHudRenderer;
 
 public class UIRenderer {
+    private static final String KOSTAR_FONT_NAME = "Kostar";
+    private static final String DEFAULT_UI_FONT_NAME = "SansSerif";
     // Kostar 폰트 로드
-    private static Font KOSTAR_FONT = null;
     
     private static final BasicStroke STROKE_2PX = new BasicStroke(2);
     
-    static {
-        loadKostarFont();
-    }
-
     private final SharedHudRenderer sharedHudRenderer = new SharedHudRenderer();
-    
-    /**
-     * Kostar 폰트 로드
-     */
-    private static void loadKostarFont() {
-        try {
-            InputStream fontStream = UIRenderer.class.getClassLoader().getResourceAsStream("fonts/Kostar.ttf");
-            if (fontStream != null) {
-                KOSTAR_FONT = Font.createFont(Font.TRUETYPE_FONT, fontStream);
-                fontStream.close();
-                System.out.println("✅ Kostar 폰트 로드 성공");
-            } else {
-                System.err.println("❌ Kostar 폰트 파일을 찾을 수 없습니다");
-                KOSTAR_FONT = new Font("Arial", Font.PLAIN, 12); // 폴백
-            }
-        } catch (Exception e) {
-            System.err.println("❌ Kostar 폰트 로드 실패: " + e.getMessage());
-            KOSTAR_FONT = new Font("Arial", Font.PLAIN, 12); // 폴백
-        }
-    }
     
     /**
      * Kostar 폰트를 지정된 크기로 반환
      */
     public static Font getKostarFont(int size) {
-        if (KOSTAR_FONT != null) {
-            return KOSTAR_FONT.deriveFont(Font.PLAIN, size);
+        try {
+            Font kostarFont = new Font(KOSTAR_FONT_NAME, Font.PLAIN, size);
+            if (kostarFont.getFontName().startsWith(KOSTAR_FONT_NAME)) {
+                return kostarFont;
+            }
+        } catch (Exception e) {
+            // Ignore
         }
-        return new Font("Arial", Font.PLAIN, size);
+        return new Font(DEFAULT_UI_FONT_NAME, Font.PLAIN, size);
     }
     
     /**
      * Kostar 폰트를 지정된 크기와 스타일로 반환
      */
     public static Font getKostarFont(int style, int size) {
-        if (KOSTAR_FONT != null) {
-            return KOSTAR_FONT.deriveFont(style, size);
+        try {
+            Font kostarFont = new Font(KOSTAR_FONT_NAME, style, size);
+            if (kostarFont.getFontName().startsWith(KOSTAR_FONT_NAME)) {
+                return kostarFont;
+            }
+        } catch (Exception e) {
+            // Ignore
         }
-        return new Font("Arial", style, size);
+        return new Font(DEFAULT_UI_FONT_NAME, style, size);
     }
     
     public UIRenderer(Game game) {
@@ -228,7 +209,7 @@ public class UIRenderer {
         g.fillRect(0, 0, 800, 600);
 
         // 제목
-        g.setFont(new Font("Arial", Font.BOLD, 36));
+        g.setFont(new Font(DEFAULT_UI_FONT_NAME, Font.BOLD, 36));
         g.setColor(Color.WHITE);
         String title = "일시정지";
         FontMetrics fm = g.getFontMetrics();
@@ -276,23 +257,6 @@ public class UIRenderer {
         g.drawString(text, tx, ty);
     }
 
-    private void drawCard(Graphics2D g, int x, int y, int w, int h, String title, String sub, boolean selected) {
-        g.setColor(selected ? new Color(60, 60, 140) : new Color(40, 40, 100));
-        g.fillRoundRect(x, y, w, h, 10, 10);
-        g.setColor(new Color(120, 120, 200));
-        g.setStroke(STROKE_2PX);
-        g.drawRoundRect(x, y, w, h, 10, 10);
-
-        g.setColor(Color.WHITE);
-        g.setFont(getKostarFont(Font.BOLD, 14));
-        int tx = x + (w - g.getFontMetrics().stringWidth(title)) / 2;
-        g.drawString(title, tx, y + 55);
-
-        g.setFont(getKostarFont(12));
-        int sx = x + (w - g.getFontMetrics().stringWidth(sub)) / 2;
-        g.setColor(Color.YELLOW);
-        g.drawString(sub, sx, y + 80);
-    }
 
     private void drawUpgradeStats(Graphics2D g, GameStateManager gameStateManager) {
         int startY = 120;
@@ -352,12 +316,12 @@ public class UIRenderer {
         
         // 느낌표
         g.setColor(Color.BLACK);
-        g.setFont(new Font("Arial", Font.BOLD, 24));
+        g.setFont(new Font(DEFAULT_UI_FONT_NAME, Font.BOLD, 24));
         g.drawString("!", iconX + iconSize/2 - 6, iconY + iconSize - 8);
         
         // 메인 메시지
         g.setColor(Color.WHITE);
-        g.setFont(new Font("Arial", Font.BOLD, 20));
+        g.setFont(new Font(DEFAULT_UI_FONT_NAME, Font.BOLD, 20));
         String mainMessage = "곧 " + gameStateManager.getCurrentRound() + " 라운드가 시작됩니다";
         int messageX = iconX + iconSize + 20;
         int messageY = dialogY + 60;
@@ -365,13 +329,13 @@ public class UIRenderer {
         
         // 서브 메시지
         g.setColor(Color.WHITE);
-        g.setFont(new Font("Arial", Font.BOLD, 18));
+        g.setFont(new Font(DEFAULT_UI_FONT_NAME, Font.BOLD, 18));
         String subMessage = "대비하세요 !!";
         g.drawString(subMessage, messageX, messageY + 35);
         
         // 라운드 설명 텍스트
         g.setColor(Color.WHITE);
-        g.setFont(new Font("Arial", Font.PLAIN, 14));
+        g.setFont(new Font(DEFAULT_UI_FONT_NAME, Font.PLAIN, 14));
         String description = gameStateManager.getRoundDescription(gameStateManager.getCurrentRound());
         String[] lines = description.split("\n");
         
@@ -387,7 +351,7 @@ public class UIRenderer {
         
         // 자동 닫기 안내 텍스트
         g.setColor(Color.CYAN);
-        g.setFont(new Font("Arial", Font.PLAIN, 12));
+        g.setFont(new Font(DEFAULT_UI_FONT_NAME, Font.PLAIN, 12));
         String autoCloseText = "이 경고창은 7초 후 자동으로 닫힙니다";
         FontMetrics fm = g.getFontMetrics();
         int autoCloseX = dialogX + (dialogWidth - fm.stringWidth(autoCloseText)) / 2;
@@ -431,12 +395,12 @@ public class UIRenderer {
         
         // 느낌표
         g.setColor(Color.RED);
-        g.setFont(new Font("Arial", Font.BOLD, 20));
+        g.setFont(new Font(DEFAULT_UI_FONT_NAME, Font.BOLD, 20));
         g.drawString("!", iconX + iconSize/2 - 4, iconY + iconSize - 5);
         
         // 메인 메시지
         g.setColor(Color.WHITE);
-        g.setFont(new Font("Arial", Font.BOLD, 18));
+        g.setFont(new Font(DEFAULT_UI_FONT_NAME, Font.BOLD, 18));
         String mainMessage = "정말 그만두시겠습니까?";
         int messageX = iconX + iconSize + 20;
         int messageY = dialogY + 50;
@@ -444,7 +408,7 @@ public class UIRenderer {
         
         // 서브 메시지
         g.setColor(Color.WHITE);
-        g.setFont(new Font("Arial", Font.PLAIN, 14));
+        g.setFont(new Font(DEFAULT_UI_FONT_NAME, Font.BOLD, 20));
         String subMessage = "게임을 그만두면 획득한 코인이 저장됩니다.";
         g.drawString(subMessage, messageX, messageY + 25);
         

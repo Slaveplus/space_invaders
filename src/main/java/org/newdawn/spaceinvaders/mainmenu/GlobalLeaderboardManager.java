@@ -5,7 +5,6 @@ import org.newdawn.spaceinvaders.database.FirebaseDatabaseClient;
 import org.newdawn.spaceinvaders.database.LeaderboardRecord;
 import org.newdawn.spaceinvaders.database.LeaderboardRepository;
 import org.newdawn.spaceinvaders.login.UserManager;
-
 import java.awt.BasicStroke;
 import java.awt.Color;
 import java.awt.Font;

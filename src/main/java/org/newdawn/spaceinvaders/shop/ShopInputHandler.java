@@ -8,6 +8,10 @@ import java.util.List;
  * 확장 가능한 입력 시스템
  */
 public class ShopInputHandler {
+    // 상수 정의
+    private static final String MSG_SELECTED_ITEM = "선택된 아이템: ";
+    private static final String MSG_MOUSE_CLICK = "마우스 클릭: ";
+    
     private ShopManager shopManager;
     private Shop shop; // Shop 참조 추가 (애니메이션용)
     private int selectedOption = 0;
@@ -76,6 +80,9 @@ public class ShopInputHandler {
                 // 상점 종료 요청
                 exitRequested = true;
                 break;
+            default:
+                // 처리하지 않는 키 입력은 무시
+                break;
         }
     }
     
@@ -102,6 +109,9 @@ public class ShopInputHandler {
             case 2: // 뒤로가기
                 exitRequested = true;
                 break;
+            default:
+                // 유효하지 않은 옵션은 무시
+                break;
         }
     }
     
@@ -116,25 +126,25 @@ public class ShopInputHandler {
                 if (selectedItem >= itemsPerRow) {
                     selectedItem -= itemsPerRow;
                 }
-                System.out.println("선택된 아이템: " + selectedItem);
+                System.out.println(MSG_SELECTED_ITEM + selectedItem);
                 break;
             case KeyEvent.VK_DOWN:
                 if (selectedItem + itemsPerRow < currentPageItems.size()) {
                     selectedItem += itemsPerRow;
                 }
-                System.out.println("선택된 아이템: " + selectedItem);
+                System.out.println(MSG_SELECTED_ITEM + selectedItem);
                 break;
             case KeyEvent.VK_LEFT:
                 if (selectedItem > 0) {
                     selectedItem--;
                 }
-                System.out.println("선택된 아이템: " + selectedItem);
+                System.out.println(MSG_SELECTED_ITEM + selectedItem);
                 break;
             case KeyEvent.VK_RIGHT:
                 if (selectedItem < currentPageItems.size() - 1) {
                     selectedItem++;
                 }
-                System.out.println("선택된 아이템: " + selectedItem);
+                System.out.println(MSG_SELECTED_ITEM + selectedItem);
                 break;
             case KeyEvent.VK_P:
                 // 이전 페이지로 이동
@@ -169,6 +179,9 @@ public class ShopInputHandler {
                 // selectedOption은 유지하고 selectedItem만 리셋
                 selectedItem = 0;
                 break;
+            default:
+                // 처리하지 않는 키 입력은 무시
+                break;
         }
     }
     
@@ -180,6 +193,9 @@ public class ShopInputHandler {
                 break;
             case KeyEvent.VK_ESCAPE:
                 shopManager.setCurrentState(ShopState.CATEGORY);
+                break;
+            default:
+                // 처리하지 않는 키 입력은 무시
                 break;
         }
     }
@@ -214,6 +230,9 @@ public class ShopInputHandler {
             case KeyEvent.VK_ESCAPE:
                 // 아니요 - 카테고리 화면으로 돌아가기
                 shopManager.setCurrentState(ShopState.CATEGORY);
+                break;
+            default:
+                // 처리하지 않는 키 입력은 무시
                 break;
         }
     }
@@ -260,6 +279,9 @@ public class ShopInputHandler {
             case KeyEvent.VK_ESCAPE:
                 shopManager.returnToMainMenu();
                 // selectedOption은 유지
+                break;
+            default:
+                // 처리하지 않는 키 입력은 무시
                 break;
         }
     }
@@ -320,33 +342,46 @@ public class ShopInputHandler {
     
     private void toggleItemEquip() {
         List<ShopItem> currentPageItems = shopManager.getInventoryItemsForCurrentPage(shopManager.getInventoryCategory());
-        if (!currentPageItems.isEmpty() && selectedItem < currentPageItems.size()) {
+        if (currentPageItems.isEmpty() || selectedItem >= currentPageItems.size()) {
+            return;
+        }
+        
             ShopItem item = currentPageItems.get(selectedItem);
             ShopCategory category = item.getCategory();
             
             if (shopManager.isItemEquipped(item)) {
-                // 아이템 해제
+            unequipItem(item, category);
+        } else {
+            equipItem(item);
+        }
+    }
+    
+    private void unequipItem(ShopItem item, ShopCategory category) {
                 if (shopManager.unequipItem(category)) {
                     System.out.println("아이템 해제: " + item.getName());
                 }
-            } else {
-                // 호환성 확인 (무기 아이템의 경우)
-                if (item.getCategory() == ShopCategory.WEAPONS) {
-                    ShopItem currentSpaceship = shopManager.getEquippedItem(ShopCategory.SPACESHIPS);
-                    if (!item.isCompatibleWith(currentSpaceship)) {
-                        String requiredShipName = getSpaceshipNameById(item.getRequiredSpaceshipId());
-                        shopManager.setWarningMessage("이 무기는 " + requiredShipName + " 전용입니다!");
-                        System.out.println("장착 실패: " + item.getName() + "은(는) " + requiredShipName + " 전용 무기입니다.");
+    }
+    
+    private void equipItem(ShopItem item) {
+        if (item.getCategory() == ShopCategory.WEAPONS && !isWeaponCompatible(item)) {
                         return;
-                    }
                 }
                 
-                // 아이템 장착
                 if (shopManager.equipItem(item)) {
                     System.out.println("아이템 장착: " + item.getName());
                 }
             }
+    
+    private boolean isWeaponCompatible(ShopItem weapon) {
+        ShopItem currentSpaceship = shopManager.getEquippedItem(ShopCategory.SPACESHIPS);
+        if (weapon.isCompatibleWith(currentSpaceship)) {
+            return true;
         }
+        
+        String requiredShipName = getSpaceshipNameById(weapon.getRequiredSpaceshipId());
+        shopManager.setWarningMessage("이 무기는 " + requiredShipName + " 전용입니다!");
+        System.out.println("장착 실패: " + weapon.getName() + "은(는) " + requiredShipName + " 전용 무기입니다.");
+        return false;
     }
     
     /**
@@ -461,7 +496,7 @@ public class ShopInputHandler {
             if (x >= 300 && x <= 500 && y >= optionY - 20 && y <= optionY + 20) {
                 selectedOption = i;
                 handleMainShopSelection();
-                System.out.println("마우스 클릭: " + mainOptions[i]);
+                System.out.println(MSG_MOUSE_CLICK + mainOptions[i]);
                 break;
             }
         }
@@ -482,7 +517,7 @@ public class ShopInputHandler {
                 selectedItem = i;
                 shopManager.setCurrentState(ShopState.PURCHASE);
                 selectedOption = 0; // 예 버튼 선택
-                System.out.println("마우스 클릭: " + categoryItems.get(i).getName());
+                System.out.println(MSG_MOUSE_CLICK + categoryItems.get(i).getName());
                 break;
             }
         }
@@ -540,7 +575,7 @@ public class ShopInputHandler {
             int itemY = startY + (i * lineHeight);
             if (x >= 50 && x <= 750 && y >= itemY - 15 && y <= itemY + 15) {
                 selectedItem = i;
-                System.out.println("마우스 클릭: " + inventory.get(i).getName());
+                System.out.println(MSG_MOUSE_CLICK + inventory.get(i).getName());
                 break;
             }
         }

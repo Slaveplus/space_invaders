@@ -1,11 +1,10 @@
 package org.newdawn.spaceinvaders.gameplay.core;
 
 import java.util.List;
-
 import org.newdawn.spaceinvaders.gameplay.GameStateManager;
 import org.newdawn.spaceinvaders.gameplay.SkillManager;
-import org.newdawn.spaceinvaders.gameplay.entity.Entity;
-import org.newdawn.spaceinvaders.gameplay.entity.ShipEntity;
+import org.newdawn.spaceinvaders.common.entity.Entity;
+import org.newdawn.spaceinvaders.common.entity.ShipEntity;
 
 /**
  * Minimal contract exposing the state and helpers a gameplay coordinator needs.

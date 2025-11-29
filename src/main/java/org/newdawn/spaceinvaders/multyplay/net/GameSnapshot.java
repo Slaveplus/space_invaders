@@ -1,7 +1,6 @@
 package org.newdawn.spaceinvaders.multyplay.net;
 
-import org.newdawn.spaceinvaders.multyplay.entity.EntitySnapshot;
-
+import org.newdawn.spaceinvaders.common.entity.EntitySnapshot;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;

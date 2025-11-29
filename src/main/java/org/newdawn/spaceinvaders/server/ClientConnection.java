@@ -3,9 +3,7 @@ package org.newdawn.spaceinvaders.server;
 import java.io.*;
 import java.net.Socket;
 import java.util.stream.Collectors;
-
 import org.newdawn.spaceinvaders.server.game.ServerGameSession;
-
 import static org.newdawn.spaceinvaders.server.MessageType.*;
 
 /** 클라이언트 개별 처리 스레드 */
@@ -14,6 +12,11 @@ class ClientConnection implements Runnable {
     private final Socket socket;
     private final BufferedReader in;
     private final PlayerSession session;
+
+    private static final String KEY_ROOM_ID = "roomId";
+    private static final String KEY_HOST_ID = "hostId";
+    private static final String KEY_SINGLE = "single";
+    private static final String LOG_BY_USERNAME = ") by ";
 
     ClientConnection(GameServer server, Socket socket) throws IOException {
         this.server = server;
@@ -127,7 +130,7 @@ class ClientConnection implements Runnable {
     }
 
     private void handleGameReady(String[] parts) {
-        String roomId = getValue(parts, "roomId");
+        String roomId = getValue(parts, KEY_ROOM_ID);
         if (roomId == null) {
             Room room = session.getCurrentRoom();
             if (room != null) roomId = room.getId();
@@ -141,7 +144,7 @@ class ClientConnection implements Runnable {
     }
 
     private void handleGameInput(String[] parts) {
-        String roomId = getValue(parts, "roomId");
+        String roomId = getValue(parts, KEY_ROOM_ID);
         if (roomId == null) {
             Room room = session.getCurrentRoom();
             if (room != null) roomId = room.getId();
@@ -156,7 +159,7 @@ class ClientConnection implements Runnable {
     }
 
     private void handleStateAck(String[] parts) {
-        String roomId = getValue(parts, "roomId");
+        String roomId = getValue(parts, KEY_ROOM_ID);
         if (roomId == null) {
             Room room = session.getCurrentRoom();
             if (room != null) roomId = room.getId();
@@ -170,7 +173,7 @@ class ClientConnection implements Runnable {
     }
 
     private void handleStateRequest(String[] parts) {
-        String roomId = getValue(parts, "roomId");
+        String roomId = getValue(parts, KEY_ROOM_ID);
         if (roomId == null) {
             Room room = session.getCurrentRoom();
             if (room != null) roomId = room.getId();
@@ -184,7 +187,7 @@ class ClientConnection implements Runnable {
     }
 
     private void handleGameAction(String[] parts) {
-        String roomId = getValue(parts, "roomId");
+        String roomId = getValue(parts, KEY_ROOM_ID);
         if (roomId == null) {
             Room room = session.getCurrentRoom();
             if (room != null) roomId = room.getId();
@@ -200,7 +203,7 @@ class ClientConnection implements Runnable {
 
     private void sendRoomList() {
         java.util.List<Room> list = server.getRoomManager().listVisibleRooms();
-        String payload = list.stream().map(r -> r.getId()+","+escape(r.getName())+","+(r.isSingle()?"single":"multi")+","+r.getPlayers().size()+","+r.getMaxPlayers())
+        String payload = list.stream().map(r -> r.getId()+","+escape(r.getName())+","+(r.isSingle()?KEY_SINGLE:"multi")+","+r.getPlayers().size()+","+r.getMaxPlayers())
                 .collect(Collectors.joining(";"));
         session.getOut().println(ROOMS+"|list="+payload);
         System.out.println("[ClientConnection] Sent room list to " + session.getUsername() + ": " + payload);
@@ -214,14 +217,14 @@ class ClientConnection implements Runnable {
         for (int i=1;i<parts.length;i++) {
             String p = parts[i];
             if (p.startsWith("name=")) name = unescape(p.substring(5));
-            else if (p.startsWith("type=")) single = p.substring(5).equalsIgnoreCase("single");
+            else if (p.startsWith("type=")) single = p.substring(5).equalsIgnoreCase(KEY_SINGLE);
             else if (p.startsWith("max=")) { try { max = Integer.parseInt(p.substring(4)); } catch (Exception ignored) {} }
         }
         Room room = server.getRoomManager().createRoom(name, single, max);
-        System.out.println("[ClientConnection] Room created: " + room.getId() + " (" + name + ", single=" + single + ", max=" + max + ") by " + session.getUsername());
+        System.out.println("[ClientConnection] Room created: " + room.getId() + " (" + name + ", single=" + single + ", max=" + max + ")" + LOG_BY_USERNAME + session.getUsername());
         room.addPlayer(session);
         broadcastRoomState(room, true);
-    session.getOut().println(ROOM_JOINED+"|roomId="+room.getId()+"|hostId="+room.getHost().getId()+"|single="+(room.isSingle()?"1":"0"));
+        session.getOut().println(ROOM_JOINED + "|" + KEY_ROOM_ID + "=" + room.getId() + "|" + KEY_HOST_ID + "=" + room.getHost().getId() + "|" + KEY_SINGLE + "=" + (room.isSingle() ? "1" : "0"));
         if (single) {
             // 싱글이면 바로 게임 시작 신호 주거나 로비 상태 한번 전송
             session.getOut().println(INFO+"|msg=SINGLE_ROOM_CREATED");
@@ -239,24 +242,24 @@ class ClientConnection implements Runnable {
             }
         }
         if (room == null || room.isStarted()) {
-            System.out.println("[ClientConnection] JOIN_ROOM failed: not found or started (" + roomId + ") by " + session.getUsername());
+            System.out.println("[ClientConnection] JOIN_ROOM failed: not found or started (" + roomId + ")" + LOG_BY_USERNAME + session.getUsername());
             session.getOut().println(ERROR+"|msg=ROOM_NOT_FOUND");
             return;
         }
         if (!room.addPlayer(session)) {
-            System.out.println("[ClientConnection] JOIN_ROOM failed: full (" + roomId + ") by " + session.getUsername());
+            System.out.println("[ClientConnection] JOIN_ROOM failed: full (" + roomId + ")" + LOG_BY_USERNAME + session.getUsername());
             session.getOut().println(ERROR+"|msg=ROOM_FULL");
             return;
         }
-        System.out.println("[ClientConnection] JOIN_ROOM success: " + roomId + " by " + session.getUsername());
+        System.out.println("[ClientConnection] JOIN_ROOM success: " + roomId + LOG_BY_USERNAME + session.getUsername());
         broadcastRoomState(room, true);
-    session.getOut().println(ROOM_JOINED+"|roomId="+room.getId()+"|hostId="+room.getHost().getId()+"|single="+(room.isSingle()?"1":"0"));
+        session.getOut().println(ROOM_JOINED + "|" + KEY_ROOM_ID + "=" + room.getId() + "|" + KEY_HOST_ID + "=" + room.getHost().getId() + "|" + KEY_SINGLE + "=" + (room.isSingle() ? "1" : "0"));
     }
 
     private void leaveRoomInternal(boolean disconnect) {
         Room room = session.getCurrentRoom();
         if (room == null) return;
-        System.out.println("[ClientConnection] LEAVE_ROOM: " + room.getId() + " by " + session.getUsername() + (disconnect?" (disconnect)":""));
+        System.out.println("[ClientConnection] LEAVE_ROOM: " + room.getId() + LOG_BY_USERNAME + session.getUsername() + (disconnect?" (disconnect)":""));
         boolean wasHost;
         synchronized (room) {
             wasHost = room.getHost() == session;
@@ -266,7 +269,7 @@ class ClientConnection implements Runnable {
             if (wasHost || room.getPlayers().isEmpty()) {
                 // 남아있는 인원에게 호스트/방 종료 알림
                 for (PlayerSession ps : room.getPlayers()) {
-                    ps.getOut().println(HOST_LEFT+"|roomId="+room.getId());
+                    ps.getOut().println(HOST_LEFT + "|" + KEY_ROOM_ID + "=" + room.getId());
                 }
                 server.getRoomManager().removeRoom(room.getId());
                 server.getGameManager().removeSession(room.getId());
@@ -297,8 +300,8 @@ class ClientConnection implements Runnable {
         if (!room.isSingle()) {
             server.getGameManager().createSession(room);
         }
-        server.sendToRoom(room, GAME_START+"|roomId="+room.getId());
-        System.out.println("[ClientConnection] START_GAME: " + room.getId() + " by " + session.getUsername());
+        server.sendToRoom(room, GAME_START + "|" + KEY_ROOM_ID + "=" + room.getId());
+        System.out.println("[ClientConnection] START_GAME: " + room.getId() + LOG_BY_USERNAME + session.getUsername());
     }
 
     private void handleChat(String[] parts) {
@@ -313,7 +316,7 @@ class ClientConnection implements Runnable {
         String players = room.getPlayers().stream()
                 .map(p -> p.getId()+","+escape(p.getUsername())+","+(p.isReady()?"1":"0")+","+(p==room.getHost()?"1":"0"))
                 .collect(Collectors.joining(";"));
-    server.sendToRoom(room, ROOM_STATE+"|roomId="+room.getId()+"|hostId="+room.getHost().getId()+"|single="+(room.isSingle()?"1":"0")+"|players="+players);
+    server.sendToRoom(room, ROOM_STATE + "|" + KEY_ROOM_ID + "=" + room.getId() + "|" + KEY_HOST_ID + "=" + room.getHost().getId() + "|" + KEY_SINGLE + "=" + (room.isSingle() ? "1" : "0") + "|players=" + players);
         System.out.println("[ClientConnection] ROOM_STATE broadcasted for room " + room.getId() + ": " + players);
         if (includeHostJoin) {
             // 갱신 직후 방 목록 새로고침 힌트 용 (클라이언트가 LIST_ROOMS 재요청 가능)

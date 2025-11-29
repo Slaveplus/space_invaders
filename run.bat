@@ -1,18 +1,16 @@
-@echo off
-echo Space Invaders ê²Œì„ì„ ì‹œì‘í•©ë‹ˆë‹¤...
+echo Space Invaders °ÔÀÓÀ» ½ÃÀÛÇÕ´Ï´Ù...
 
-REM JAR íŒŒì¼ì´ ì¡´ì¬í•˜ëŠ”ì§€ í™•ì¸
+REM JAR ÆÄÀÏÀÌ Á¸ÀçÇÏ´ÂÁö È®ÀÎ
 if not exist "target\space_invaders-1.0-SNAPSHOT.jar" (
-    echo JAR íŒŒì¼ì´ ì—†ìŠµë‹ˆë‹¤. ë¨¼ì € ë¹Œë“œí•©ë‹ˆë‹¤...
+    echo JAR ÆÄÀÏÀÌ ¾ø½À´Ï´Ù. ¸ÕÀú ºôµåÇÕ´Ï´Ù...
     mvn clean package
     if errorlevel 1 (
-        echo ë¹Œë“œì— ì‹¤íŒ¨í–ˆìŠµë‹ˆë‹¤.
+        echo ºôµå¿¡ ½ÇÆĞÇß½À´Ï´Ù.
         pause
         exit /b 1
     )
 )
 
-REM ê²Œì„ ì‹¤í–‰
-echo ê²Œì„ì„ ì‹¤í–‰í•©ë‹ˆë‹¤...
+REM °ÔÀÓ ½ÇÇà
+echo °ÔÀÓÀ» ½ÇÇàÇÕ´Ï´Ù...
 java -jar target\space_invaders-1.0-SNAPSHOT.jar
-pause

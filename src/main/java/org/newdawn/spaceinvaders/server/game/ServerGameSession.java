@@ -3,7 +3,6 @@ package org.newdawn.spaceinvaders.server.game;
 import static org.newdawn.spaceinvaders.server.MessageType.GAME_EVENT;
 import static org.newdawn.spaceinvaders.server.MessageType.GAME_INIT;
 import static org.newdawn.spaceinvaders.server.MessageType.GAME_STATE;
-
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
@@ -14,7 +13,6 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
-
 import org.newdawn.spaceinvaders.database.FirebaseConfig;
 import org.newdawn.spaceinvaders.database.FirebaseDatabaseClient;
 import org.newdawn.spaceinvaders.database.LeaderboardRecord;
@@ -142,56 +140,73 @@ public class ServerGameSession implements Runnable {
         if (session == null || action == null) {
             return;
         }
-			switch (action) {
-				case "ROUND_READY":
-					boolean ready = data == null || !data.equals("0");
-					setPlayerReady(session.getId(), ready);
-					break;
-				case "CHAT":
-					if (data != null && !data.isEmpty()) {
-						GameEvent chatEvent = new GameEvent(GameEvent.Type.CHAT, session.getId(), data, System.currentTimeMillis());
-						broadcastGameEvent(chatEvent);
-					}
-					break;
-                case "SKILL_REQUEST": {
-                    int skillType = safeParseInt(data, -1);
-                    ServerMultiplayerGame.SkillActionResult result = game.handleSkillActivation(session.getId(), skillType);
-                    if (result != null && result.message != null && !result.message.isEmpty()) {
-                        sendSystemMessage(session.getId(), result.message);
-                    }
-                    break;
-                }
-                case "SKILL_UPGRADE": {
-                    int upgradeType = safeParseInt(data, -1);
-                    ServerMultiplayerGame.SkillActionResult result = game.handleSkillUpgrade(session.getId(), upgradeType);
-                    if (result != null && result.message != null && !result.message.isEmpty()) {
-                        sendSystemMessage(session.getId(), result.message);
-                    }
-                    break;
-                }
-                case "SKIN": {
-                    // 스킨 정보 처리: "SKIN:playerId:skinPath" 형식
-                    if (data != null && data.startsWith("SKIN:")) {
-                        String[] parts = data.split(":", 3);
-                        if (parts.length == 3) {
-                            String playerId = parts[1];
-                            String skinPath = parts[2];
-                            game.setPlayerSkin(playerId, skinPath);
-                            System.out.println("서버: 플레이어 " + playerId + " 스킨 설정됨: " + skinPath);
-                            
-                            // 스킨 변경을 다른 플레이어들에게 알림
-                            GameEvent skinChangeEvent = new GameEvent(GameEvent.Type.SYSTEM, 
-                                playerId, "SKIN_CHANGED:" + playerId + ":" + skinPath, System.currentTimeMillis());
-                            broadcastGameEvent(skinChangeEvent);
-                        }
-                    }
-                    break;
-                }
-				default:
-					// other actions can be handled here later
-					break;
-			}
-		}
+        switch (action) {
+            case "ROUND_READY":
+                handleRoundReadyAction(session, data);
+                break;
+            case "CHAT":
+                handleChatAction(session, data);
+                break;
+            case "SKILL_REQUEST":
+                handleSkillRequestAction(session, data);
+                break;
+            case "SKILL_UPGRADE":
+                handleSkillUpgradeAction(session, data);
+                break;
+            case "SKIN":
+                handleSkinAction(data);
+                break;
+            default:
+                // other actions can be handled here later
+                break;
+        }
+    }
+
+    private void handleRoundReadyAction(PlayerSession session, String data) {
+        boolean ready = data == null || !data.equals("0");
+        setPlayerReady(session.getId(), ready);
+    }
+
+    private void handleChatAction(PlayerSession session, String data) {
+        if (data != null && !data.isEmpty()) {
+            GameEvent chatEvent = new GameEvent(GameEvent.Type.CHAT, session.getId(), data, System.currentTimeMillis());
+            broadcastGameEvent(chatEvent);
+        }
+    }
+
+    private void handleSkillRequestAction(PlayerSession session, String data) {
+        int skillType = safeParseInt(data, -1);
+        ServerMultiplayerGame.SkillActionResult result = game.handleSkillActivation(session.getId(), skillType);
+        if (result != null && result.message != null && !result.message.isEmpty()) {
+            sendSystemMessage(session.getId(), result.message);
+        }
+    }
+
+    private void handleSkillUpgradeAction(PlayerSession session, String data) {
+        int upgradeType = safeParseInt(data, -1);
+        ServerMultiplayerGame.SkillActionResult result = game.handleSkillUpgrade(session.getId(), upgradeType);
+        if (result != null && result.message != null && !result.message.isEmpty()) {
+            sendSystemMessage(session.getId(), result.message);
+        }
+    }
+
+    private void handleSkinAction(String data) {
+        // 스킨 정보 처리: "SKIN:playerId:skinPath" 형식
+        if (data != null && data.startsWith("SKIN:")) {
+            String[] parts = data.split(":", 3);
+            if (parts.length == 3) {
+                String playerId = parts[1];
+                String skinPath = parts[2];
+                game.setPlayerSkin(playerId, skinPath);
+                System.out.println("서버: 플레이어 " + playerId + " 스킨 설정됨: " + skinPath);
+
+                // 스킨 변경을 다른 플레이어들에게 알림
+                GameEvent skinChangeEvent = new GameEvent(GameEvent.Type.SYSTEM,
+                        playerId, "SKIN_CHANGED:" + playerId + ":" + skinPath, System.currentTimeMillis());
+                broadcastGameEvent(skinChangeEvent);
+            }
+        }
+    }
 
     public void handlePlayerLeft(PlayerSession session) {
         if (session == null) return;
@@ -351,31 +366,18 @@ public class ServerGameSession implements Runnable {
         }
         try {
             long playTimeMs = game.getPlayTimeMs();
-            List<String> names = new java.util.ArrayList<>();
-            for (PlayerSession ps : players.values()) {
-                if (ps == null) {
-                    continue;
-                }
-                String name = ps.getUsername();
-                if (name == null || name.trim().isEmpty()) {
-                    name = ps.getId();
-                }
-                String trimmed = name != null ? name.trim() : "";
-                if (!trimmed.isEmpty() && !names.contains(trimmed)) {
-                    names.add(trimmed);
-                }
-            }
-            if (names.isEmpty()) {
-                names.add("UNKNOWN");
-            }
+            List<String> playerNames = getPlayerNamesForLeaderboard();
+
             LeaderboardRecord record = new LeaderboardRecord(
                     LeaderboardRecord.Mode.MULTI,
-                    names,
+                    playerNames,
                     playTimeMs);
+
             boolean success = LeaderboardRepository.saveRecord(
                     leaderboardDb,
                     LeaderboardRecord.Mode.MULTI,
                     record);
+
             if (success) {
                 System.out.println("[Server] Saved multiplayer leaderboard entry: " + record);
             } else {
@@ -387,6 +389,27 @@ public class ServerGameSession implements Runnable {
         } finally {
             leaderboardSaved = true;
         }
+    }
+
+    private List<String> getPlayerNamesForLeaderboard() {
+        List<String> names = new java.util.ArrayList<>();
+        for (PlayerSession ps : players.values()) {
+            if (ps == null) {
+                continue;
+            }
+            String name = ps.getUsername();
+            if (name == null || name.trim().isEmpty()) {
+                name = ps.getId();
+            }
+            String trimmed = name != null ? name.trim() : "";
+            if (!trimmed.isEmpty() && !names.contains(trimmed)) {
+                names.add(trimmed);
+            }
+        }
+        if (names.isEmpty()) {
+            names.add("UNKNOWN");
+        }
+        return names;
     }
 
     private void broadcastGameEvent(GameEvent event) {

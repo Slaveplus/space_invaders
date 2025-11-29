@@ -10,6 +10,11 @@ import java.awt.event.MouseEvent;
  * 키보드와 마우스 입력을 통합 관리합니다
  */
 public class InputManager {
+    // 메시지 상수
+    private static final String MSG_LEVEL_PREFIX = ", 레벨: ";
+    private static final String MSG_INSUFFICIENT_SKILL_POINTS = "스킬 포인트가 부족합니다! (필요: ";
+    private static final String MSG_OWNED_PREFIX = ", 보유: ";
+    
     private GameStateManager gameStateManager;
     private Game game;
     private SkillManager skillManager;
@@ -45,7 +50,7 @@ public class InputManager {
          */
         public void keyTyped(KeyEvent e) {
             // 라운드 설명 창이 열려있을 때 (자동 닫기 기능으로 인해 키 입력 처리 제거)
-            if (gameStateManager.isShowingRoundInfo()) {
+            if (!gameStateManager.isInputProcessingActive()) {
                 return;
             }
             
@@ -94,64 +99,119 @@ public class InputManager {
             if (gameStateManager.isWaitingForKeyPress() && !gameStateManager.isShowingSkillMenu()) {
                 return;
             }
+
+            if (handleSpecialKeys(e)) {
+                return;
+            }
             
-            // Handle ESC key for pause menu (only during gameplay)
+            if (handleMenuNavigation(e)) {
+                return;
+            }
+            
+            if (handleSkillActivationKeys(e)) {
+                return;
+            }
+            
+            handleMovementKeys(e);
+        }
+        
+        /**
+         * 특수 키 처리 (F4, ESC, Q)
+         */
+        private boolean handleSpecialKeys(KeyEvent e) {
+            if (e.getKeyCode() == KeyEvent.VK_F4) {
+                gameStateManager.toggleDebugDrawHitboxes();
+                boolean enabled = gameStateManager.isDebugDrawHitboxes();
+                org.newdawn.spaceinvaders.common.util.Logger logger = 
+                    org.newdawn.spaceinvaders.common.util.LoggerFactory.getLogger(InputManager.class);
+                logger.debug("Hitbox debug overlay: " + (enabled ? "ON" : "OFF"));
+                return true;
+            }
+            
             if (e.getKeyCode() == KeyEvent.VK_ESCAPE) {
-                if (gameStateManager.isShowingPauseMenu()) {
-                    gameStateManager.hidePauseMenu();
-                } else if (!gameStateManager.isShowingSkillMenu()) {
-                    // Only open pause menu if skill menu is not open
-                    gameStateManager.showPauseMenu();
-                }
-                return;
+                handleEscapeKey();
+                return true;
             }
             
-            // Handle Q key for skill menu
             if (e.getKeyCode() == KeyEvent.VK_Q) {
-                if (gameStateManager.isShowingSkillMenu()) {
-                    gameStateManager.hideSkillMenu();
-                    gameStateManager.setWaitingForKeyPress(false); // 메시지 대기 상태도 해제
-                } else if (!gameStateManager.isShowingPauseMenu()) {
-                    // Only open skill menu if pause menu is not open
-                    gameStateManager.showSkillMenu();
-                }
-                return;
+                handleQKey();
+                return true;
             }
             
-            // Handle pause menu navigation when pause menu is open
+            return false;
+        }
+        
+        /**
+         * ESC 키 처리
+         */
+        private void handleEscapeKey() {
+            if (gameStateManager.isShowingPauseMenu()) {
+                gameStateManager.hidePauseMenu();
+            } else if (!gameStateManager.isShowingSkillMenu()) {
+                gameStateManager.showPauseMenu();
+            }
+        }
+        
+        /**
+         * Q 키 처리 (스킬 메뉴 토글)
+         */
+        private void handleQKey() {
+            if (gameStateManager.isShowingSkillMenu()) {
+                gameStateManager.hideSkillMenu();
+                gameStateManager.setWaitingForKeyPress(false);
+            } else if (!gameStateManager.isShowingPauseMenu()) {
+                gameStateManager.showSkillMenu();
+            }
+        }
+        
+        /**
+         * 메뉴 네비게이션 처리
+         */
+        private boolean handleMenuNavigation(KeyEvent e) {
             if (gameStateManager.isShowingPauseMenu()) {
                 handlePauseMenuInput(e);
-                return;
+                return true;
             }
             
-            // Handle skill menu navigation when skill menu is open
             if (gameStateManager.isShowingSkillMenu()) {
                 handleSkillMenuInput(e);
-                return;
+                return true;
             }
             
-            // Handle quit confirmation dialog when it's open
             if (gameStateManager.isShowingQuitConfirm()) {
                 handleQuitConfirmInput(e);
-                return;
+                return true;
             }
             
-            // Handle skill activation keys (only when skill menu is not open)
+            return false;
+        }
+        
+        /**
+         * 스킬 활성화 키 처리
+         */
+        private boolean handleSkillActivationKeys(KeyEvent e) {
             if (e.getKeyCode() == KeyEvent.VK_1) {
-                skillManager.extendSkill(0, 5); // 5 seconds invincible
-                return;
+                skillManager.extendSkill(0, 5);
+                return true;
             }
             
             if (e.getKeyCode() == KeyEvent.VK_2) {
-                skillManager.extendSkill(2, 8); // 8 seconds triple shot
-                return;
+                skillManager.extendSkill(2, 8);
+                return true;
             }
             
             if (e.getKeyCode() == KeyEvent.VK_3) {
-                skillManager.activateSkill(3, 1); // Activate missile skill
-                return;
+                skillManager.activateSkill(3, 1);
+                return true;
             }
             
+            return false;
+        }
+        
+        /**
+         * 이동 키 처리
+         */
+        private void handleMovementKeys(KeyEvent e) {
             if (e.getKeyCode() == KeyEvent.VK_LEFT) {
                 leftPressed = true;
             }
@@ -194,7 +254,9 @@ public class InputManager {
         public void mouseClicked(MouseEvent e) {
             int x = e.getX();
             int y = e.getY();
-            System.out.println("게임 중 마우스 클릭: (" + x + ", " + y + ")");
+            org.newdawn.spaceinvaders.common.util.Logger logger = 
+                org.newdawn.spaceinvaders.common.util.LoggerFactory.getLogger(InputManager.class);
+            logger.debug("게임 중 마우스 클릭: (" + x + ", " + y + ")");
         }
     }
     
@@ -202,8 +264,7 @@ public class InputManager {
      * 게임플레이 입력 상태 업데이트
      */
     public void updateGameplayInput() {
-        if (game.getShip() != null && 
-            !gameStateManager.isShowingPauseMenu() && !gameStateManager.isShowingSkillMenu()) {
+        if (game.getShip() != null && gameStateManager.isShipControlActive()) {
             
             // 우주선 이동 처리 (좌우만)
             game.getShip().setHorizontalMovement(0);
@@ -259,6 +320,9 @@ public class InputManager {
                 gameStateManager.hidePauseMenu();
                 gameStateManager.showQuitConfirm();
                 break;
+            default:
+                // 예상치 못한 선택값 처리
+                break;
         }
     }
     
@@ -302,10 +366,10 @@ public class InputManager {
                     gameStateManager.setAttackPower(gameStateManager.getAttackPower() + 1);
                     gameStateManager.setSkillPoints(skillPoints - skillManager.getAttackPowerCost());
                     skillManager.increaseAttackPowerLevel(); // 강화 레벨 증가
-                    result = "공격력이 증가했습니다! (현재: " + gameStateManager.getAttackPower() + ", 레벨: " + skillManager.getAttackPowerLevel() + ")";
+                    result = "공격력이 증가했습니다! (현재: " + gameStateManager.getAttackPower() + MSG_LEVEL_PREFIX + skillManager.getAttackPowerLevel() + ")";
                     success = true;
                 } else {
-                    result = "스킬 포인트가 부족합니다! (필요: " + skillManager.getAttackPowerCost() + ", 보유: " + skillPoints + ")";
+                    result = MSG_INSUFFICIENT_SKILL_POINTS + skillManager.getAttackPowerCost() + MSG_OWNED_PREFIX + skillPoints + ")";
                 }
                 break;
                 
@@ -314,10 +378,10 @@ public class InputManager {
                     gameStateManager.setAttackSpeed(gameStateManager.getAttackSpeed() + 0.2);
                     gameStateManager.setSkillPoints(skillPoints - skillManager.getAttackSpeedCost());
                     skillManager.increaseAttackSpeedLevel(); // 강화 레벨 증가
-                    result = "공격 속도가 증가했습니다! (현재: " + String.format("%.1f", gameStateManager.getAttackSpeed()) + ", 레벨: " + skillManager.getAttackSpeedLevel() + ")";
+                    result = "공격 속도가 증가했습니다! (현재: " + String.format("%.1f", gameStateManager.getAttackSpeed()) + MSG_LEVEL_PREFIX + skillManager.getAttackSpeedLevel() + ")";
                     success = true;
                 } else {
-                    result = "스킬 포인트가 부족합니다! (필요: " + skillManager.getAttackSpeedCost() + ", 보유: " + skillPoints + ")";
+                    result = MSG_INSUFFICIENT_SKILL_POINTS + skillManager.getAttackSpeedCost() + MSG_OWNED_PREFIX + skillPoints + ")";
                 }
                 break;
                 
@@ -327,11 +391,15 @@ public class InputManager {
                     gameStateManager.setCurrentHP(gameStateManager.getMaxHP()); // Also heal to full
                     gameStateManager.setSkillPoints(skillPoints - skillManager.getHpUpCost());
                     skillManager.increaseHpUpLevel(); // 강화 레벨 증가
-                    result = "최대 체력이 증가하고 체력이 회복되었습니다! (현재: " + gameStateManager.getMaxHP() + ", 레벨: " + skillManager.getHpUpLevel() + ")";
+                    result = "최대 체력이 증가하고 체력이 회복되었습니다! (현재: " + gameStateManager.getMaxHP() + MSG_LEVEL_PREFIX + skillManager.getHpUpLevel() + ")";
                     success = true;
                 } else {
-                    result = "스킬 포인트가 부족합니다! (필요: " + skillManager.getHpUpCost() + ", 보유: " + skillPoints + ")";
+                    result = MSG_INSUFFICIENT_SKILL_POINTS + skillManager.getHpUpCost() + MSG_OWNED_PREFIX + skillPoints + ")";
                 }
+                break;
+            default:
+                // 예상치 못한 스킬 선택값 처리
+                result = "알 수 없는 스킬입니다.";
                 break;
         }
         

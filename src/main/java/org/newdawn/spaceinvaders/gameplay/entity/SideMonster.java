@@ -1,12 +1,15 @@
 package org.newdawn.spaceinvaders.gameplay.entity;
 
+import org.newdawn.spaceinvaders.common.entity.Entity;
+import org.newdawn.spaceinvaders.common.entity.attack.IceAttack;
+import org.newdawn.spaceinvaders.common.entity.effect.ExplosionEntity;
+import org.newdawn.spaceinvaders.common.util.Logger;
+import org.newdawn.spaceinvaders.common.util.LoggerFactory;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
 import java.awt.Rectangle;
 import java.awt.RenderingHints;
-
 import org.newdawn.spaceinvaders.gameplay.Game;
-import org.newdawn.spaceinvaders.gameplay.sprite.Sprite;
 
 /**
  * 최소한의 히트박스로 수평 이동하는 간단한 사이드 몬스터
@@ -14,6 +17,9 @@ import org.newdawn.spaceinvaders.gameplay.sprite.Sprite;
  * @author Space Invaders Team
  */
 public class SideMonster extends Entity {
+	/** 로거 */
+	private static final Logger logger = LoggerFactory.getLogger(SideMonster.class);
+	
 	/** 엔티티가 존재하는 게임 */
 	private Game game;
 	/** 이동 속도 */
@@ -103,8 +109,8 @@ public class SideMonster extends Entity {
 	private void checkBossCollision() {
 		// Find boss entity
 		for (Entity entity : game.getEntities()) {
-		if (entity.getClass().getSimpleName().equals("BossEntity")) {
-			org.newdawn.spaceinvaders.gameplay.entity.BossEntity boss = (org.newdawn.spaceinvaders.gameplay.entity.BossEntity) entity;
+		if (entity instanceof org.newdawn.spaceinvaders.common.entity.boss.BossEntity) {
+			org.newdawn.spaceinvaders.common.entity.boss.BossEntity boss = (org.newdawn.spaceinvaders.common.entity.boss.BossEntity) entity;
 				
 				// Check if we're close to boss (within 150 pixels)
 				double distanceToBoss = Math.sqrt(Math.pow(x - boss.getX(), 2) + Math.pow(y - boss.getY(), 2));
@@ -120,7 +126,7 @@ public class SideMonster extends Entity {
 						x += 20; // Move right
 					}
 					
-					System.out.println("Side monster reversed direction due to boss proximity!");
+					logger.debug("Side monster reversed direction due to boss proximity!");
 					break;
 				}
 			}
@@ -172,7 +178,7 @@ public class SideMonster extends Entity {
 			
 			// 디버그: 히트박스 정보 출력
 			if (Math.random() < 0.005) { // 0.5% 확률로 출력
-				System.out.println("SideMonster hitbox - X:" + hitboxX + " Y:" + hitboxY + " W:" + hitboxWidth + " H:" + hitboxHeight + " (60% of scaled size)");
+				logger.debug("SideMonster hitbox - X:" + hitboxX + " Y:" + hitboxY + " W:" + hitboxWidth + " H:" + hitboxHeight + " (60% of scaled size)");
 			}
 			
 			return new Rectangle(hitboxX, hitboxY, hitboxWidth, hitboxHeight);
@@ -184,19 +190,21 @@ public class SideMonster extends Entity {
 	 * Take damage
 	 */
 	public void takeDamage(int damage) {
-		System.out.println("SideMonster took " + damage + " damage! HP: " + currentHP + " -> " + (currentHP - damage));
+		logger.debug("SideMonster took " + damage + " damage! HP: " + currentHP + " -> " + (currentHP - damage));
 		currentHP -= damage;
 		if (currentHP <= 0) {
-			System.out.println("SideMonster destroyed!");
+			logger.debug("SideMonster destroyed!");
 			// Create explosion
 			ExplosionEntity explosion = new ExplosionEntity(game, "sprites/Skill/Explosion.png", (int)x, (int)y, 1000);
 			game.addEntity(explosion);
 			
-			// Remove this entity
+			// Remove this entity - 위치 정보 저장 (제거 전에)
+			int killX = (int) x;
+			int killY = (int) y;
 			game.removeEntity(this);
 			
-			// Notify game
-			game.notifyAlienKilled();
+			// Notify game (위치 정보 전달)
+			game.notifyAlienKilled(killX, killY);
 		}
 	}
 	
@@ -232,7 +240,7 @@ public class SideMonster extends Entity {
 			}
 			
 			// Create new ice attack using ice.gif (from side monster position)
-			org.newdawn.spaceinvaders.gameplay.entity.entity_attack.IceAttack iceAttack = new org.newdawn.spaceinvaders.gameplay.entity.entity_attack.IceAttack(game, (int) x, (int) y + 80);
+			IceAttack iceAttack = new IceAttack(game, (int) x, (int) y + 80);
 			
 			// Add to game entities
 			game.addEntity(iceAttack);
@@ -240,10 +248,10 @@ public class SideMonster extends Entity {
 			// Update last ice attack time
 			lastIceAttack = currentTime;
 			
-			System.out.println("Side Monster performed ice attack with ice.gif!");
+			logger.debug("Side Monster performed ice attack with ice.gif!");
 			
 		} catch (Exception e) {
-			System.err.println("Error in side monster ice attack: " + e.getMessage());
+			logger.error("Error in side monster ice attack: " + e.getMessage(), e);
 			// 게임이 크래시되지 않도록 예외를 잡고 계속 진행
 			lastIceAttack = System.currentTimeMillis(); // 다음 공격 시간 업데이트
 		}

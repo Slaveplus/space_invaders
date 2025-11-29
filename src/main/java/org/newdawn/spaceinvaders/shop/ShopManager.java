@@ -1,6 +1,8 @@
 package org.newdawn.spaceinvaders.shop;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 import org.newdawn.spaceinvaders.login.UserManager;
 
@@ -11,7 +13,6 @@ import org.newdawn.spaceinvaders.login.UserManager;
 public class ShopManager {
     private List<ShopItem> shopItems;
     private List<ShopItem> playerInventory;
-    private Map<String, Integer> playerCurrency;
     private ShopState currentState;
     private ShopCategory currentCategory;
     private String searchKeyword;
@@ -20,6 +21,8 @@ public class ShopManager {
     private UserManager userManager;
     private String purchaseMessage = "";
     private int messageTimer = 0;
+    private final ShopCurrencyWallet currencyWallet;
+    private final ShopInventoryRepository inventoryRepository;
     
     // 경고창 관련 변수들
     private String warningMessage = "";
@@ -38,33 +41,28 @@ public class ShopManager {
     public ShopManager() {
         this.shopItems = new ArrayList<>();
         this.playerInventory = new ArrayList<>();
-        this.playerCurrency = new HashMap<>();
         this.currentState = ShopState.MAIN;
         this.userManager = null;
         this.equipmentManager = null;
-        initializeCurrency();
+        this.currencyWallet = new ShopCurrencyWallet();
+        this.inventoryRepository = new ShopInventoryRepository(null);
     }
     
     public ShopManager(UserManager userManager) {
         this.shopItems = new ArrayList<>();
         this.playerInventory = new ArrayList<>();
-        this.playerCurrency = new HashMap<>();
         this.currentState = ShopState.MAIN;
         this.userManager = userManager;
         this.equipmentManager = new EquipmentManager(userManager);
-        initializeCurrency();
+        this.currencyWallet = new ShopCurrencyWallet();
+        this.inventoryRepository = new ShopInventoryRepository(userManager);
         
         // 사용자가 로그인되어 있으면 인벤토리 로드
         if (userManager != null && userManager.isLoggedIn()) {
+            currencyWallet.syncFromUser(userManager.getCurrentUser());
             loadInventoryFromDB();
             loadEquipmentFromDB();
         }
-    }
-    
-    private void initializeCurrency() {
-        playerCurrency.put("COINS", 1000);
-        playerCurrency.put("GEMS", 50);
-        playerCurrency.put("POINTS", 0);
     }
     
     // 아이템 관리
@@ -125,7 +123,7 @@ public class ShopManager {
         battleship.setIconPath("sprites/ships/spaceship_blue.png");
         shopManager.addItem(battleship);
         
-        ShopItem professor = new ShopItem("professor", "평생지도교수님", "초초초희귀 킹갓제너럴 프로페서", 1500, 
+        ShopItem professor = new ShopItem("professor", "평생지도교수님", "^_^ ~~교수님 사랑합니다~~ ^_^", 1500, 
                                        ShopCategory.SPACESHIPS, ItemRarity.LEGENDARY);
         professor.setIconPath("sprites/ships/professor.png");
         shopManager.addItem(professor);
@@ -233,14 +231,13 @@ public class ShopManager {
             }
         } else {
             // 기존 로직 (UserManager가 없는 경우)
-            if (playerCurrency.get("COINS") >= price) {
-                playerCurrency.put("COINS", playerCurrency.get("COINS") - price);
+            if (currencyWallet.spend("COINS", price)) {
                 item.setPurchased(true);
                 playerInventory.add(item);
                 setPurchaseMessage(item.getName() + "을(를) 구매했습니다!");
                 return true;
             } else {
-                setPurchaseMessage("코인이 부족합니다! (필요: " + price + ", 보유: " + playerCurrency.get("COINS") + ")");
+                setPurchaseMessage("코인이 부족합니다! (필요: " + price + ", 보유: " + currencyWallet.get("COINS") + ")");
                 return false;
             }
         }
@@ -272,16 +269,11 @@ public class ShopManager {
     
     // 확장 가능한 메서드들
     public void addCurrency(String type, int amount) {
-        playerCurrency.put(type, playerCurrency.getOrDefault(type, 0) + amount);
+        currencyWallet.add(type, amount);
     }
     
     public boolean spendCurrency(String type, int amount) {
-        int current = playerCurrency.getOrDefault(type, 0);
-        if (current >= amount) {
-            playerCurrency.put(type, current - amount);
-            return true;
-        }
-        return false;
+        return currencyWallet.spend(type, amount);
     }
     
     public void setFilter(ShopCategory category, ItemRarity rarity) {
@@ -292,7 +284,7 @@ public class ShopManager {
     // Getters
     public List<ShopItem> getShopItems() { return shopItems; }
     public List<ShopItem> getPlayerInventory() { return playerInventory; }
-    public Map<String, Integer> getPlayerCurrency() { return playerCurrency; }
+    public Map<String, Integer> getPlayerCurrency() { return currencyWallet.snapshot(); }
     public ShopState getCurrentState() { return currentState; }
     
     public void setCurrentState(ShopState state) { this.currentState = state; }
@@ -322,6 +314,7 @@ public class ShopManager {
     // UserManager 설정
     public void setUserManager(UserManager userManager) {
         this.userManager = userManager;
+        this.inventoryRepository.setUserManager(userManager);
         // UserManager가 설정되면 현재 사용자 데이터로 동기화 (안전하게 처리)
         try {
             if (userManager != null && userManager.isLoggedIn()) {
@@ -339,108 +332,17 @@ public class ShopManager {
         if (userManager != null && userManager.isLoggedIn()) {
             org.newdawn.spaceinvaders.login.User currentUser = userManager.getCurrentUser();
             if (currentUser != null) {
-                playerCurrency.put("COINS", currentUser.getCoins());
-                playerCurrency.put("GEMS", currentUser.getGems());
+                currencyWallet.syncFromUser(currentUser);
             }
         }
     }
     
-    // DB에 인벤토리 저장 (확장된 형식)
     private void saveInventoryToDB() {
-        if (userManager != null && userManager.isLoggedIn()) {
-            try {
-                // 인벤토리를 상세한 객체 형식으로 변환
-                java.util.Map<String, Object> inventoryData = new java.util.HashMap<>();
-                java.util.Map<String, Object> items = new java.util.HashMap<>();
-                java.util.Map<String, String> equipped = new java.util.HashMap<>();
-                
-                // 각 아이템의 상세 정보 저장
-                for (ShopItem item : playerInventory) {
-                    java.util.Map<String, Object> itemData = new java.util.HashMap<>();
-                    itemData.put("purchased", true);
-                    itemData.put("purchasedDate", java.time.LocalDateTime.now().toString());
-                    itemData.put("isEquipped", false); // 기본값
-                    itemData.put("level", 1); // 기본 레벨
-                    itemData.put("upgradeCount", 0); // 업그레이드 횟수
-                    
-                    items.put(item.getId(), itemData);
-                }
-                
-                // 장착된 아이템 정보 (기본값)
-                equipped.put("weapon", null);
-                equipped.put("spaceship", null);
-                equipped.put("powerup", null);
-                
-                inventoryData.put("items", items);
-                inventoryData.put("equipped", equipped);
-                
-                // Firebase DB에 인벤토리 저장
-                boolean success = userManager.getFirebaseDB().putData(
-                    "users/" + userManager.getCurrentUser().getUid() + "/inventory", 
-                    inventoryData
-                );
-                
-                if (success) {
-                    // 인벤토리 DB 저장 완료
-                } else {
-                    System.err.println("인벤토리 DB 저장 실패");
-                }
-            } catch (Exception e) {
-                System.err.println("인벤토리 DB 저장 중 오류: " + e.getMessage());
-            }
-        }
+        inventoryRepository.saveInventory(playerInventory);
     }
     
-    // DB에서 인벤토리 로드 (확장된 형식 지원)
     public void loadInventoryFromDB() {
-        if (userManager != null && userManager.isLoggedIn()) {
-            try {
-                String uid = userManager.getCurrentUser().getUid();
-                
-                // Firebase DB에서 인벤토리 로드
-                Object inventoryData = userManager.getFirebaseDB().getData(
-                    "users/" + uid + "/inventory", 
-                    Object.class
-                );
-                
-                
-                if (inventoryData != null) {
-                    // 기존 인벤토리 초기화
-                    playerInventory.clear();
-                    
-                    if (inventoryData instanceof List) {
-                        // 기존 형식 (문자열 배열) 지원
-                        List<String> inventoryIds = (List<String>) inventoryData;
-                        for (String itemId : inventoryIds) {
-                            ShopItem item = getItemById(itemId);
-                            if (item != null) {
-                                item.setPurchased(true);
-                                playerInventory.add(item);
-                            }
-                        }
-                    } else if (inventoryData instanceof java.util.Map) {
-                        // 새로운 형식 (객체) 지원
-                        java.util.Map<String, Object> inventoryMap = (java.util.Map<String, Object>) inventoryData;
-                        Object itemsObj = inventoryMap.get("items");
-                        
-                        if (itemsObj instanceof java.util.Map) {
-                            java.util.Map<String, Object> items = (java.util.Map<String, Object>) itemsObj;
-                            
-                            for (String itemId : items.keySet()) {
-                                ShopItem item = getItemById(itemId);
-                                if (item != null) {
-                                    item.setPurchased(true);
-                                    playerInventory.add(item);
-                                }
-                            }
-                        }
-                    }
-                }
-            } catch (Exception e) {
-                System.err.println("ShopManager: 인벤토리 DB 로드 중 오류: " + e.getMessage());
-                e.printStackTrace();
-            }
-        }
+        inventoryRepository.loadInventory(shopItems, playerInventory);
     }
     
     // 구매 메시지 설정

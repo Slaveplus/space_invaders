@@ -3,7 +3,6 @@ package org.newdawn.spaceinvaders.room;
 import org.newdawn.spaceinvaders.SpaceInvadersApp;
 import org.newdawn.spaceinvaders.app.Screen;
 import org.newdawn.spaceinvaders.app.ScreenNavigator;
-
 import java.awt.*;
 import java.awt.event.KeyAdapter;
 import java.awt.event.KeyEvent;
@@ -18,18 +17,19 @@ import java.io.IOException;
 
 /** 방 목록 화면 */
 public class RoomListCanvas extends Canvas implements Screen, GameClientListener {
-    private final ScreenNavigator navigator;
-    private final GameClient client;
+    private transient final ScreenNavigator navigator;
+    private transient final GameClient client;
     private final List<RoomInfo> rooms = new CopyOnWriteArrayList<>();
     private int selectedIndex = 0;
     private boolean creatingOverlay = false; // 방 생성 선택(싱글/멀티)
     private int createSelect = 0; // 0 싱글 1 멀티
-    private Font titleFont = new Font("Arial", Font.BOLD, 36);
-    private Font listFont = new Font("Arial", Font.BOLD, 20);
+    private static final String FONT_NAME = "Arial";
+    private Font titleFont = new Font(FONT_NAME, Font.BOLD, 36);
+    private Font listFont = new Font(FONT_NAME, Font.BOLD, 20);
     private String infoMessage = "";
     private int infoTimer = 0;
     // 배경
-    private BufferedImage backgroundImage;
+    private transient BufferedImage backgroundImage;
 
     // 하단 버튼 포커스/선택 상태
     private boolean bottomFocus = false; // TAB 으로 전환
@@ -82,9 +82,7 @@ public class RoomListCanvas extends Canvas implements Screen, GameClientListener
         }
     }
 
-    @Override
-    public void render(Graphics2D g) {
-        // 배경
+    private void drawBackground(Graphics2D g) {
         if (backgroundImage != null) {
             g.drawImage(backgroundImage, 0, 0, getWidth(), getHeight(), null);
             g.setColor(new Color(0,0,0,120));
@@ -93,13 +91,17 @@ public class RoomListCanvas extends Canvas implements Screen, GameClientListener
             g.setColor(Color.BLACK);
             g.fillRect(0,0,getWidth(),getHeight());
         }
+    }
+
+    private void drawTitle(Graphics2D g) {
         g.setColor(Color.WHITE);
         g.setFont(titleFont);
         String title = "방 목록";
         FontMetrics tm = g.getFontMetrics();
         g.drawString(title, (getWidth()-tm.stringWidth(title))/2, 80);
+    }
 
-        // 목록
+    private void drawRoomList(Graphics2D g) {
         g.setFont(listFont);
         int startY = 140; int line = 40;
         // 목록 패널 영역
@@ -132,9 +134,10 @@ public class RoomListCanvas extends Canvas implements Screen, GameClientListener
             g.setColor(new Color(255,255,255,25));
             g.drawLine(panelX+12, y+8, panelX+panelWidth-12, y+8);
         }
+    }
 
-    // 하단 버튼 (방 생성 / 뒤로가기)
-        g.setFont(new Font("Arial", Font.PLAIN, 16));
+    private void drawBottomButtons(Graphics2D g) {
+        g.setFont(new Font(FONT_NAME, Font.PLAIN, 16));
         String b1 = "방 생성하기";
         String b2 = "뒤로가기";
         FontMetrics bm = g.getFontMetrics();
@@ -148,18 +151,31 @@ public class RoomListCanvas extends Canvas implements Screen, GameClientListener
     g.setColor(bottomFocus && bottomSelected==1?Color.YELLOW:Color.WHITE);
     g.drawRect(b2x-10, by-30, bm.stringWidth(b2)+20, 40);
     g.drawString(b2, b2x, by);
+    }
 
-    // 버튼 힌트 / 조작법
-    g.setFont(new Font("Arial", Font.PLAIN, 13));
-    g.setColor(Color.LIGHT_GRAY);
-    String hint = "방이 없다면 'C' 또는 TAB→Enter 로 생성 | ↑↓: 방 선택  Enter: 입장  R: 새로고침  C: 생성  ESC: 뒤로가기";
-    FontMetrics hm = g.getFontMetrics();
-    g.drawString(hint, (getWidth()-hm.stringWidth(hint))/2, getHeight()-40);
+    private void drawHint(Graphics2D g) {
+        g.setFont(new Font(FONT_NAME, Font.PLAIN, 13));
+        g.setColor(Color.LIGHT_GRAY);
+        String hint = "방이 없다면 'C' 또는 TAB→Enter 로 생성 | ↑↓: 방 선택  Enter: 입장  R: 새로고침  C: 생성  ESC: 뒤로가기";
+        FontMetrics hm = g.getFontMetrics();
+        g.drawString(hint, (getWidth()-hm.stringWidth(hint))/2, getHeight()-40);
+    }
 
+    private void drawInfoMessage(Graphics2D g) {
         if (infoMessage!=null && !infoMessage.isEmpty()) {
             g.setColor(Color.CYAN);
             g.drawString(infoMessage, 20, getHeight()-20);
         }
+    }
+
+    @Override
+    public void render(Graphics2D g) {
+        drawBackground(g);
+        drawTitle(g);
+        drawRoomList(g);
+        drawBottomButtons(g);
+        drawHint(g);
+        drawInfoMessage(g);
 
         if (creatingOverlay) {
             drawCreateOverlay(g);
@@ -189,7 +205,7 @@ public class RoomListCanvas extends Canvas implements Screen, GameClientListener
             } else g.setColor(Color.WHITE);
             g.drawString(txt, x, y);
         }
-        g.setFont(new Font("Arial", Font.PLAIN, 14));
+        g.setFont(new Font(FONT_NAME, Font.PLAIN, 14));
         g.setColor(Color.LIGHT_GRAY);
         g.drawString("Enter: 선택  ESC: 취소", (getWidth()-200)/2, baseY + line*2);
     }
@@ -213,7 +229,7 @@ public class RoomListCanvas extends Canvas implements Screen, GameClientListener
         navigator.showMainMenu();
     }
 
-    private final KeyAdapter keyAdapter = new KeyAdapter() {
+    private transient final KeyAdapter keyAdapter = new KeyAdapter() {
         @Override public void keyPressed(KeyEvent e) {
             if (creatingOverlay) {
                 switch (e.getKeyCode()) {
@@ -221,6 +237,8 @@ public class RoomListCanvas extends Canvas implements Screen, GameClientListener
                     case KeyEvent.VK_DOWN: createSelect = Math.min(1, createSelect+1); break;
                     case KeyEvent.VK_ESCAPE: creatingOverlay = false; break;
                     case KeyEvent.VK_ENTER: createRoom(createSelect==0); break;
+                    default: // do nothing
+                        break;
                 }
                 return;
             }
@@ -240,6 +258,8 @@ public class RoomListCanvas extends Canvas implements Screen, GameClientListener
                             backToMenu();
                         }
                         break;
+                    default: // do nothing
+                        break;
                 }
                 return;
             }
@@ -254,11 +274,13 @@ public class RoomListCanvas extends Canvas implements Screen, GameClientListener
                     break;
                 case KeyEvent.VK_TAB: bottomFocus = true; bottomSelected = 0; selectedIndex = Math.max(0, Math.min(selectedIndex, rooms.size()-1)); break;
                 case KeyEvent.VK_ESCAPE: backToMenu(); break;
+                default: // do nothing
+                    break;
             }
         }
     };
 
-    private final MouseAdapter mouseAdapter = new MouseAdapter() {
+    private transient final MouseAdapter mouseAdapter = new MouseAdapter() {
         @Override public void mouseClicked(MouseEvent e) {
             if (creatingOverlay) return; // 단순화
             handleButtonClick(e.getX(), e.getY());
@@ -266,7 +288,16 @@ public class RoomListCanvas extends Canvas implements Screen, GameClientListener
     };
 
     // GameClientListener 구현
-    @Override public void onRoomsUpdated(List<RoomInfo> rooms) { this.rooms.clear(); this.rooms.addAll(rooms); if (selectedIndex>=this.rooms.size()) selectedIndex = this.rooms.size()-1; if (this.rooms.isEmpty()) infoMessage="표시할 방이 없습니다."; }
+    @Override public void onRoomsUpdated(List<RoomInfo> rooms) { 
+        this.rooms.clear(); 
+        this.rooms.addAll(rooms); 
+        if (selectedIndex>=this.rooms.size()) {
+            selectedIndex = this.rooms.size()-1; 
+        }
+        if (this.rooms.isEmpty()) {
+            infoMessage="표시할 방이 없습니다."; 
+        }
+    }
     @Override public void onJoinedRoom(String roomId, String hostId) { navigator.showRoomLobby(roomId); }
     @Override public void onInfo(String msg) { infoMessage = msg; infoTimer = 180; }
     @Override public void onError(String msg) { infoMessage = "ERROR:"+msg; infoTimer = 240; }
@@ -282,7 +313,7 @@ public class RoomListCanvas extends Canvas implements Screen, GameClientListener
 
     private void handleButtonClick(int x, int y) {
         String b1 = "방 생성하기"; String b2 = "뒤로가기";
-        FontMetrics bm = getGraphics() != null? getGraphics().getFontMetrics(new Font("Arial", Font.PLAIN, 16)) : null;
+        FontMetrics bm = getGraphics() != null? getGraphics().getFontMetrics(new Font(FONT_NAME, Font.PLAIN, 16)) : null;
         // 안전 장치
         if (bm == null) return;
         int by = getHeight()-80;
@@ -294,7 +325,10 @@ public class RoomListCanvas extends Canvas implements Screen, GameClientListener
             // 멀티 방만 생성
             createRoom(false); 
             bottomFocus=false; 
+        } else {
+            if (r2.contains(x,y)) { 
+                backToMenu(); 
+            }
         }
-        else if (r2.contains(x,y)) { backToMenu(); }
     }
 }

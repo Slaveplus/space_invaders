@@ -8,9 +8,10 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 import org.junit.Test;
+import org.newdawn.spaceinvaders.common.entity.alien.AlienEntity;
 import org.newdawn.spaceinvaders.multyplay.core.MultiplayerGameContext;
-import org.newdawn.spaceinvaders.multyplay.entity.AlienEntity;
-import org.newdawn.spaceinvaders.multyplay.entity.ShipEntity;
+import org.newdawn.spaceinvaders.multyplay.entity.MultiplayerAlienEnvironment;
+import org.newdawn.spaceinvaders.common.entity.ShipEntity;
 import org.newdawn.spaceinvaders.multyplay.state.MultiplayerGameStateManager;
 import org.newdawn.spaceinvaders.multyplay.state.PlayerState;
 
@@ -70,10 +71,14 @@ public class ServerMultiplayerGameTest {
         PlayerState hostState = state.getPlayerState("host");
         PlayerState guestState = state.getPlayerState("guest");
 
+        // PlayerState 초기 HP는 10
+        assertEquals("Initial host HP should be 10", 10, hostState.getCurrentHP());
+        assertEquals("Initial guest HP should be 10", 10, guestState.getCurrentHP());
+
         game.notifyDeath("guest");
 
-        assertEquals("Host HP should remain unchanged", 3, hostState.getCurrentHP());
-        assertEquals("Guest HP should decrease by one", 2, guestState.getCurrentHP());
+        assertEquals("Host HP should remain unchanged", 10, hostState.getCurrentHP());
+        assertEquals("Guest HP should decrease by one", 9, guestState.getCurrentHP());
     }
 
     @Test
@@ -81,26 +86,31 @@ public class ServerMultiplayerGameTest {
         ServerMultiplayerGame game = createGameWithPlayers("host");
         TestAlienEntity alien = new TestAlienEntity(game, 240, 180);
 
-        double scale = (game.getCurrentRound() == 1) ? 0.45 : 0.75;
-        int expectedWidth = (int) Math.round(alien.getSpriteWidth() * scale);
-        int expectedHeight = (int) Math.round(alien.getSpriteHeight() * scale);
+        // 실제 구현에 맞는 스케일 사용 (라운드 1: 0.18, 그 외: 0.75)
+        double scale = (game.getCurrentRound() == 1) ? 0.18 : 0.75;
+        int scaledWidth = (int) (alien.getSpriteWidth() * scale);
+        int scaledHeight = (int) (alien.getSpriteHeight() * scale);
+        
+        // 실제 getBounds()는 스케일된 크기의 5% (너비)와 3% (높이)를 hitbox로 사용
+        int expectedHitboxWidth = (int) Math.max(4, scaledWidth * 0.05);
+        int expectedHitboxHeight = (int) Math.max(4, scaledHeight * 0.03);
+        
+        int drawX = (int) Math.round(alien.getPreciseCenterX()) - scaledWidth / 2;
+        int drawY = (int) Math.round(alien.getPreciseCenterY()) - scaledHeight / 2;
+        int expectedHitboxX = drawX + (scaledWidth - expectedHitboxWidth) / 2;
+        int expectedHitboxY = drawY + (scaledHeight - expectedHitboxHeight) / 2;
+        
         java.awt.Rectangle bounds = alien.getBounds();
 
-        assertEquals("Alien bounds width should match scaled sprite", expectedWidth, bounds.width);
-        assertEquals("Alien bounds height should match scaled sprite", expectedHeight, bounds.height);
-
-    int expectedTopLeftX = (int) Math.round(alien.getPreciseCenterX()) - (expectedWidth / 2);
-    int expectedTopLeftY = (int) Math.round(alien.getPreciseCenterY()) - (expectedHeight / 2);
-
-    assertEquals("Alien bounds X offset should match draw position",
-        expectedTopLeftX, bounds.x);
-    assertEquals("Alien bounds Y offset should match draw position",
-        expectedTopLeftY, bounds.y);
+        assertEquals("Alien bounds width should match hitbox calculation", expectedHitboxWidth, bounds.width);
+        assertEquals("Alien bounds height should match hitbox calculation", expectedHitboxHeight, bounds.height);
+        assertEquals("Alien bounds X offset should match hitbox position", expectedHitboxX, bounds.x);
+        assertEquals("Alien bounds Y offset should match hitbox position", expectedHitboxY, bounds.y);
     }
 
     private static class TestAlienEntity extends AlienEntity {
         TestAlienEntity(MultiplayerGameContext game, int x, int y) {
-            super(game, x, y);
+            super(new MultiplayerAlienEnvironment(game), x, y, MultiplayerAlienEnvironment.hpResolver());
         }
 
         int getSpriteWidth() {

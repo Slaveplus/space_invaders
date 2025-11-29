@@ -2,9 +2,8 @@ package org.newdawn.spaceinvaders.multyplay.net;
 
 import org.newdawn.spaceinvaders.multyplay.state.MultiplayerGameStateManager;
 import org.newdawn.spaceinvaders.multyplay.state.PlayerState;
-import org.newdawn.spaceinvaders.multyplay.entity.Entity;
-import org.newdawn.spaceinvaders.multyplay.entity.EntitySnapshot;
-
+import org.newdawn.spaceinvaders.common.entity.Entity;
+import org.newdawn.spaceinvaders.common.entity.EntitySnapshot;
 import java.util.*;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.stream.Collectors;

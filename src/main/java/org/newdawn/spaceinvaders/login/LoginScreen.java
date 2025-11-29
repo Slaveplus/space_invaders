@@ -11,6 +11,9 @@ import javax.imageio.ImageIO;
  * 확장 가능한 로그인 시스템
  */
 public class LoginScreen {
+    private static final String DEFAULT_FONT_NAME = "Arial";
+    private static final String DEFAULT_UI_FONT_NAME = "SansSerif";
+    
     private UserManager userManager;
     private LoginInputHandler inputHandler;
     private BufferedImage backgroundImage;
@@ -48,28 +51,29 @@ public class LoginScreen {
     
     private void initializeFonts() {
         try {
-            // Kostar 폰트 로드
-            InputStream fontStream = getClass().getClassLoader().getResourceAsStream("fonts/Kostar.ttf");
-            if (fontStream != null) {
-                Font kostarFont = Font.createFont(Font.TRUETYPE_FONT, fontStream);
+            // "Kostar" 폰트가 등록되었으므로 이름으로 직접 사용
+            Font kostarFont = new Font("Kostar", Font.PLAIN, 12);
+            // 폰트가 정상적으로 로드되었는지 확인
+            if (kostarFont.getFontName().startsWith("Kostar")) {
                 titleFont = kostarFont.deriveFont(Font.BOLD, 36f);
                 menuFont = kostarFont.deriveFont(Font.BOLD, 20f);
                 inputFont = kostarFont.deriveFont(Font.PLAIN, 16f);
-                fontStream.close();
             } else {
-                // 폰트 로드 실패 시 기본 폰트 사용
-                System.err.println("Kostar 폰트를 로드할 수 없습니다. 기본 폰트를 사용합니다.");
-                titleFont = new Font("Arial", Font.BOLD, 36);
-                menuFont = new Font("Arial", Font.BOLD, 20);
-                inputFont = new Font("Arial", Font.PLAIN, 16);
+                throw new Exception("Kostar font not found.");
             }
         } catch (Exception e) {
-            System.err.println("폰트 로드 중 오류 발생: " + e.getMessage());
-            // 오류 발생 시 기본 폰트 사용
-            titleFont = new Font("Arial", Font.BOLD, 36);
-            menuFont = new Font("Arial", Font.BOLD, 20);
-            inputFont = new Font("Arial", Font.PLAIN, 16);
+            System.err.println("Kostar 폰트를 찾을 수 없습니다. OS 기본 폰트를 사용합니다: " + e.getMessage());
+            // OS 독립적인 "SansSerif"를 대체 폰트로 사용
+            titleFont = new Font(DEFAULT_UI_FONT_NAME, Font.BOLD, 36);
+            menuFont = new Font(DEFAULT_UI_FONT_NAME, Font.BOLD, 20);
+            inputFont = new Font(DEFAULT_UI_FONT_NAME, Font.PLAIN, 16);
         }
+    }
+
+    private void initializeDefaultFonts() {
+        titleFont = new Font(DEFAULT_UI_FONT_NAME, Font.BOLD, 36);
+        menuFont = new Font(DEFAULT_UI_FONT_NAME, Font.BOLD, 20);
+        inputFont = new Font(DEFAULT_UI_FONT_NAME, Font.PLAIN, 16);
     }
     
     public void handleKeyInput(int keyCode, char keyChar) {
@@ -131,76 +135,76 @@ public class LoginScreen {
         int startY = 200;
         int lineHeight = 50;
         
-        // 사용자명 입력 필드
+        drawUsernameField(g2d, startY);
+        drawPasswordField(g2d, startY, lineHeight);
+    }
+    
+    private void drawUsernameField(Graphics2D g2d, int startY) {
         g2d.setColor(Color.WHITE);
         g2d.setFont(menuFont);
         g2d.drawString("Email:", 200, startY);
         
-        // 사용자명 입력 박스
-        g2d.setColor(Color.GRAY);
-        g2d.drawRect(300, startY - 25, 300, 30);
-        g2d.setColor(Color.BLACK);
-        g2d.fillRect(301, startY - 24, 298, 28);
+        drawInputBox(g2d, 300, startY - 25, 300, 30);
         
-        g2d.setColor(Color.WHITE);
-        g2d.setFont(inputFont);
         String displayUsername = isUsernameInput ? currentInput : username;
-        if (isUsernameInput && currentInput.isEmpty()) {
-            g2d.setColor(Color.GRAY);
-            g2d.drawString("Email을 입력하세요", 305, startY - 5);
-        } else {
-            g2d.setColor(Color.WHITE);
-            g2d.drawString(displayUsername, 305, startY - 5);
-        }
+        drawInputText(g2d, displayUsername, 305, startY - 5, isUsernameInput && currentInput.isEmpty(), "Email을 입력하세요");
         
-        // 사용자명 필드에 커서 그리기
         if (isUsernameInput && showCursor) {
-            FontMetrics inputMetrics = g2d.getFontMetrics();
-            int cursorX = 305 + inputMetrics.stringWidth(displayUsername);
-            g2d.setColor(Color.WHITE);
-            g2d.drawLine(cursorX, startY - 20, cursorX, startY - 10);
+            drawCursor(g2d, displayUsername, 305, startY - 20, startY - 10);
+        }
         }
         
-        // 비밀번호 입력 필드
+    private void drawPasswordField(Graphics2D g2d, int startY, int lineHeight) {
         g2d.setColor(Color.WHITE);
         g2d.setFont(menuFont);
         g2d.drawString("비밀번호:", 200, startY + lineHeight);
         
-        // 비밀번호 입력 박스
-        g2d.setColor(Color.GRAY);
-        g2d.drawRect(300, startY + lineHeight - 25, 300, 30);
-        g2d.setColor(Color.BLACK);
-        g2d.fillRect(301, startY + lineHeight - 24, 298, 28);
+        drawInputBox(g2d, 300, startY + lineHeight - 25, 300, 30);
         
-        g2d.setColor(Color.WHITE);
-        g2d.setFont(inputFont);
         String displayPassword = !isUsernameInput ? currentInput : password;
-        if (!isUsernameInput && currentInput.isEmpty()) {
+        String maskedPassword = maskPassword(displayPassword);
+        boolean isEmpty = !isUsernameInput && currentInput.isEmpty();
+        drawInputText(g2d, maskedPassword, 305, startY + lineHeight - 5, isEmpty, "비밀번호를 입력하세요");
+        
+        if (!isUsernameInput && showCursor) {
+            drawCursor(g2d, maskedPassword, 305, startY + lineHeight - 20, startY + lineHeight - 10);
+        }
+    }
+    
+    private void drawInputBox(Graphics2D g2d, int x, int y, int width, int height) {
+        g2d.setColor(Color.GRAY);
+        g2d.drawRect(x, y, width, height);
+        g2d.setColor(Color.BLACK);
+        g2d.fillRect(x + 1, y + 1, width - 2, height - 2);
+    }
+        
+    private void drawInputText(Graphics2D g2d, String text, int x, int y, boolean isEmpty, String placeholder) {
+        g2d.setFont(inputFont);
+        if (isEmpty) {
             g2d.setColor(Color.GRAY);
-            g2d.drawString("비밀번호를 입력하세요", 305, startY + lineHeight - 5);
+            g2d.drawString(placeholder, x, y);
         } else {
             g2d.setColor(Color.WHITE);
-            // 비밀번호는 *로 표시
-            String maskedPassword = "";
-            for (int i = 0; i < displayPassword.length(); i++) {
-                maskedPassword += "*";
+            g2d.drawString(text, x, y);
+        }
+    }
+    
+    private String maskPassword(String password) {
+        if (password == null || password.isEmpty()) {
+            return "";
+        }
+        StringBuilder masked = new StringBuilder();
+        for (int i = 0; i < password.length(); i++) {
+            masked.append("*");
             }
-            g2d.drawString(maskedPassword, 305, startY + lineHeight - 5);
+        return masked.toString();
         }
         
-        // 비밀번호 필드에 커서 그리기
-        if (!isUsernameInput && showCursor) {
+    private void drawCursor(Graphics2D g2d, String text, int baseX, int topY, int bottomY) {
             FontMetrics inputMetrics = g2d.getFontMetrics();
-            String displayPasswordForCursor = !isUsernameInput ? currentInput : password;
-            String maskedPasswordForCursor = "";
-            for (int i = 0; i < displayPasswordForCursor.length(); i++) {
-                maskedPasswordForCursor += "*";
-            }
-            int cursorX = 305 + inputMetrics.stringWidth(maskedPasswordForCursor);
+        int cursorX = baseX + inputMetrics.stringWidth(text);
             g2d.setColor(Color.WHITE);
-            g2d.drawLine(cursorX, startY + lineHeight - 20, cursorX, startY + lineHeight - 10);
-        }
-        
+        g2d.drawLine(cursorX, topY, cursorX, bottomY);
     }
     
     private void drawButtons(Graphics2D g2d) {
@@ -277,7 +281,42 @@ public class LoginScreen {
         this.messageTimer = 180; // 3초간 표시 (60fps 기준)
     }
     
-    public UserManager getUserManager() { return userManager; }
+    /**
+     * UserManager에 대한 접근을 제공합니다.
+     * 주의: 이 메서드는 내부 표현을 노출할 수 있습니다.
+     * 가능한 경우 위임 메서드(loginUser, registerUser 등)를 사용하세요.
+     * 
+     * @return UserManager 인스턴스 (null이 아님)
+     * @deprecated 내부 표현 노출 방지를 위해 위임 메서드 사용을 권장합니다.
+     *             하지만 호환성을 위해 유지됩니다.
+     */
+    @Deprecated
+    public UserManager getUserManager() { 
+        return userManager; 
+    }
+    
+    /**
+     * 로그인을 시도합니다.
+     * 
+     * @param email 사용자 이메일
+     * @param password 사용자 비밀번호
+     * @return 로그인 성공 여부
+     */
+    public boolean loginUser(String email, String password) {
+        return userManager != null && userManager.loginUser(email, password);
+    }
+    
+    /**
+     * 회원가입을 시도합니다.
+     * 
+     * @param email 사용자 이메일
+     * @param password 사용자 비밀번호
+     * @return 회원가입 성공 여부
+     */
+    public boolean registerUser(String email, String password) {
+        return userManager != null && userManager.registerUser(email, password);
+    }
+    
     public LoginInputHandler getInputHandler() { return inputHandler; }
     
     public void reset() {

@@ -14,18 +14,19 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Queue;
 import java.util.Random;
-
+import java.util.function.Function;
 import org.newdawn.spaceinvaders.multyplay.core.MultiplayerGameContext;
 import org.newdawn.spaceinvaders.multyplay.state.MultiplayerGameStateManager;
-import org.newdawn.spaceinvaders.multyplay.entity.AlienEntity;
-import org.newdawn.spaceinvaders.multyplay.entity.BossEntity;
-import org.newdawn.spaceinvaders.multyplay.entity.Entity;
-import org.newdawn.spaceinvaders.multyplay.entity.EntitySnapshot;
-import org.newdawn.spaceinvaders.multyplay.entity.ExplosionEntity;
-import org.newdawn.spaceinvaders.multyplay.entity.MissileEntity;
-import org.newdawn.spaceinvaders.multyplay.entity.NearEntity;
-import org.newdawn.spaceinvaders.multyplay.entity.ShipEntity;
-import org.newdawn.spaceinvaders.multyplay.entity.ShotEntity;
+import org.newdawn.spaceinvaders.common.entity.alien.AlienEntity;
+import org.newdawn.spaceinvaders.common.entity.boss.BossEntity;
+import org.newdawn.spaceinvaders.common.entity.Entity;
+import org.newdawn.spaceinvaders.common.entity.EntitySnapshot;
+import org.newdawn.spaceinvaders.common.entity.effect.ExplosionEntity;
+import org.newdawn.spaceinvaders.common.entity.projectile.MissileEntity;
+import org.newdawn.spaceinvaders.multyplay.entity.MultiplayerMissileEnvironment;
+import org.newdawn.spaceinvaders.common.entity.near.NearEntity;
+import org.newdawn.spaceinvaders.common.entity.ShipEntity;
+import org.newdawn.spaceinvaders.common.entity.ShotEntity;
 import org.newdawn.spaceinvaders.multyplay.net.GameEvent;
 import org.newdawn.spaceinvaders.multyplay.net.GameSnapshot;
 import org.newdawn.spaceinvaders.multyplay.net.PlayerInput;
@@ -39,6 +40,12 @@ import org.newdawn.spaceinvaders.multyplay.state.PlayerState;
  * 순수 게임 로직 및 스냅샷만 계산한다.
  */
 public class ServerMultiplayerGame implements MultiplayerGameContext {
+    private static final String DEFAULT_SHIP_SKIN = "sprites/ship.gif";
+    private static final String DEFAULT_WEAPON_SKIN = "sprites/shot.gif";
+    private static final String INSUFFICIENT_SKILL_POINTS_MSG = "스킬 포인트가 부족합니다! (필요: ";
+    private static final String AVAILABLE_SKILL_POINTS_MSG_SUFFIX = ", 보유: ";
+    private static final String LEVEL_MSG_PREFIX = ", 레벨: ";
+
     private final MultiplayerGameStateManager gameStateManager = new MultiplayerGameStateManager();
     private final Map<String, MultiplayerSkillManager> skillManagers = new HashMap<>();
     private final Random rng;
@@ -47,8 +54,8 @@ public class ServerMultiplayerGame implements MultiplayerGameContext {
     private double moveSpeed = 300;
     private int alienCount;
 
-    private String currentSpaceshipSkin = "sprites/ship.gif";
-    private String currentWeaponSkin = "sprites/shot.gif";
+    private String currentSpaceshipSkin = DEFAULT_SHIP_SKIN;
+    private String currentWeaponSkin = DEFAULT_WEAPON_SKIN;
     
     // 플레이어별 스킨 정보 저장
     private final Map<String, String> playerSkins = new HashMap<>();
@@ -220,24 +227,33 @@ public class ServerMultiplayerGame implements MultiplayerGameContext {
     }
 
     private void setupPlayerShips() {
-        ArrayList<Entity> entities = gameStateManager.getEntities();
+        gameStateManager.getEntities().removeIf(e -> e instanceof ShipEntity);
         gameStateManager.getRemoveList().removeIf(e -> e instanceof ShipEntity);
 
+        cleanAndEnsurePlayerRuntimes();
+        if (playerRuntimes.isEmpty()) {
+            ship = null;
+            return;
+        }
+
+        List<String> spawnOrder = determineSpawnOrder();
+        spawnShips(spawnOrder);
+        pruneDuplicateShips(gameStateManager.getEntities());
+        assignFallbackShip(spawnOrder);
+    }
+
+    private void cleanAndEnsurePlayerRuntimes() {
         playerRuntimes.entrySet().removeIf(entry -> {
             String key = entry.getKey();
             return key == null || key.trim().isEmpty();
         });
 
-        if (playerRuntimes.isEmpty()) {
-            if (primaryPlayerId != null && !primaryPlayerId.isEmpty()) {
-                playerRuntimes.putIfAbsent(primaryPlayerId, new PlayerRuntime());
-            }
-            if (playerRuntimes.isEmpty()) {
-                ship = null;
-                return;
-            }
+        if (playerRuntimes.isEmpty() && primaryPlayerId != null && !primaryPlayerId.isEmpty()) {
+            playerRuntimes.putIfAbsent(primaryPlayerId, new PlayerRuntime());
         }
+    }
 
+    private List<String> determineSpawnOrder() {
         List<String> spawnOrder = new ArrayList<>(playerRuntimes.keySet());
         if (primaryPlayerId != null && spawnOrder.remove(primaryPlayerId)) {
             spawnOrder.add(0, primaryPlayerId);
@@ -245,71 +261,61 @@ public class ServerMultiplayerGame implements MultiplayerGameContext {
 
         for (PlayerState state : gameStateManager.getPlayerStates()) {
             String playerId = state.getPlayerId();
-            if (playerId == null || playerId.trim().isEmpty()) {
-                continue;
-            }
-            if (!playerRuntimes.containsKey(playerId)) {
+            if (playerId != null && !playerId.trim().isEmpty() && !playerRuntimes.containsKey(playerId)) {
                 playerRuntimes.put(playerId, new PlayerRuntime());
                 spawnOrder.add(playerId);
-            } else if (!spawnOrder.contains(playerId)) {
-                spawnOrder.add(playerId);
             }
         }
+        return spawnOrder;
+    }
 
-        entities.removeIf(e -> e instanceof ShipEntity);
-
+    private void spawnShips(List<String> spawnOrder) {
         int playerCount = spawnOrder.size();
-        if (playerCount == 0) {
-            ship = null;
-            return;
-        }
+        if (playerCount == 0) return;
 
         final int minX = 120;
         final int maxX = 680;
         final int spawnY = 550;
         int spacing = playerCount > 1 ? (maxX - minX) / (playerCount - 1) : 0;
 
-        for (int index = 0; index < spawnOrder.size(); index++) {
-            String playerId = spawnOrder.get(index);
-            PlayerRuntime runtime = playerRuntimes.get(playerId);
-            if (runtime == null) {
-                runtime = new PlayerRuntime();
-                playerRuntimes.put(playerId, runtime);
-            }
+        for (int i = 0; i < playerCount; i++) {
+            String playerId = spawnOrder.get(i);
+            PlayerRuntime runtime = playerRuntimes.computeIfAbsent(playerId, k -> new PlayerRuntime());
             PlayerState state = gameStateManager.ensurePlayer(playerId);
+
             if (state.isDead()) {
                 runtime.ship = null;
                 runtime.spectating = true;
                 continue;
             }
-            int spawnX = (playerCount == 1) ? 370 : minX + (index * spacing);
 
-            // 플레이어별 스킨 적용
+            int spawnX = (playerCount == 1) ? 370 : minX + (i * spacing);
             String playerSkin = getPlayerSkin(playerId);
             ShipEntity newShip = new ShipEntity(this, playerSkin, spawnX, spawnY);
             newShip.setOwnerId(playerId);
+
             runtime.ship = newShip;
             runtime.spectating = false;
             runtime.leftPressed = false;
             runtime.rightPressed = false;
             runtime.firePressed = false;
             runtime.lastFire = 0;
-            entities.add(newShip);
+            gameStateManager.getEntities().add(newShip);
         }
+    }
 
-        pruneDuplicateShips(entities);
-
+    private void assignFallbackShip(List<String> spawnOrder) {
         ShipEntity fallbackShip = spawnOrder.stream()
-                .map(playerRuntimes::get)
-                .filter(Objects::nonNull)
-                .map(runtime -> runtime.ship)
-                .filter(Objects::nonNull)
-                .findFirst()
-                .orElse(null);
+            .map(playerRuntimes::get)
+            .filter(Objects::nonNull)
+            .map(runtime -> runtime.ship)
+            .filter(Objects::nonNull)
+            .findFirst()
+            .orElse(null);
 
-        ship = primaryPlayerId != null && playerRuntimes.containsKey(primaryPlayerId)
-                ? playerRuntimes.get(primaryPlayerId).ship
-                : fallbackShip;
+        ship = (primaryPlayerId != null && playerRuntimes.containsKey(primaryPlayerId))
+            ? playerRuntimes.get(primaryPlayerId).ship
+            : fallbackShip;
     }
 
     private void pruneDuplicateShips(ArrayList<Entity> entities) {
@@ -344,39 +350,68 @@ public class ServerMultiplayerGame implements MultiplayerGameContext {
     }
 
     public void update(long delta) {
-        if (!gameStateManager.isWaitingForKeyPress()
-                && !gameStateManager.isShowingPauseMenu()
-                && !gameStateManager.isShowingSkillMenu()) {
-            for (MultiplayerSkillManager mgr : skillManagers.values()) {
-                mgr.updateSkillEffects();
-            }
-            ArrayList<Entity> entities = new ArrayList<>(gameStateManager.getEntities());
-            for (Entity entity : entities) {
-                entity.move(delta);
-            }
-            tryAlienFire();
+        if (gameStateManager.isWaitingForKeyPress() || gameStateManager.isShowingPauseMenu() || gameStateManager.isShowingSkillMenu()) {
+            return;
         }
+        updateGameLogic(delta);
+        updatePlayerShipStates();
+        performCollisionChecks();
+        updatePrimaryShipReference();
+    }
 
-        if (!gameStateManager.isShowingPauseMenu()
-                && !gameStateManager.isShowingSkillMenu()) {
-            for (Map.Entry<String, PlayerRuntime> entry : playerRuntimes.entrySet()) {
-                PlayerRuntime runtime = entry.getValue();
-                ShipEntity playerShip = runtime.ship;
-                if (playerShip == null) {
-                    continue;
-                }
-                playerShip.setHorizontalMovement(0);
-                if (runtime.leftPressed && !runtime.rightPressed) {
-                    playerShip.setHorizontalMovement(-moveSpeed);
-                } else if (runtime.rightPressed && !runtime.leftPressed) {
-                    playerShip.setHorizontalMovement(moveSpeed);
-                }
-                if (runtime.firePressed) {
-                    tryToFire(entry.getKey(), runtime);
+    private void updateGameLogic(long delta) {
+        for (MultiplayerSkillManager mgr : skillManagers.values()) {
+            mgr.updateSkillEffects();
+        }
+        ArrayList<Entity> entities = new ArrayList<>(gameStateManager.getEntities());
+        for (Entity entity : entities) {
+            entity.move(delta);
+        }
+        tryAlienFire();
+    }
+
+    private void updatePlayerShipStates() {
+        for (Map.Entry<String, PlayerRuntime> entry : playerRuntimes.entrySet()) {
+            PlayerRuntime runtime = entry.getValue();
+            ShipEntity playerShip = runtime.ship;
+            if (playerShip == null) {
+                continue;
+            }
+            playerShip.setHorizontalMovement(0);
+            if (runtime.leftPressed && !runtime.rightPressed) {
+                playerShip.setHorizontalMovement(-moveSpeed);
+            } else if (runtime.rightPressed && !runtime.leftPressed) {
+                playerShip.setHorizontalMovement(moveSpeed);
+            }
+            if (runtime.firePressed) {
+                tryToFire(entry.getKey(), runtime);
+            }
+        }
+    }
+
+    private void performCollisionChecks() {
+        ArrayList<Entity> entities = gameStateManager.getEntities();
+        for (int i = 0; i < entities.size(); i++) {
+            Entity e1 = entities.get(i);
+            for (int j = i + 1; j < entities.size(); j++) {
+                Entity e2 = entities.get(j);
+                if (e1.collidesWith(e2)) {
+                    e1.collidedWith(e2);
+                    e2.collidedWith(e1);
                 }
             }
         }
+        entities.removeAll(gameStateManager.getRemoveList());
+        gameStateManager.getRemoveList().clear();
+        if (gameStateManager.isLogicRequiredThisLoop()) {
+            for (Entity e : entities) {
+                e.doLogic();
+            }
+            gameStateManager.setLogicRequiredThisLoop(false);
+        }
+    }
 
+    private void updatePrimaryShipReference() {
         ShipEntity fallbackShip = playerRuntimes.values().stream()
                 .map(r -> r.ship)
                 .filter(Objects::nonNull)
@@ -385,29 +420,6 @@ public class ServerMultiplayerGame implements MultiplayerGameContext {
         ship = primaryPlayerId != null && playerRuntimes.containsKey(primaryPlayerId)
                 ? playerRuntimes.get(primaryPlayerId).ship
                 : fallbackShip;
-
-        ArrayList<Entity> entities = gameStateManager.getEntities();
-        if (!gameStateManager.isShowingPauseMenu()
-                && !gameStateManager.isShowingSkillMenu()) {
-            for (int i = 0; i < entities.size(); i++) {
-                Entity e1 = entities.get(i);
-                for (int j = i + 1; j < entities.size(); j++) {
-                    Entity e2 = entities.get(j);
-                    if (e1.collidesWith(e2)) {
-                        e1.collidedWith(e2);
-                        e2.collidedWith(e1);
-                    }
-                }
-            }
-            entities.removeAll(gameStateManager.getRemoveList());
-            gameStateManager.getRemoveList().clear();
-            if (gameStateManager.isLogicRequiredThisLoop()) {
-                for (Entity e : entities) {
-                    e.doLogic();
-                }
-                gameStateManager.setLogicRequiredThisLoop(false);
-            }
-        }
     }
 
     public GameSnapshot createSnapshot(long tick,
@@ -421,38 +433,7 @@ public class ServerMultiplayerGame implements MultiplayerGameContext {
         for (Entity e : gameStateManager.getEntities()) {
             snaps.add(e.toSnapshot());
         }
-        Map<String, GameSnapshot.PlayerScalarState> players = new LinkedHashMap<>();
-        for (PlayerState ps : gameStateManager.getPlayerStates()) {
-        String playerId = ps.getPlayerId();
-        MultiplayerSkillManager manager = skillManager(playerId);
-        int invCount = manager != null ? manager.getInvincibleSkills() : 0;
-        int tripleCount = manager != null ? manager.getTripleShotSkills() : 0;
-        int missileCount = manager != null ? manager.getMissileSkills() : 0;
-        long invRem = manager != null ? Math.max(0L, manager.getInvincibleEndTime() - serverTime) : 0L;
-        long tripleRem = manager != null ? Math.max(0L, manager.getTripleShotEndTime() - serverTime) : 0L;
-        int atkLevel = manager != null ? manager.getAttackPowerLevel() : 0;
-        int aspdLevel = manager != null ? manager.getAttackSpeedLevel() : 0;
-        int hpLevel = manager != null ? manager.getHpUpLevel() : 0;
-
-        players.put(playerId,
-            new GameSnapshot.PlayerScalarState(
-                ps.getCurrentHP(),
-                ps.getMaxHP(),
-                ps.getAttackPower(),
-                ps.getAttackSpeed(),
-                ps.getSkillPoints(),
-                invCount,
-                0,
-                tripleCount,
-                missileCount,
-                ps.getEarnedCoins(),
-                invRem,
-                0L,
-                tripleRem,
-                atkLevel,
-                aspdLevel,
-                hpLevel));
-        }
+        Map<String, GameSnapshot.PlayerScalarState> players = mapPlayerStatesToSnapshot(serverTime);
         return new GameSnapshot(tick, serverTime, delta,
                 gameStateManager.getCurrentRound(),
                 snaps,
@@ -461,6 +442,32 @@ public class ServerMultiplayerGame implements MultiplayerGameContext {
                 waitingForPlayers,
                 readyStates,
                 message);
+    }
+
+    private Map<String, GameSnapshot.PlayerScalarState> mapPlayerStatesToSnapshot(long serverTime) {
+        Map<String, GameSnapshot.PlayerScalarState> players = new LinkedHashMap<>();
+        for (PlayerState ps : gameStateManager.getPlayerStates()) {
+            String playerId = ps.getPlayerId();
+            MultiplayerSkillManager manager = skillManager(playerId);
+
+            int invCount = getSkillValue(manager, MultiplayerSkillManager::getInvincibleSkills);
+            int tripleCount = getSkillValue(manager, MultiplayerSkillManager::getTripleShotSkills);
+            int missileCount = getSkillValue(manager, MultiplayerSkillManager::getMissileSkills);
+            int atkLevel = getSkillValue(manager, MultiplayerSkillManager::getAttackPowerLevel);
+            int aspdLevel = getSkillValue(manager, MultiplayerSkillManager::getAttackSpeedLevel);
+            int hpLevel = getSkillValue(manager, MultiplayerSkillManager::getHpUpLevel);
+
+            long invRem = getSkillTimeRemaining(manager, serverTime, MultiplayerSkillManager::getInvincibleEndTime);
+            long tripleRem = getSkillTimeRemaining(manager, serverTime, MultiplayerSkillManager::getTripleShotEndTime);
+
+            players.put(playerId,
+                new GameSnapshot.PlayerScalarState(
+                    ps.getCurrentHP(), ps.getMaxHP(), ps.getAttackPower(), ps.getAttackSpeed(),
+                    ps.getSkillPoints(), invCount, 0, tripleCount, missileCount,
+                    ps.getEarnedCoins(), invRem, 0L, tripleRem,
+                    atkLevel, aspdLevel, hpLevel));
+        }
+        return players;
     }
 
     public List<GameEvent> drainPendingEvents() {
@@ -597,7 +604,7 @@ public class ServerMultiplayerGame implements MultiplayerGameContext {
         int playerX = ship != null ? ship.getX() + 10 : 400;
         int aimOffset = (int)((playerX - alienX) * 0.15);
         aimOffset = Math.max(-15, Math.min(15, aimOffset));
-        ShotEntity shot = new ShotEntity(this, "sprites/shot.gif", x + aimOffset, y, true);
+        ShotEntity shot = new ShotEntity(this, DEFAULT_WEAPON_SKIN, x + aimOffset, y, true);
         gameStateManager.getEntities().add(shot);
     }
 
@@ -656,39 +663,39 @@ public class ServerMultiplayerGame implements MultiplayerGameContext {
                 int cost = manager.getAttackPowerCost();
                 if (availablePoints < cost) {
                     return new SkillActionResult(false,
-                            "스킬 포인트가 부족합니다! (필요: " + cost + ", 보유: " + availablePoints + ")");
+                            INSUFFICIENT_SKILL_POINTS_MSG + cost + AVAILABLE_SKILL_POINTS_MSG_SUFFIX + availablePoints + ")");
                 }
                 state.setAttackPower(state.getAttackPower() + 1);
                 state.setSkillPoints(availablePoints - cost);
                 manager.increaseAttackPowerLevel();
                 return new SkillActionResult(true,
-                        "공격력이 증가했습니다! (현재: " + state.getAttackPower() + ", 레벨: " + manager.getAttackPowerLevel() + ")");
+                        "공격력이 증가했습니다! (현재: " + state.getAttackPower() + LEVEL_MSG_PREFIX + manager.getAttackPowerLevel() + ")");
             }
             case 1: { // Attack Speed
                 int cost = manager.getAttackSpeedCost();
                 if (availablePoints < cost) {
                     return new SkillActionResult(false,
-                            "스킬 포인트가 부족합니다! (필요: " + cost + ", 보유: " + availablePoints + ")");
+                            INSUFFICIENT_SKILL_POINTS_MSG + cost + AVAILABLE_SKILL_POINTS_MSG_SUFFIX + availablePoints + ")");
                 }
                 state.setAttackSpeed(state.getAttackSpeed() + 0.2);
                 state.setSkillPoints(availablePoints - cost);
                 manager.increaseAttackSpeedLevel();
         return new SkillActionResult(true,
             "공격 속도가 증가했습니다! (현재: " + String.format(Locale.KOREA, "%.1f", state.getAttackSpeed())
-                                + ", 레벨: " + manager.getAttackSpeedLevel() + ")");
+                                + LEVEL_MSG_PREFIX + manager.getAttackSpeedLevel() + ")");
             }
             case 2: { // HP Up & Heal
                 int cost = manager.getHpUpCost();
                 if (availablePoints < cost) {
                     return new SkillActionResult(false,
-                            "스킬 포인트가 부족합니다! (필요: " + cost + ", 보유: " + availablePoints + ")");
+                            INSUFFICIENT_SKILL_POINTS_MSG + cost + AVAILABLE_SKILL_POINTS_MSG_SUFFIX + availablePoints + ")");
                 }
                 state.setMaxHP(state.getMaxHP() + 3);
                 state.setCurrentHP(state.getMaxHP());
                 state.setSkillPoints(availablePoints - cost);
                 manager.increaseHpUpLevel();
                 return new SkillActionResult(true,
-                        "최대 체력이 증가하고 체력이 회복되었습니다! (현재: " + state.getMaxHP() + ", 레벨: " + manager.getHpUpLevel() + ")");
+                        "최대 체력이 증가하고 체력이 회복되었습니다! (현재: " + state.getMaxHP() + LEVEL_MSG_PREFIX + manager.getHpUpLevel() + ")");
             }
             default:
                 return new SkillActionResult(false, "알 수 없는 강화 항목입니다.");
@@ -697,8 +704,7 @@ public class ServerMultiplayerGame implements MultiplayerGameContext {
 
     @Override
     public void createSkillDrop(int x, int y, int skillType, int skillValue) {
-        ShotEntity skillDrop = new ShotEntity(this, "sprites/shot.gif", x, y,
-                false, skillType, skillValue);
+        ShotEntity skillDrop = new ShotEntity(this, DEFAULT_WEAPON_SKIN, x, y, skillType, skillValue);
         gameStateManager.getEntities().add(skillDrop);
     }
 
@@ -706,6 +712,11 @@ public class ServerMultiplayerGame implements MultiplayerGameContext {
     public void createExplosion(int x, int y, double radius) {
         ExplosionEntity explosion = new ExplosionEntity(this, "sprites/Skill/Explosion.png", x, y, radius);
         gameStateManager.getEntities().add(explosion);
+    }
+
+    @Override
+    public void createHeatEffect(int x, int y, double radius) {
+        // 서버는 히트 이펙트를 렌더링하지 않음
     }
 
     private boolean isBossAlive() {
@@ -725,8 +736,13 @@ public class ServerMultiplayerGame implements MultiplayerGameContext {
         if (source == null) {
             return;
         }
-        MissileEntity missile = new MissileEntity(this, "sprites/Skill/Missile.png",
-                (int) source.getX() + 15, (int) source.getY(), targetX, targetY);
+        MissileEntity missile = new MissileEntity(
+                new MultiplayerMissileEnvironment(this),
+                "sprites/Skill/Missile.png",
+                (int) source.getX() + 15,
+                (int) source.getY(),
+                targetX,
+                targetY);
         if (playerId != null) {
             missile.setOwnerId(playerId);
         }
@@ -735,6 +751,12 @@ public class ServerMultiplayerGame implements MultiplayerGameContext {
 
     @Override
     public void notifyAlienKilled(String killerPlayerId, double killX, double killY) {
+        handleKillerRewardsAndDrops(killerPlayerId, killX, killY);
+        updateAlienStateAndCheckWinCondition();
+        adjustAlienSpeed();
+    }
+
+    private void handleKillerRewardsAndDrops(String killerPlayerId, double killX, double killY) {
         if (killerPlayerId != null) {
             MultiplayerSkillManager manager = skillManager(killerPlayerId);
             int earned = manager.getRandomSkillPoints(gameStateManager.getCurrentRound());
@@ -744,18 +766,30 @@ public class ServerMultiplayerGame implements MultiplayerGameContext {
                 manager.dropSkill(gameStateManager.getCurrentRound(), killX, killY);
             }
         }
-        int remainingAliens = 0;
-        ArrayList<Entity> entities = gameStateManager.getEntities();
-        ArrayList<Entity> removeList = gameStateManager.getRemoveList();
-        for (Entity entity : entities) {
-            if (entity instanceof AlienEntity && !removeList.contains(entity)) {
-                remainingAliens++;
-            }
-        }
+    }
+
+    private void updateAlienStateAndCheckWinCondition() {
+        int remainingAliens = countRemainingAliens();
         boolean bossAlive = isBossAlive();
         if (remainingAliens == 0 && !bossAlive) {
             notifyWin();
         }
+    }
+
+    private int countRemainingAliens() {
+        int count = 0;
+        ArrayList<Entity> entities = gameStateManager.getEntities();
+        ArrayList<Entity> removeList = gameStateManager.getRemoveList();
+        for (Entity entity : entities) {
+            if (entity instanceof AlienEntity && !removeList.contains(entity)) {
+                count++;
+            }
+        }
+        return count;
+    }
+
+    private void adjustAlienSpeed() {
+        ArrayList<Entity> entities = gameStateManager.getEntities();
         for (Entity entity : entities) {
             if (entity instanceof AlienEntity) {
                 double speedMultiplier = 1.015 + (gameStateManager.getCurrentRound() * 0.01);
@@ -764,6 +798,7 @@ public class ServerMultiplayerGame implements MultiplayerGameContext {
             }
         }
     }
+
 
     @Override
     public void notifyBossDefeated(String killerPlayerId) {
@@ -1035,7 +1070,7 @@ public class ServerMultiplayerGame implements MultiplayerGameContext {
      * 플레이어 스킨 가져오기
      */
     public String getPlayerSkin(String playerId) {
-        return playerSkins.getOrDefault(playerId, "sprites/ship.gif");
+        return playerSkins.getOrDefault(playerId, DEFAULT_SHIP_SKIN);
     }
     
     @Override
@@ -1123,15 +1158,6 @@ public class ServerMultiplayerGame implements MultiplayerGameContext {
         }
     }
 
-    private void spawnBoss(boolean announce) {
-        int round = gameStateManager.getCurrentRound();
-        SharedMultiplayerRoundCoordinator.spawnBoss(this, round);
-        alienCount = gameStateManager.getAlienCount();
-        if (announce) {
-            gameStateManager.setMessage("BOSS APPEARED!");
-            gameStateManager.setWaitingForKeyPress(true);
-        }
-    }
 
     private void revivePlayersForNextRound() {
         for (String playerId : new ArrayList<>(playerRuntimes.keySet())) {
@@ -1163,5 +1189,13 @@ public class ServerMultiplayerGame implements MultiplayerGameContext {
             }
         }
         return true;
+    }
+
+    private int getSkillValue(MultiplayerSkillManager manager, Function<MultiplayerSkillManager, Integer> getter) {
+        return manager != null ? getter.apply(manager) : 0;
+    }
+
+    private long getSkillTimeRemaining(MultiplayerSkillManager manager, long serverTime, Function<MultiplayerSkillManager, Long> getter) {
+        return manager != null ? Math.max(0L, getter.apply(manager) - serverTime) : 0L;
     }
 }

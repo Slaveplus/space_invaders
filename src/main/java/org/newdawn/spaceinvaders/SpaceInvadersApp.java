@@ -13,10 +13,10 @@ import org.newdawn.spaceinvaders.mainmenu.MainMenuCanvas;
 import org.newdawn.spaceinvaders.room.GameClient;
 import org.newdawn.spaceinvaders.room.RoomListCanvas;
 import org.newdawn.spaceinvaders.room.RoomLobbyCanvas;
-
 import javax.swing.*;
 import java.awt.*;
 import java.awt.image.BufferStrategy;
+import java.io.InputStream;
 
 /**
  * 애플리케이션 프레임. 창, 메인 루프, 화면 전환을 관리합니다.
@@ -31,31 +31,134 @@ public class SpaceInvadersApp extends JFrame implements ScreenNavigator {
     private int currentHeight = DEFAULT_HEIGHT;
 
     private Canvas canvas;              // 현재 화면이 부착되는 캔버스
-    private BufferStrategy strategy;    // 더블버퍼
+    private transient BufferStrategy strategy;    // 더블버퍼
 
     // 공유 UserManager
-    private UserManager userManager;
+    private transient UserManager userManager;
     
     // 해상도 관리자
-    private ResolutionManager resolutionManager;
+    private transient ResolutionManager resolutionManager;
     
     // 스크린(캔버스)
     private LoginScreenCanvas loginScreenCanvas;
     private MainMenuCanvas mainMenuCanvas;
     private RoomListCanvas roomListCanvas; // 동적 생성 (접속 후)
     private RoomLobbyCanvas roomLobbyCanvas; // 현재 로비
-    private GameClient currentClient; // 현재 GameClient 참조
+    private transient GameClient currentClient; // 현재 GameClient 참조
     private Game gameScreen; // Game 자체를 캔버스로 이용
     private MultiplayerGameCanvas multiplayerGameCanvas;
-    private RoomGameNetworkAdapter multiplayerNetworkAdapter;
+    private transient RoomGameNetworkAdapter multiplayerNetworkAdapter;
 
-    private Screen currentScreen; // update/render 가상화
+    private transient Screen currentScreen; // update/render 가상화
     private volatile boolean running = true;
     private volatile Canvas pendingScreen; // 전환 요청된 다음 화면
 
-    private static final String windowTitle = "Space Invaders";
+    private static final String WINDOW_TITLE = "Space Invaders";
 
-    // message, waitingForKeyPress, and logicRequiredThisLoop are now managed by GameStateManager
+    private void handlePendingScreenTransition() {
+        if (pendingScreen != null) {
+            Canvas next = pendingScreen;
+            pendingScreen = null;
+            try {
+                javax.swing.SwingUtilities.invokeAndWait(() -> setScreen(next));
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        }
+    }
+
+    private void updateFpsCounter(long delta) {
+        lastFpsTime += delta;
+        fps++;
+
+        if (lastFpsTime >= 1000) {
+            this.setTitle(WINDOW_TITLE+" (FPS: "+fps+")");
+            lastFpsTime = 0;
+            fps = 0;
+        }
+    }
+
+    private void updateCurrentScreen(long delta) {
+        if (currentScreen != null) {
+            currentScreen.update(delta);
+            handleGameScreenTransitions();
+            handleMultiplayerGameCanvasTransitions();
+        }
+    }
+
+    private void handleGameScreenTransitions() {
+        if (currentScreen == gameScreen && gameScreen.isRequestingMainMenu()) {
+            setScreen(mainMenuCanvas);
+            gameScreen.resetMainMenuRequest();
+        }
+    }
+
+    private void handleMultiplayerGameCanvasTransitions() {
+        if (currentScreen == multiplayerGameCanvas && multiplayerGameCanvas != null
+                && multiplayerGameCanvas.isRequestingLobbyReturn()) {
+            multiplayerGameCanvas.resetLobbyReturnRequest();
+            if (multiplayerNetworkAdapter != null && currentClient != null) {
+                currentClient.removeListener(multiplayerNetworkAdapter);
+            }
+            if (multiplayerNetworkAdapter != null) {
+                multiplayerNetworkAdapter.shutdown();
+                multiplayerNetworkAdapter = null;
+            }
+            if (currentClient != null) {
+                currentClient.leaveRoom();
+                showRoomList(currentClient);
+            } else {
+                showMainMenu();
+            }
+            multiplayerGameCanvas.shutdownNetwork();
+            multiplayerGameCanvas = null;
+        }
+    }
+
+    private boolean ensureBufferStrategy() {
+        if (strategy == null || !canvas.isDisplayable()) {
+            if (canvas != null && canvas.isDisplayable()) {
+                canvas.createBufferStrategy(2);
+                strategy = canvas.getBufferStrategy();
+                return true;
+            } else {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private boolean renderFrame() {
+        if (!canvas.isDisplayable()) {
+            SystemTimer.sleep(10);
+            return false;
+        }
+
+        Graphics2D g = null;
+        try {
+            g = (Graphics2D) strategy.getDrawGraphics();
+        } catch (IllegalStateException e) {
+            strategy = null;
+            SystemTimer.sleep(10);
+            return false;
+        }
+        try {
+            g.setColor(Color.black);
+            g.fillRect(0, 0, currentWidth, currentHeight);
+            if (currentScreen != null) currentScreen.render(g);
+        } finally {
+            if (g != null) g.dispose();
+        }
+        if (strategy != null) {
+            try {
+                strategy.show();
+            } catch (IllegalStateException ise) {
+                strategy = null;
+                return false;
+            }
+        }
+        return true;
+    }
 
     /** 프레임 레이트를 마지막으로 기록한 시간 */
     private long lastFpsTime;
@@ -63,8 +166,8 @@ public class SpaceInvadersApp extends JFrame implements ScreenNavigator {
     private int fps;
 
     public SpaceInvadersApp() {
-        super(windowTitle);
-        setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+        super(WINDOW_TITLE);
+        setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE);
         setIgnoreRepaint(true);
         setResizable(true); // 창 크기 조절 가능하도록 변경
 
@@ -142,101 +245,21 @@ public class SpaceInvadersApp extends JFrame implements ScreenNavigator {
     public void runMainLoop() {
         long lastLoopTime = SystemTimer.getTime();
         while (running) {
-            // 화면 전환 요청이 있으면 먼저 처리 (EDT 동기)
-            if (pendingScreen != null) {
-                Canvas next = pendingScreen;
-                pendingScreen = null;
-                try {
-                    javax.swing.SwingUtilities.invokeAndWait(() -> setScreen(next));
-                } catch (Exception e) {
-                    e.printStackTrace();
-                }
-                // 전환 직후 다음 루프에서 버퍼 재생성/렌더 진행
-            }
+            handlePendingScreenTransition();
 
             long delta = SystemTimer.getTime() - lastLoopTime;
             lastLoopTime = SystemTimer.getTime();
 
-            // 프레임 카운터 업데이트
-            lastFpsTime += delta;
-            fps++;
+            updateFpsCounter(delta);
+            updateCurrentScreen(delta);
 
-            // 마지막으로 기록한 이후 1초가 지났으면 FPS 카운터 업데이트
-            if (lastFpsTime >= 1000) {
-                this.setTitle(windowTitle+" (FPS: "+fps+")");
-                lastFpsTime = 0;
-                fps = 0;
-            }
-
-            if (currentScreen != null) {
-                currentScreen.update(delta);
-                
-                // 게임에서 메인 메뉴로 돌아가기 요청이 있는지 확인
-                if (currentScreen == gameScreen && gameScreen.isRequestingMainMenu()) {
-                    // 메인 메뉴로 전환
-                    setScreen(mainMenuCanvas);
-                    gameScreen.resetMainMenuRequest();
-                } else if (currentScreen == multiplayerGameCanvas && multiplayerGameCanvas != null
-                        && multiplayerGameCanvas.isRequestingLobbyReturn()) {
-                    multiplayerGameCanvas.resetLobbyReturnRequest();
-                    if (multiplayerNetworkAdapter != null && currentClient != null) {
-                        currentClient.removeListener(multiplayerNetworkAdapter);
-                    }
-                    if (multiplayerNetworkAdapter != null) {
-                        multiplayerNetworkAdapter.shutdown();
-                        multiplayerNetworkAdapter = null;
-                    }
-                    if (currentClient != null) {
-                        currentClient.leaveRoom();
-                        showRoomList(currentClient);
-                    } else {
-                        showMainMenu();
-                    }
-                    multiplayerGameCanvas.shutdownNetwork();
-                    multiplayerGameCanvas = null;
-                }
-            }
-
-            // strategy가 null이거나 캔버스가 displayable 상태가 아니면 버퍼 전략 재생성
-            if (strategy == null || !canvas.isDisplayable()) {
-                if (canvas != null && canvas.isDisplayable()) {
-                    canvas.createBufferStrategy(2);
-                    strategy = canvas.getBufferStrategy();
-                } else {
-                    SystemTimer.sleep(10);
-                    continue;
-                }
-            }
-
-            // drawGraphics 얻기 전에 displayable 상태 재확인
-            if (!canvas.isDisplayable()) {
+            if (!ensureBufferStrategy()) {
                 SystemTimer.sleep(10);
                 continue;
             }
 
-            Graphics2D g = null;
-            try {
-                g = (Graphics2D) strategy.getDrawGraphics();
-            } catch (IllegalStateException e) {
-                // 버퍼 전략이 유효하지 않으면 무효화하고 다음 루프에서 재생성
-                strategy = null;
-                SystemTimer.sleep(10);
+            if (!renderFrame()) {
                 continue;
-            }
-            try {
-                g.setColor(Color.black);
-                g.fillRect(0, 0, currentWidth, currentHeight);
-                if (currentScreen != null) currentScreen.render(g);
-            } finally {
-                if (g != null) g.dispose();
-            }
-            if (strategy != null) {
-                try {
-                    strategy.show();
-                } catch (IllegalStateException ise) {
-                    // 전환 타이밍 등으로 peer가 무효화된 경우 다음 루프에서 재시도
-                    strategy = null;
-                }
             }
 
             SystemTimer.sleep(1);
@@ -324,6 +347,26 @@ public class SpaceInvadersApp extends JFrame implements ScreenNavigator {
 		requestSetScreen(roomLobbyCanvas);
 	}
 	
+    private String resolveSelfId(GameClient client, GameInitInfo initInfo) {
+        String resolvedSelfId = client.getSelfId();
+        if ((resolvedSelfId == null || resolvedSelfId.isEmpty()) && initInfo.players != null) {
+            String username = client.getUsername();
+            if (username != null) {
+                for (GameInitInfo.Player p : initInfo.players) {
+                    if (p != null && username.equals(p.username)) {
+                        resolvedSelfId = p.id;
+                        break;
+                    }
+                }
+            }
+            if ((resolvedSelfId == null || resolvedSelfId.isEmpty()) && initInfo.players.size() == 1) {
+                GameInitInfo.Player only = initInfo.players.get(0);
+                resolvedSelfId = only != null ? only.id : null;
+            }
+        }
+        return resolvedSelfId;
+    }
+
 	@Override
 	public void startMultiplayerGame(GameClient client, GameInitInfo initInfo) {
 		if (client == null || initInfo == null) {
@@ -343,22 +386,7 @@ public class SpaceInvadersApp extends JFrame implements ScreenNavigator {
         multiplayerGameCanvas = new MultiplayerGameCanvas();
         multiplayerGameCanvas.setUserManager(userManager);
         multiplayerGameCanvas.setResolutionManager(resolutionManager);
-        String resolvedSelfId = client.getSelfId();
-        if ((resolvedSelfId == null || resolvedSelfId.isEmpty()) && initInfo.players != null) {
-            String username = client.getUsername();
-            if (username != null) {
-                for (GameInitInfo.Player p : initInfo.players) {
-                    if (p != null && username.equals(p.username)) {
-                        resolvedSelfId = p.id;
-                        break;
-                    }
-                }
-            }
-            if ((resolvedSelfId == null || resolvedSelfId.isEmpty()) && initInfo.players.size() == 1) {
-                GameInitInfo.Player only = initInfo.players.get(0);
-                resolvedSelfId = only != null ? only.id : null;
-            }
-        }
+        String resolvedSelfId = resolveSelfId(client, initInfo);
         multiplayerGameCanvas.configureForRemote(multiplayerNetworkAdapter,
                 resolvedSelfId, initInfo);
 		requestSetScreen(multiplayerGameCanvas);
@@ -384,6 +412,12 @@ public class SpaceInvadersApp extends JFrame implements ScreenNavigator {
         // Game 화면 크기도 업데이트
         if (gameScreen != null) {
             gameScreen.setBounds(0, 0, width, height);  
+        }
+        
+        // MultiplayerGameCanvas 해상도도 업데이트
+        if (multiplayerGameCanvas != null) {
+            multiplayerGameCanvas.setBounds(0, 0, width, height);
+            multiplayerGameCanvas.setResolutionManager(resolutionManager);
         }
         
         // 창 크기 재조정
@@ -428,7 +462,23 @@ public class SpaceInvadersApp extends JFrame implements ScreenNavigator {
     }
 
     public static void main(String[] args) {
+        registerFont();
         SpaceInvadersApp app = new SpaceInvadersApp();
         app.runMainLoop();
+    }
+
+    private static void registerFont() {
+        try {
+            InputStream fontStream = SpaceInvadersApp.class.getClassLoader().getResourceAsStream("fonts/Kostar.ttf");
+            if (fontStream != null) {
+                Font kostarFont = Font.createFont(Font.TRUETYPE_FONT, fontStream);
+                GraphicsEnvironment.getLocalGraphicsEnvironment().registerFont(kostarFont);
+                fontStream.close();
+            } else {
+                System.err.println("Kostar 폰트를 로드할 수 없습니다.");
+            }
+        } catch (Exception e) {
+            System.err.println("폰트 로드 중 오류 발생: " + e.getMessage());
+        }
     }
 }
