@@ -1,5 +1,8 @@
 echo Space Invaders 게임을 시작합니다...
 
+PORT=${1:-7777}
+echo "포트: $PORT"
+
 REM JAR 파일이 존재하는지 확인
 if not exist "target\space_invaders-1.0-SNAPSHOT.jar" (
     echo JAR 파일이 없습니다. 먼저 빌드합니다...
@@ -13,4 +16,4 @@ if not exist "target\space_invaders-1.0-SNAPSHOT.jar" (
 
 REM 게임 실행
 echo 게임을 실행합니다...
-java -jar target\space_invaders-1.0-SNAPSHOT.jar
+java -cp target/space_invaders-1.0-SNAPSHOT.jar org.newdawn.spaceinvaders.server.GameServer $PORT
