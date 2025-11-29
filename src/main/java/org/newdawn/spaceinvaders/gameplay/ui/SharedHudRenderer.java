@@ -14,6 +14,8 @@ import org.newdawn.spaceinvaders.gameplay.UIRenderer;
  */
 public final class SharedHudRenderer {
 
+    private static final String DEFAULT_UI_FONT_NAME = "SansSerif";
+
     private BufferedImage cachedHpImage;
     private BufferedImage cachedCoinImage;
 
@@ -162,11 +164,10 @@ public final class SharedHudRenderer {
         g.setStroke(new BasicStroke(1f));
         g.drawRoundRect(startX + 1, startY + 1, panelWidth - 2, panelHeight - 2, 14, 14);
 
-        g.setFont(new Font("SansSerif", Font.BOLD, 16));
-        g.drawString("TIME: " + context.getFormattedPlayTime(), startX + 15, startY + 25);
+        g.setFont(new Font(DEFAULT_UI_FONT_NAME, Font.BOLD, 16));
 
         g.setColor(new Color(255, 215, 0));
-        g.setFont(new Font("SansSerif", Font.BOLD, 16));
+        g.setFont(new Font(DEFAULT_UI_FONT_NAME, Font.BOLD, 16));
         g.drawString("COINS: " + context.getEarnedCoins(), startX + 50, startY + 50);
 
         BufferedImage coin = getCoinImage();
@@ -201,7 +202,7 @@ public final class SharedHudRenderer {
 
         drawSkillCount(g, count, x + size - 6, y + size - 6);
 
-        g.setFont(new Font("SansSerif", Font.BOLD, 10));
+        g.setFont(new Font(DEFAULT_UI_FONT_NAME, Font.BOLD, 10));
         int labelWidth = g.getFontMetrics().stringWidth(label);
         int labelX = x + (size - labelWidth) / 2;
         int labelY = y + size + 12;
@@ -216,7 +217,7 @@ public final class SharedHudRenderer {
         g.setColor(new Color(0, 0, 0, 180));
         g.fillOval(centerX - radius, centerY - radius, radius * 2, radius * 2);
         g.setColor(Color.YELLOW);
-        g.setFont(new Font("SansSerif", Font.BOLD, 10));
+        g.setFont(new Font(DEFAULT_UI_FONT_NAME, Font.BOLD, 10));
         String text = Integer.toString(count);
         int width = g.getFontMetrics().stringWidth(text);
         int height = g.getFontMetrics().getHeight();

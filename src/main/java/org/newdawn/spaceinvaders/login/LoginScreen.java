@@ -12,6 +12,7 @@ import javax.imageio.ImageIO;
  */
 public class LoginScreen {
     private static final String DEFAULT_FONT_NAME = "Arial";
+    private static final String DEFAULT_UI_FONT_NAME = "SansSerif";
     
     private UserManager userManager;
     private LoginInputHandler inputHandler;
@@ -63,16 +64,16 @@ public class LoginScreen {
         } catch (Exception e) {
             System.err.println("Kostar 폰트를 찾을 수 없습니다. OS 기본 폰트를 사용합니다: " + e.getMessage());
             // OS 독립적인 "SansSerif"를 대체 폰트로 사용
-            titleFont = new Font("SansSerif", Font.BOLD, 36);
-            menuFont = new Font("SansSerif", Font.BOLD, 20);
-            inputFont = new Font("SansSerif", Font.PLAIN, 16);
+            titleFont = new Font(DEFAULT_UI_FONT_NAME, Font.BOLD, 36);
+            menuFont = new Font(DEFAULT_UI_FONT_NAME, Font.BOLD, 20);
+            inputFont = new Font(DEFAULT_UI_FONT_NAME, Font.PLAIN, 16);
         }
     }
 
     private void initializeDefaultFonts() {
-        titleFont = new Font("SansSerif", Font.BOLD, 36);
-        menuFont = new Font("SansSerif", Font.BOLD, 20);
-        inputFont = new Font("SansSerif", Font.PLAIN, 16);
+        titleFont = new Font(DEFAULT_UI_FONT_NAME, Font.BOLD, 36);
+        menuFont = new Font(DEFAULT_UI_FONT_NAME, Font.BOLD, 20);
+        inputFont = new Font(DEFAULT_UI_FONT_NAME, Font.PLAIN, 16);
     }
     
     public void handleKeyInput(int keyCode, char keyChar) {

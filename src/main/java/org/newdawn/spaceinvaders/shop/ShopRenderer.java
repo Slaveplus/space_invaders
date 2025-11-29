@@ -15,6 +15,7 @@ import org.newdawn.spaceinvaders.login.UserManager;
  * 확장 가능한 렌더링 시스템
  */
 public class ShopRenderer {
+    private static final String DEFAULT_UI_FONT_NAME = "SansSerif";
     // 상수 정의
     
     private Font titleFont;
@@ -88,10 +89,10 @@ public class ShopRenderer {
     }
     
     private void initializeDefaultFonts() {
-        titleFont = new Font("SansSerif", Font.BOLD, 36);
-        menuFont = new Font("SansSerif", Font.BOLD, 20);
-        itemFont = new Font("SansSerif", Font.BOLD, 16);
-        descriptionFont = new Font("SansSerif", Font.PLAIN, 12);
+        titleFont = new Font(DEFAULT_UI_FONT_NAME, Font.BOLD, 36);
+        menuFont = new Font(DEFAULT_UI_FONT_NAME, Font.BOLD, 20);
+        itemFont = new Font(DEFAULT_UI_FONT_NAME, Font.BOLD, 16);
+        descriptionFont = new Font(DEFAULT_UI_FONT_NAME, Font.PLAIN, 12);
     }
     
     private void loadBackgroundImage() {
@@ -806,7 +807,7 @@ public class ShopRenderer {
             g2d.fillRect(imageX, imageY, imageSize, imageSize);
             g2d.setColor(Color.WHITE);
             g2d.drawRect(imageX, imageY, imageSize, imageSize);
-            g2d.setFont(new Font("SansSerif", Font.PLAIN, 12));
+            g2d.setFont(new Font(DEFAULT_UI_FONT_NAME, Font.PLAIN, 12));
             g2d.drawString("이미지 없음", imageX + 10, imageY + imageSize/2);
         }
     }
@@ -1000,7 +1001,7 @@ public class ShopRenderer {
         
         // 느낌표
         g2d.setColor(Color.RED);
-        g2d.setFont(new Font("SansSerif", Font.BOLD, 20));
+        g2d.setFont(new Font(DEFAULT_UI_FONT_NAME, Font.BOLD, 20));
         g2d.drawString("!", iconX + iconSize/2 - 4, iconY + iconSize - 5);
         
         // 경고 메시지
@@ -1011,7 +1012,7 @@ public class ShopRenderer {
         g2d.drawString(message, messageX, messageY);
         
         // 자동 닫힘 안내
-        g2d.setFont(new Font("SansSerif", Font.PLAIN, 12));
+        g2d.setFont(new Font(DEFAULT_UI_FONT_NAME, Font.PLAIN, 12));
         g2d.setColor(Color.LIGHT_GRAY);
         String autoCloseText = "이 경고창은 자동으로 닫힙니다";
         FontMetrics autoMetrics = g2d.getFontMetrics();
