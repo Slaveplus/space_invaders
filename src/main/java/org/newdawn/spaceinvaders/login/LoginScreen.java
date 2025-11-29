@@ -50,28 +50,29 @@ public class LoginScreen {
     
     private void initializeFonts() {
         try {
-            // Kostar 폰트 로드
-            InputStream fontStream = getClass().getClassLoader().getResourceAsStream("fonts/Kostar.ttf");
-            if (fontStream != null) {
-                Font kostarFont = Font.createFont(Font.TRUETYPE_FONT, fontStream);
+            // "Kostar" 폰트가 등록되었으므로 이름으로 직접 사용
+            Font kostarFont = new Font("Kostar", Font.PLAIN, 12);
+            // 폰트가 정상적으로 로드되었는지 확인
+            if (kostarFont.getFontName().startsWith("Kostar")) {
                 titleFont = kostarFont.deriveFont(Font.BOLD, 36f);
                 menuFont = kostarFont.deriveFont(Font.BOLD, 20f);
                 inputFont = kostarFont.deriveFont(Font.PLAIN, 16f);
-                fontStream.close();
             } else {
-                System.err.println("Kostar 폰트를 로드할 수 없습니다. 기본 폰트를 사용합니다.");
-                initializeDefaultFonts();
+                throw new Exception("Kostar font not found.");
             }
         } catch (Exception e) {
-            System.err.println("폰트 로드 중 오류 발생: " + e.getMessage());
-            initializeDefaultFonts();
+            System.err.println("Kostar 폰트를 찾을 수 없습니다. OS 기본 폰트를 사용합니다: " + e.getMessage());
+            // OS 독립적인 "SansSerif"를 대체 폰트로 사용
+            titleFont = new Font("SansSerif", Font.BOLD, 36);
+            menuFont = new Font("SansSerif", Font.BOLD, 20);
+            inputFont = new Font("SansSerif", Font.PLAIN, 16);
         }
     }
-    
+
     private void initializeDefaultFonts() {
-        titleFont = new Font(DEFAULT_FONT_NAME, Font.BOLD, 36);
-        menuFont = new Font(DEFAULT_FONT_NAME, Font.BOLD, 20);
-        inputFont = new Font(DEFAULT_FONT_NAME, Font.PLAIN, 16);
+        titleFont = new Font("SansSerif", Font.BOLD, 36);
+        menuFont = new Font("SansSerif", Font.BOLD, 20);
+        inputFont = new Font("SansSerif", Font.PLAIN, 16);
     }
     
     public void handleKeyInput(int keyCode, char keyChar) {

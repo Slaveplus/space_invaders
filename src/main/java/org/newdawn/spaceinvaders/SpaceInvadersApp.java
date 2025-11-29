@@ -16,6 +16,7 @@ import org.newdawn.spaceinvaders.room.RoomLobbyCanvas;
 import javax.swing.*;
 import java.awt.*;
 import java.awt.image.BufferStrategy;
+import java.io.InputStream;
 
 /**
  * 애플리케이션 프레임. 창, 메인 루프, 화면 전환을 관리합니다.
@@ -433,7 +434,23 @@ public class SpaceInvadersApp extends JFrame implements ScreenNavigator {
     }
 
     public static void main(String[] args) {
+        registerFont();
         SpaceInvadersApp app = new SpaceInvadersApp();
         app.runMainLoop();
+    }
+
+    private static void registerFont() {
+        try {
+            InputStream fontStream = SpaceInvadersApp.class.getClassLoader().getResourceAsStream("fonts/Kostar.ttf");
+            if (fontStream != null) {
+                Font kostarFont = Font.createFont(Font.TRUETYPE_FONT, fontStream);
+                GraphicsEnvironment.getLocalGraphicsEnvironment().registerFont(kostarFont);
+                fontStream.close();
+            } else {
+                System.err.println("Kostar 폰트를 로드할 수 없습니다.");
+            }
+        } catch (Exception e) {
+            System.err.println("폰트 로드 중 오류 발생: " + e.getMessage());
+        }
     }
 }

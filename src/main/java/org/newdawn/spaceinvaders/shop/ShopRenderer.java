@@ -16,7 +16,6 @@ import org.newdawn.spaceinvaders.login.UserManager;
  */
 public class ShopRenderer {
     // 상수 정의
-    private static final String DEFAULT_FONT_NAME = "Arial";
     
     private Font titleFont;
     private Font menuFont;
@@ -70,32 +69,29 @@ public class ShopRenderer {
     
     private void initializeFonts() {
         try {
-            // Kostar 폰트 로드
-            InputStream fontStream = getClass().getClassLoader().getResourceAsStream("fonts/Kostar.ttf");
-            if (fontStream != null) {
-                Font kostarFont = Font.createFont(Font.TRUETYPE_FONT, fontStream);
+            // "Kostar" 폰트가 등록되었으므로 이름으로 직접 사용
+            Font kostarFont = new Font("Kostar", Font.PLAIN, 12);
+            // 폰트가 정상적으로 로드되었는지 확인
+            if (kostarFont.getFontName().startsWith("Kostar")) {
                 titleFont = kostarFont.deriveFont(Font.BOLD, 36f);
                 menuFont = kostarFont.deriveFont(Font.BOLD, 20f);
                 itemFont = kostarFont.deriveFont(Font.BOLD, 16f);
                 descriptionFont = kostarFont.deriveFont(Font.PLAIN, 12f);
-                fontStream.close();
             } else {
-                // 폰트 로드 실패 시 기본 폰트 사용
-                System.err.println("Kostar 폰트를 로드할 수 없습니다. 기본 폰트를 사용합니다.");
-                initializeDefaultFonts();
+                throw new Exception("Kostar font not found.");
             }
         } catch (Exception e) {
-            System.err.println("폰트 로드 중 오류 발생: " + e.getMessage());
-            // 오류 발생 시 기본 폰트 사용
+            System.err.println("Kostar 폰트를 찾을 수 없습니다. OS 기본 폰트를 사용합니다: " + e.getMessage());
+            // OS 독립적인 "SansSerif"를 대체 폰트로 사용
             initializeDefaultFonts();
         }
     }
     
     private void initializeDefaultFonts() {
-        titleFont = new Font(DEFAULT_FONT_NAME, Font.BOLD, 36);
-        menuFont = new Font(DEFAULT_FONT_NAME, Font.BOLD, 20);
-        itemFont = new Font(DEFAULT_FONT_NAME, Font.BOLD, 16);
-        descriptionFont = new Font(DEFAULT_FONT_NAME, Font.PLAIN, 12);
+        titleFont = new Font("SansSerif", Font.BOLD, 36);
+        menuFont = new Font("SansSerif", Font.BOLD, 20);
+        itemFont = new Font("SansSerif", Font.BOLD, 16);
+        descriptionFont = new Font("SansSerif", Font.PLAIN, 12);
     }
     
     private void loadBackgroundImage() {
@@ -810,7 +806,7 @@ public class ShopRenderer {
             g2d.fillRect(imageX, imageY, imageSize, imageSize);
             g2d.setColor(Color.WHITE);
             g2d.drawRect(imageX, imageY, imageSize, imageSize);
-            g2d.setFont(new Font(DEFAULT_FONT_NAME, Font.PLAIN, 12));
+            g2d.setFont(new Font("SansSerif", Font.PLAIN, 12));
             g2d.drawString("이미지 없음", imageX + 10, imageY + imageSize/2);
         }
     }
@@ -1004,7 +1000,7 @@ public class ShopRenderer {
         
         // 느낌표
         g2d.setColor(Color.RED);
-        g2d.setFont(new Font(DEFAULT_FONT_NAME, Font.BOLD, 20));
+        g2d.setFont(new Font("SansSerif", Font.BOLD, 20));
         g2d.drawString("!", iconX + iconSize/2 - 4, iconY + iconSize - 5);
         
         // 경고 메시지
@@ -1015,7 +1011,7 @@ public class ShopRenderer {
         g2d.drawString(message, messageX, messageY);
         
         // 자동 닫힘 안내
-        g2d.setFont(new Font(DEFAULT_FONT_NAME, Font.PLAIN, 12));
+        g2d.setFont(new Font("SansSerif", Font.PLAIN, 12));
         g2d.setColor(Color.LIGHT_GRAY);
         String autoCloseText = "이 경고창은 자동으로 닫힙니다";
         FontMetrics autoMetrics = g2d.getFontMetrics();
